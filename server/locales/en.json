@@ -323,7 +323,7 @@
     "synced": "Synced",
     "finding": "Finding your place…",
     "findingDetail": "Syncing the book: {{done}} of {{total}} parts",
-    "setPlace": "Click to set your place here",
+    "playFromHere": "Click to play from here",
     "textSize": "Text size: {{size}} px",
     "chooseAnother": "Choose another EPUB",
     "chooseAnotherShort": "Choose another",

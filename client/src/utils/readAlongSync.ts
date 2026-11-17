@@ -243,3 +243,32 @@ export function positionAt(index: BookIndex, anchors: SyncAnchor[], timeSec: num
   const clamped = Math.min(Math.max(Math.round(wordIndex), 0), index.words.length - 1);
   return { paragraphIndex: index.paragraphOfWord[clamped], synced: nearestSec <= SYNCED_SEC };
 }
+
+/**
+ * The reverse of positionAt: the audio time where a paragraph starts, for
+ * "play from here". Only answers inside the synced range (or within
+ * SYNCED_SEC of it), so a click never jumps to a guessed time.
+ */
+export function timeAtParagraph(index: BookIndex, anchors: SyncAnchor[], paragraphIndex: number): number | null {
+  const wordIndex = index.firstWordOfParagraph[paragraphIndex];
+  if (anchors.length < 2 || wordIndex === undefined) return null;
+  // Anchors increase in both time and wordIndex: find the pair around the word.
+  let lo = 0;
+  let hi = anchors.length - 1;
+  if (wordIndex <= anchors[0].wordIndex) hi = 1;
+  else if (wordIndex >= anchors[hi].wordIndex) lo = hi - 1;
+  else {
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (anchors[mid].wordIndex <= wordIndex) lo = mid;
+      else hi = mid;
+    }
+  }
+  const a = anchors[lo];
+  const b = anchors[hi];
+  const r = rate(a, b);
+  if (!r) return null;
+  const timeSec = a.timeSec + (wordIndex - a.wordIndex) / r;
+  const outside = Math.max(anchors[0].timeSec - timeSec, timeSec - anchors[anchors.length - 1].timeSec, 0);
+  return outside <= SYNCED_SEC ? Math.max(timeSec, 0) : null;
+}

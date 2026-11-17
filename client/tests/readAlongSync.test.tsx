@@ -8,6 +8,7 @@ import {
   mergeManualAnchors,
   normalizeWords,
   positionAt,
+  timeAtParagraph,
 } from '../src/utils/readAlongSync';
 
 // 10 paragraphs of 10 distinct words each: word n is "wn", paragraph p holds words 10p–10p+9.
@@ -134,4 +135,23 @@ test('a manual anchor wins over automatic anchors within 60 s', () => {
 
 test('ignores manual anchors for paragraphs the book does not have', () => {
   assert.deepEqual(mergeManualAnchors(index, [], [{ timeSec: 10, paragraphIndex: 99 }]), []);
+});
+
+test('finds the audio time where a paragraph starts, only inside the synced range', () => {
+  // 10 words per paragraph; anchors: word 0 at 0 s, word 50 at 20 s, word 90 at 36 s (2.5 words/s).
+  const anchors = [
+    { timeSec: 0, wordIndex: 0 },
+    { timeSec: 20, wordIndex: 50 },
+    { timeSec: 36, wordIndex: 90 },
+  ];
+  assert.equal(timeAtParagraph(index, anchors, 0), 0);
+  assert.equal(timeAtParagraph(index, anchors, 3), 12);
+  assert.equal(timeAtParagraph(index, anchors, 7), 28);
+  // Too few anchors to know the pace: no jump.
+  assert.equal(timeAtParagraph(index, anchors.slice(0, 1), 3), null);
+  // Far beyond the last anchor (word 90 + 300 words at 2.5 words/s = 120 s later): no jump.
+  const big = buildBookIndex(Array.from({ length: 50 }, (_, p) => ({
+    text: Array.from({ length: 10 }, (_, k) => `x${p * 10 + k}`).join(' '),
+  })));
+  assert.equal(timeAtParagraph(big, anchors, 39), null);
 });

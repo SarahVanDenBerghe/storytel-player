@@ -4,7 +4,7 @@ import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
 import {useAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
-import {buildBookIndex, matchTranscript, mergeManualAnchors, positionAt} from '../utils/readAlongSync';
+import {buildBookIndex, matchTranscript, positionAt, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 
 // Persisted reading text size (px), stored as a number.
@@ -232,15 +232,11 @@ function ReadingView() {
     const syncData = sync?.bookId === bookId ? sync : null;
     const bookIndex = useMemo(() => (paragraphs ? buildBookIndex(paragraphs) : null), [paragraphs]);
     const segments = syncData?.segments ?? null;
-    const manualAnchors = syncData?.manualAnchors ?? NO_MANUAL_ANCHORS;
-    // Recomputed only when a chunk arrives (new segments) or a manual anchor is set.
-    const autoAnchors = useMemo(
+    // Recomputed only when a chunk arrives (new segments). Manual anchors are no
+    // longer used: a click now moves the audio to the text, not the other way round.
+    const anchors = useMemo(
         () => (bookIndex && segments ? matchTranscript(bookIndex, segments) : []),
         [bookIndex, segments],
-    );
-    const anchors = useMemo(
-        () => (bookIndex ? mergeManualAnchors(bookIndex, autoAnchors, manualAnchors) : []),
-        [bookIndex, autoAnchors, manualAnchors],
     );
     const syncedPosition = showPosition && bookIndex ? positionAt(bookIndex, anchors, audio.currentTime) : null;
     const currentIndex = !showPosition
@@ -262,25 +258,22 @@ function ReadingView() {
         chipDetail = problem && syncProgress.message ? syncProgress.message : t('readAlong.estimatedDetail');
     }
 
-    // Set my place by hand: a click on a paragraph (not the end of a text selection).
-    const canSetPlace = isThisBook && !!epubApi;
-    const setPlaceTitle = canSetPlace ? t('readAlong.setPlace') : undefined;
+    // Play from here: a click on a paragraph (not the end of a text selection)
+    // moves the audio to where that paragraph is read, inside the synced range only.
+    const canSetPlace = isThisBook && bookIndex !== null && anchors.length >= 2;
+    const setPlaceTitle = canSetPlace ? t('readAlong.playFromHere') : undefined;
     const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
-        if (!bookId || !canSetPlace || !epubApi) return;
+        if (!canSetPlace || !bookIndex) return;
         // Part of a double or triple click: the user is selecting words.
         if (e.detail > 1) return;
         if ((window.getSelection()?.toString() ?? '') !== '') return;
         const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index]');
         const paragraphIndex = Number(el?.dataset.index);
         if (!el || !Number.isInteger(paragraphIndex)) return;
-        epubApi.setManualAnchor(bookId, audio.currentTime, paragraphIndex)
-            .then((saved) => {
-                setSync((prev) => prev?.bookId === bookId
-                    ? {...prev, manualAnchors: saved}
-                    : {bookId, progress: null, segments: null, manualAnchors: saved});
-                setFollowing(true);
-            })
-            .catch((err) => console.error('Read along: cannot save your place', err));
+        const timeSec = timeAtParagraph(bookIndex, anchors, paragraphIndex);
+        if (timeSec === null) return;
+        audio.seek(timeSec);
+        setFollowing(true);
     };
 
     // Follow mode: keep the current paragraph centred.
