@@ -1,5 +1,6 @@
 {
   "name": "storytel-player",
+  "productName": "Storytel Player (Personal)",
   "version": "1.5.0",
   "email": "andrea@debbaweb.it",
   "description": "Storytel Unofficial Player - Storytel audiobook player for desktop",
@@ -70,8 +71,8 @@
     "typescript": "^5.9.3"
   },
   "build": {
-    "appId": "com.storytel.player",
-    "productName": "Storytel Player",
+    "appId": "com.storytel.player.personal",
+    "productName": "Storytel Player (Personal)",
     "directories": {
       "output": "dist",
       "buildResources": "assets"
