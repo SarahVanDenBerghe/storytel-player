@@ -88,6 +88,8 @@ declare global {
       choose: (bookId: string) => Promise<{ name: string } | null>;
       /** Stores a dropped file's path; rejects when it is not an .epub. */
       setPath: (bookId: string, path: string) => Promise<{ name: string }>;
+      /** Gives other books (the other parts of a multi-part book) the same stored EPUB. */
+      link: (fromBookId: string, toBookIds: string[]) => Promise<void>;
       /** File name of the stored EPUB, or null when none is stored or the file is gone. */
       name: (bookId: string) => Promise<string | null>;
       /** Text entries of the stored EPUB, or null when none is stored or the file is gone. */

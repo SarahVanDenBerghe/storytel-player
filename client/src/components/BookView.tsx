@@ -3,13 +3,15 @@ import {useLocation, useNavigate, useParams} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {BookShelfEntity} from "../interfaces/books";
 import Navbar from './Navbar';
-import {addToBookshelfErrorKey, buildCoverUrl, localizedLanguageName, removeFromBookshelfErrorKey, truncateTitle} from '../utils/helpers';
+import {addToBookshelfErrorKey, buildCoverUrl, otherBookParts, removeFromBookshelfErrorKey, truncateTitle} from '../utils/helpers';
+import {useAudioContext} from '../contexts/AudioContext';
 import ConfirmRemoveBookModal from './ConfirmRemoveBookModal';
 import api from '../utils/api';
 import "../types/window.d.ts";
 
 function BookView() {
-    const {t, i18n} = useTranslation();
+    const {t} = useTranslation();
+    const audio = useAudioContext();
     const {bookId} = useParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -21,10 +23,9 @@ function BookView() {
 
     const book: BookShelfEntity | null = location.state?.book || fetchedBook;
 
-    // description and language are not part of the bookshelf payload; they come
-    // from the per-book book-details endpoint, fetched lazily below.
+    // The description is not part of the bookshelf payload; it comes from the
+    // per-book book-details endpoint, fetched lazily below.
     const [description, setDescription] = useState('');
-    const [language, setLanguage] = useState('');
 
     useEffect(() => {
         if (!location.state?.book && bookId) {
@@ -61,7 +62,6 @@ function BookView() {
                     };
                     setFetchedBook(entity);
                     setDescription(data.description || '');
-                    setLanguage(localizedLanguageName(data.language, i18n.language));
                 })
                 .catch((err) => {
                     console.error('Failed to fetch book details:', err);
@@ -71,7 +71,7 @@ function BookView() {
                     setIsLoading(false);
                 });
         }
-    }, [bookId, location.state, i18n.language, t]);
+    }, [bookId, location.state, t]);
 
     useEffect(() => {
         if (book) {
@@ -83,7 +83,7 @@ function BookView() {
         };
     }, [book]);
 
-    // Fetch description and language from the book-details endpoint if book was passed via state.
+    // Fetch the description from the book-details endpoint if book was passed via state.
     useEffect(() => {
         const consumableId = book?.book?.consumableId;
         if (!consumableId || fetchedBook) return;
@@ -93,7 +93,6 @@ function BookView() {
                 if (cancelled) return;
                 const data = res.data || {};
                 setDescription(data.description || '');
-                setLanguage(localizedLanguageName(data.language, i18n.language));
             })
             .catch(() => {
                 /* keep empty fallbacks on failure */
@@ -101,7 +100,7 @@ function BookView() {
         return () => {
             cancelled = true;
         };
-    }, [book, fetchedBook, i18n.language]);
+    }, [book, fetchedBook]);
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(!!location.state?.book);
@@ -163,25 +162,67 @@ function BookView() {
     const epubApi = window.electronEpub;
     const [epubName, setEpubName] = useState<string | null>(null);
     const [epubSyncing, setEpubSyncing] = useState(false);
+    const bookName = book?.book?.name;
     useEffect(() => {
-        if (!bookId || !window.electronEpub) return;
+        const epub = window.electronEpub;
+        if (!bookId || !epub || !book) return;
         let alive = true;
         setEpubName(null);
         setEpubSyncing(false);
-        window.electronEpub.name(bookId)
-            .then((name) => alive && setEpubName(name))
-            .catch(() => undefined);
+        (async () => {
+            let name = await epub.name(bookId);
+            if (!name) {
+                // Another part of a multi-part book may already have one: share it.
+                const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
+                for (const part of otherBookParts(book, shelf)) {
+                    const partId = String(part.abook?.id || part.id);
+                    if (await epub.name(partId)) {
+                        await epub.link(partId, [bookId]);
+                        name = await epub.name(bookId);
+                        break;
+                    }
+                }
+            }
+            if (alive) setEpubName(name);
+        })().catch(() => undefined);
         return () => {
             alive = false;
         };
-    }, [bookId]);
+        // Re-run per book, not per render of the same book entity.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bookId, bookName]);
+
+    // The EPUB popover (file name, replace with confirmation). Cancelling the file
+    // dialog keeps the current EPUB.
+    const [epubMenu, setEpubMenu] = useState<'closed' | 'open' | 'confirmReplace'>('closed');
+    const epubMenuRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (epubMenu === 'closed') return;
+        const closeOutside = (e: MouseEvent) => {
+            if (!epubMenuRef.current?.contains(e.target as Node)) setEpubMenu('closed');
+        };
+        const closeOnEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setEpubMenu('closed');
+        };
+        document.addEventListener('mousedown', closeOutside);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOutside);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [epubMenu]);
 
     const chooseEpub = async () => {
-        if (!bookId || !epubApi) return;
+        setEpubMenu('closed');
+        if (!bookId || !epubApi || !book) return;
         try {
             const chosen = await epubApi.choose(bookId);
             if (!chosen) return;
             setEpubName(chosen.name);
+            // The other parts of a multi-part book read from the same EPUB.
+            const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
+            const parts = otherBookParts(book, shelf).map((part: BookShelfEntity) => String(part.abook?.id || part.id));
+            if (parts.length > 0) await epubApi.link(bookId, parts);
             const progress = await epubApi.syncStart(bookId, 0);
             setEpubSyncing(progress.state === 'running');
         } catch (err) {
@@ -189,8 +230,10 @@ function BookView() {
         }
     };
 
+    // The cover is the play button: start or continue here; the footer player shows it.
     const handlePlayBook = () => {
-        navigate(`/player/${bookId}`, {state: {book, autoPlay: true}});
+        if (!bookId) return;
+        void audio.loadBook(book, bookId, true);
     };
 
     // Show the "show more" toggle only when the 4-line clamp actually cuts text.
@@ -268,12 +311,21 @@ function BookView() {
         ? `${series.name}${book.book.seriesOrder ? ` ${book.book.seriesOrder}` : ''}`
         : '';
 
-    const details = [
+    // Dramatized adaptations list a dozen narrators: show two, the rest on hover.
+    const narrators = (book.abook?.narratorAsString || '').split(',').map((n) => n.trim()).filter(Boolean);
+    const narratorText = narrators.length > 2
+        ? `${narrators.slice(0, 2).join(', ')} ${t('bookView.moreNarrators', {count: narrators.length - 2})}`
+        : narrators.join(', ');
+
+    const details: {label: string; value: string; title?: string}[] = [
         {label: t('bookView.duration'), value: totalDuration > 0 ? formatDuration(totalDuration) : ''},
-        {label: t('bookView.narrator'), value: book.abook?.narratorAsString || ''},
-        {label: t('bookView.language'), value: language},
+        {label: t('bookView.narrator'), value: narratorText, title: narrators.length > 2 ? narrators.join(', ') : undefined},
         {label: t('bookView.category'), value: book.book.category?.title || ''},
     ].filter((d) => d.value);
+
+    const playLabel = hasProgress
+        ? t('bookView.continueWithProgress', {defaultValue: 'Continue · {{percent}}%', percent: progressPercent})
+        : t('bookView.listen', 'Listen');
 
     const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 
@@ -291,112 +343,163 @@ function BookView() {
                 </div>
             )}
 
-            <div className="m-auto w-full max-w-[880px] flex flex-wrap items-center gap-10">
-                {/* Book Cover */}
-                <img
-                    src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
-                    alt={book.book.name}
-                    className="flex-[0_0_220px] w-[220px] h-[220px] object-cover rounded-[14px] shadow-[0_20px_50px_rgba(0,0,0,0.55)]"
-                />
-
-                <div className="flex-[1_1_360px] min-w-0 flex flex-col gap-3.5">
-                    {/* Title, author, series */}
-                    <div>
-                        <h1 className="text-[20px] font-semibold leading-[1.3] break-words">{book.book.name}</h1>
-                        {(book.book.authorsAsString || seriesLabel) && (
-                            <p className="mt-1.5 text-[13px] text-[#D1D5DB]">
-                                {book.book.authorsAsString}
-                                {seriesLabel && (
-                                    <span className="text-[#9CA3AF]">
-                                        {book.book.authorsAsString ? ' · ' : ''}{seriesLabel}
-                                    </span>
-                                )}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Details */}
-                    {details.length > 0 && (
-                        <dl className="grid grid-cols-4 gap-3 py-3.5 border-y border-white/[0.08]">
-                            {details.map((d) => (
-                                <div key={d.label} className="min-w-0">
-                                    <dt className="text-[11px] text-[#9CA3AF]">{d.label}</dt>
-                                    <dd className="mt-0.5 text-[13px] break-words">{d.value}</dd>
-                                </div>
-                            ))}
-                        </dl>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
+            <div className="m-auto w-full max-w-[880px] flex flex-col gap-8">
+                {/* Header: cover (the play button) | metadata */}
+                <div className="flex flex-wrap items-end gap-7">
+                    <div className="flex-[0_0_180px] flex flex-col items-center gap-2">
                         <button
                             type="button"
                             onClick={handlePlayBook}
-                            className={`h-10 px-[18px] rounded-[10px] bg-[#FF5100] hover:bg-[#ff641a] text-[#0A0A0A] text-[14px] font-semibold flex items-center gap-2 transition-colors ${focusRing}`}
+                            aria-label={playLabel}
+                            title={playLabel}
+                            className={`group/cover relative w-[180px] h-[180px] rounded-[14px] overflow-hidden bg-[#1F2937] border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.55)] ${focusRing}`}
                         >
-                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/>
-                            </svg>
-                            {hasProgress
-                                ? t('bookView.continueWithProgress', {defaultValue: 'Continue · {{percent}}%', percent: progressPercent})
-                                : t('bookView.listen', 'Listen')}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={isSaved ? () => setShowRemoveConfirm(true) : handleSaveToLibrary}
-                            disabled={isSaving}
-                            title={isSaved ? t('bookshelf.remove') : undefined}
-                            className={`group/save h-10 px-3.5 rounded-[10px] border border-white/[0.14] bg-transparent text-[#D1D5DB] text-[13px] flex items-center gap-2 transition-colors hover:bg-white/[0.06] disabled:opacity-60 ${
-                                isSaved ? 'hover:text-red-300 hover:border-red-400/40' : 'hover:text-white'
-                            } ${focusRing}`}
-                        >
-                            {isSaving ? (
-                                <span aria-hidden="true" className="h-3.5 w-3.5 rounded-full border-2 border-white/15 border-t-[#FF5100] animate-spin"/>
-                            ) : isSaved ? (
-                                <>
-                                    <svg aria-hidden="true" className="group-hover/save:hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M5 12l5 5 9-10"/>
+                            <img
+                                src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
+                                alt=""
+                                className="w-full h-full object-cover"
+                            />
+                            <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 group-hover/cover:opacity-100 group-focus-visible/cover:opacity-100 transition-opacity">
+                                <span className="w-14 h-14 rounded-full bg-[#FF5100] text-[#0A0A0A] flex items-center justify-center shadow-[0_6px_20px_rgba(255,81,0,0.35)]">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/>
                                     </svg>
-                                    <svg aria-hidden="true" className="hidden group-hover/save:block" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                    </svg>
-                                </>
-                            ) : (
-                                <svg aria-hidden="true" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 5v14m7-7H5"/>
-                                </svg>
-                            )}
-                            <span className={isSaved ? 'group-hover/save:hidden' : undefined}>
-                                {isSaved ? t('bookView.inLibrary') : t('bookView.addToLibrary')}
+                                </span>
                             </span>
-                            {isSaved && (
-                                <span className="hidden group-hover/save:inline">{t('bookshelf.remove')}</span>
+                            {hasProgress && (
+                                <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+                                    <span className="block h-full bg-[#FF5100]" style={{width: `${progressPercent}%`}}/>
+                                </span>
                             )}
                         </button>
-
-                        {epubApi && (
-                            <button
-                                type="button"
-                                onClick={chooseEpub}
-                                className={`h-10 px-3.5 rounded-[10px] border border-white/[0.14] bg-transparent text-[#D1D5DB] text-[13px] flex items-center gap-2 transition-colors hover:bg-white/[0.06] hover:text-white ${focusRing}`}
-                            >
-                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
-                                </svg>
-                                {epubName ? t('bookView.changeEpub') : t('bookView.chooseEpub')}
-                            </button>
+                        {hasProgress && (
+                            <span className="text-[12px] text-[#9CA3AF] tabular-nums">
+                                {t('bookView.progress', {percent: progressPercent})}
+                            </span>
                         )}
                     </div>
-                    {epubName && (
-                        <p className="-mt-2 text-[12px] text-[#9CA3AF] break-words">
-                            {t('bookView.epubAttached', {name: epubName})}
-                            {epubSyncing && <> · {t('bookView.epubSyncing')}</>}
-                        </p>
-                    )}
 
-                    {/* Description */}
+                    <div className="flex-[1_1_360px] min-w-0 flex flex-col gap-3.5">
+                        {/* Title, author, series */}
+                        <div>
+                            <h1 className="text-[20px] font-semibold leading-[1.3] break-words">{book.book.name}</h1>
+                            {(book.book.authorsAsString || seriesLabel) && (
+                                <p className="mt-1.5 text-[13px] text-[#D1D5DB]">
+                                    {book.book.authorsAsString}
+                                    {seriesLabel && (
+                                        <span className="text-[#9CA3AF]">
+                                            {book.book.authorsAsString ? ' · ' : ''}{seriesLabel}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Details */}
+                        {details.length > 0 && (
+                            <dl className="grid grid-cols-3 gap-3 py-3.5 border-y border-white/[0.08]">
+                                {details.map((d) => (
+                                    <div key={d.label} className="min-w-0">
+                                        <dt className="text-[11px] text-[#9CA3AF]">{d.label}</dt>
+                                        <dd className="mt-0.5 text-[13px] break-words" title={d.title}>{d.value}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={isSaved ? () => setShowRemoveConfirm(true) : handleSaveToLibrary}
+                                disabled={isSaving}
+                                title={isSaved ? t('bookshelf.remove') : undefined}
+                                className={`group/save h-10 px-3.5 rounded-[10px] border border-white/[0.14] bg-transparent text-[#D1D5DB] text-[13px] flex items-center gap-2 transition-colors hover:bg-white/[0.06] disabled:opacity-60 ${
+                                    isSaved ? 'hover:text-red-300 hover:border-red-400/40' : 'hover:text-white'
+                                } ${focusRing}`}
+                            >
+                                {isSaving ? (
+                                    <span aria-hidden="true" className="h-3.5 w-3.5 rounded-full border-2 border-white/15 border-t-[#FF5100] animate-spin"/>
+                                ) : isSaved ? (
+                                    <>
+                                        <svg aria-hidden="true" className="group-hover/save:hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M5 12l5 5 9-10"/>
+                                        </svg>
+                                        <svg aria-hidden="true" className="hidden group-hover/save:block" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </>
+                                ) : (
+                                    <svg aria-hidden="true" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 5v14m7-7H5"/>
+                                    </svg>
+                                )}
+                                <span className={isSaved ? 'group-hover/save:hidden' : undefined}>
+                                    {isSaved ? t('bookView.inLibrary') : t('bookView.addToLibrary')}
+                                </span>
+                                {isSaved && (
+                                    <span className="hidden group-hover/save:inline">{t('bookshelf.remove')}</span>
+                                )}
+                            </button>
+
+                            {epubApi && (
+                                <div className="relative" ref={epubMenuRef}>
+                                    <button
+                                        type="button"
+                                        onClick={epubName ? () => setEpubMenu(epubMenu === 'closed' ? 'open' : 'closed') : chooseEpub}
+                                        aria-expanded={epubName ? epubMenu !== 'closed' : undefined}
+                                        className={`h-10 px-3.5 rounded-[10px] border border-white/[0.14] bg-transparent text-[#D1D5DB] text-[13px] flex items-center gap-2 transition-colors hover:bg-white/[0.06] hover:text-white ${focusRing}`}
+                                    >
+                                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                             strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
+                                        </svg>
+                                        {epubName ? t('bookView.epub') : t('bookView.chooseEpub')}
+                                    </button>
+                                    {epubName && epubMenu !== 'closed' && (
+                                        <div className="absolute top-full left-0 mt-1.5 w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2">
+                                            <div className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">{t('bookView.epubTitle')}</div>
+                                            <div className="text-[13px] text-[#E5E7EB] break-words">{epubName}</div>
+                                            {epubSyncing && <div className="text-[12px] text-[#9CA3AF]">{t('bookView.epubSyncing')}</div>}
+                                            {epubMenu === 'open' ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEpubMenu('confirmReplace')}
+                                                    className={`self-start mt-1 h-8 px-3 rounded-[8px] bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white text-[12px] font-semibold transition-colors ${focusRing}`}
+                                                >
+                                                    {t('bookView.replaceEpub')}
+                                                </button>
+                                            ) : (
+                                                <div role="alertdialog" aria-label={t('bookView.replaceEpub')} className="mt-1 flex flex-col gap-2">
+                                                    <p className="text-[12px] leading-[1.5] text-[#D1D5DB]">{t('bookView.replaceConfirm', {name: epubName})}</p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEpubMenu('open')}
+                                                            className={`h-8 px-3 rounded-[8px] bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] text-[12px] font-semibold transition-colors ${focusRing}`}
+                                                        >
+                                                            {t('common.cancel')}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={chooseEpub}
+                                                            className={`h-8 px-3 rounded-[8px] bg-[#FF5100] hover:bg-[#ff641a] text-[#0A0A0A] text-[12px] font-semibold transition-colors ${focusRing}`}
+                                                        >
+                                                            {t('bookView.chooseNewFile')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    {/* Summary */}
                     <div>
                         <p
                             ref={descriptionRef}

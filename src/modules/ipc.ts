@@ -234,6 +234,17 @@ export class IpcManager {
       (_event: IpcMainInvokeEvent, bookId: string, filePath: string) => storePath(bookId, filePath)
     );
 
+    // Give other books (the other parts of a multi-part book) the same EPUB.
+    ipcMain.handle('epub:link', (_event: IpcMainInvokeEvent, fromBookId: unknown, toBookIds: unknown) => {
+      const paths = getPaths();
+      const filePath = typeof fromBookId === 'string' ? paths[fromBookId] : undefined;
+      if (!filePath || !Array.isArray(toBookIds)) return;
+      for (const id of toBookIds) {
+        if (typeof id === 'string' && id) paths[id] = filePath;
+      }
+      storeManager.set(STORE_KEY, paths);
+    });
+
     // File name of the stored EPUB, or null when none is stored or the file is gone.
     ipcMain.handle('epub:name', (_event: IpcMainInvokeEvent, bookId: string) => {
       const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;

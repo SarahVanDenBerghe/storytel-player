@@ -152,9 +152,14 @@
     "loadError": "Failed to load book details",
     "continueWithProgress": "Continue · {{percent}}%",
     "chooseEpub": "Choose EPUB",
-    "changeEpub": "Change EPUB",
-    "epubAttached": "Read-along EPUB: {{name}}",
-    "epubSyncing": "Syncing with the audio in the background"
+    "epub": "EPUB",
+    "epubTitle": "Read-along EPUB",
+    "epubSyncing": "Syncing with the audio in the background",
+    "replaceEpub": "Replace EPUB…",
+    "replaceConfirm": "Replace {{name}}? Read along will use the new file instead.",
+    "chooseNewFile": "Choose new file",
+    "progress": "{{percent}}% listened",
+    "moreNarrators": "+{{count}} more"
   },
   "chapters": {
     "title": "Audio Tracks & Chapters",

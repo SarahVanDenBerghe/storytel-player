@@ -169,6 +169,24 @@ export const truncateTitle = (title: string, maxLength: number = 30): string => 
 // Shorten a raw Storytel title for compact cards: drop a "[...]" edition tag and
 // everything after it, pull "(n of m)" out as a part number, and (only when there
 // was no tag) cut the subtitle after the first ": ".
+/**
+ * The other parts of a multi-part book ("Golden Son (1 of 2)" and "(2 of 2)") on
+ * the shelf. Storytel's series data is empty for these, so parts are matched by
+ * cleaned title, part count and author.
+ */
+export const otherBookParts = (book: BookShelfEntity, shelf: BookShelfEntity[]): BookShelfEntity[] => {
+    const own = cleanBookTitle(book.book?.name || '');
+    if (!own.part) return [];
+    return shelf.filter((other) => {
+        const parsed = cleanBookTitle(other.book?.name || '');
+        return parsed.part !== undefined
+            && parsed.part.n !== own.part!.n
+            && parsed.part.total === own.part!.total
+            && parsed.title === own.title
+            && other.book?.authorsAsString === book.book?.authorsAsString;
+    });
+};
+
 export const cleanBookTitle = (raw: string): { title: string; part?: { n: number; total: number } } => {
     let title = raw;
     const tagIndex = title.search(/\[[^\]]*\]/);
