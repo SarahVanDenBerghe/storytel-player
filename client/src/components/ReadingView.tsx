@@ -21,8 +21,8 @@ const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home
 const READING_LINE = 0.4;
 // Between two reports of the audio time, predict at most this far ahead (audio seconds).
 const MAX_PREDICTION_SEC = 1;
-// The follow dot's left edge sits this far left of the text column (8 px dot, centred 16 px out).
-const DOT_OFFSET = 20;
+// The follow dot's left edge sits this far left of the text column (6 px dot, centred 27 px out).
+const DOT_OFFSET = 30;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
@@ -463,7 +463,7 @@ function ReadingView() {
                 {following && currentIndex >= 0 && dotLeft !== null && (
                 <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute w-2 h-2 -translate-y-1/2 rounded-full bg-[#FF5100]"
+                    className="pointer-events-none absolute w-1.5 h-1.5 -translate-y-1/2 rounded-full bg-[#FF5100]"
                     style={{top: `${READING_LINE * 100}%`, left: dotLeft}}
                 />
             )}
