@@ -110,7 +110,8 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
 
   const handleBookSelect = (book: BookShelfEntity) => {
     const bookId = book.abook?.id || book.id;
-    navigate(`/book/${bookId}`, {
+    // The full player is the book's page (no separate details page).
+    navigate(`/player/${bookId}`, {
       state: { book },
     });
   };

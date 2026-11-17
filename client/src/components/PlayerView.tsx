@@ -7,6 +7,7 @@ import Navbar from './Navbar';
 import BookmarkModals from "./BookmarkModals";
 import PlaybackSpeedModal from "./PlaybackSpeedModal";
 import ChaptersModal from "./ChaptersModal";
+import EpubButton from './EpubButton';
 import PlayerControls from "./PlayerControls";
 import BookInfo from "./BookInfo";
 import DownloadCancelModal from "./DownloadCancelModal";
@@ -317,7 +318,7 @@ function PlayerView() {
 
     return (
         <div className="flex-1 flex flex-col relative bg-[#0A0A0A] text-white">
-            <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate(`/book/${bookId}`, {state: {book}})}/>
+            <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate('/')}/>
 
             {/* Keyboard Overlay */}
             {showKeyOverlay && (
@@ -385,7 +386,9 @@ function PlayerView() {
                         onShowBookmarksModal={() => bookmarks.setShowBookmarksModal(true)}
                         onDownloadClick={handleDownloadClick}
                         onReadAlong={() => navigate(`/read/${bookId}`)}
-                    />
+                    >
+                        {bookId && <EpubButton bookId={bookId} book={book} consumableId={activeConsumableId}/>}
+                    </PlayerControls>
                 </div>
             </div>
 

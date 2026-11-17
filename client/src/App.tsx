@@ -7,6 +7,7 @@ import {
   BrowserRouter,
   useLocation,
   useNavigate,
+  useParams,
 } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LoginForm from "./components/LoginForm";
@@ -14,7 +15,6 @@ import Dashboard from "./components/Dashboard";
 import PlayerView from "./components/PlayerView";
 import api from "./utils/api";
 import storage from "./utils/storage";
-import BookView from "./components/BookView";
 import WelcomeModal from "./components/WelcomeModal";
 import LogsModal from "./components/LogsModal";
 import SettingsModal from "./components/SettingsModal";
@@ -49,6 +49,12 @@ async function isLastBookFinished(session: any): Promise<boolean> {
 const useMemoryRouter =
   import.meta.env.VITE_REACT_APP_USE_MEMORY_ROUTER === "true";
 const Router = useMemoryRouter ? MemoryRouter : BrowserRouter;
+
+function BookToPlayer() {
+  const { bookId } = useParams();
+  const location = useLocation();
+  return <Navigate to={`/player/${bookId}`} replace state={location.state} />;
+}
 
 function AuthenticatedLayout({
   children,
@@ -260,7 +266,8 @@ function App() {
               />
               <Route path="/search" element={<SearchView />} />
               <Route path="/player/:bookId" element={<PlayerView />} />
-              <Route path="/book/:bookId" element={<BookView />} />
+              {/* No separate book page: old links (search) open the full player. */}
+              <Route path="/book/:bookId" element={<BookToPlayer />} />
               <Route path="/read/:bookId" element={<ReadingView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

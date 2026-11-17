@@ -58,7 +58,7 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         <div
           role="img"
           aria-label={coverLabel}
-          className="relative aspect-square w-full overflow-hidden rounded-[10px] bg-[#121214] flex items-center justify-center"
+          className="relative aspect-square w-full overflow-hidden rounded-[10px] bg-[#121214] cover-border flex items-center justify-center"
         >
           {coverUrl ? (
             <img

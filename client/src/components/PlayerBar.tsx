@@ -112,7 +112,7 @@ export function PlayerBar() {
           type="button"
           onClick={handleOpenFullPlayer}
           aria-label={t('player.expand', 'Open full player')}
-          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] border border-white/[0.08] overflow-hidden flex-shrink-0 ${focusRing}`}
+          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
             <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />
@@ -379,7 +379,7 @@ export function PlayerBar() {
           onClick={() => activeBookId && navigate(`/read/${activeBookId}`)}
           aria-label={t('readAlong.open')}
           title={t('readAlong.open')}
-          className={`w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${
+          className={`w-9 h-9 flex-shrink-0 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${
             location.pathname.startsWith('/read/') ? pillActive : pillIdle
           }`}
         >

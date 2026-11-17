@@ -25,6 +25,8 @@ interface PlayerControlsProps {
     onShowBookmarksModal: () => void;
     onDownloadClick: () => void;
     onReadAlong: () => void;
+    /** Extra buttons at the end of the action row (the read-along EPUB button). */
+    children?: React.ReactNode;
 }
 
 
@@ -70,6 +72,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     onShowBookmarksModal,
     onDownloadClick,
     onReadAlong,
+    children,
 }) => {
     const {t} = useTranslation();
 
@@ -239,6 +242,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     <svg {...iconProps}><path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/></svg>
                     {t('readAlong.open')}
                 </button>
+                {children}
             </div>
         </div>
     );

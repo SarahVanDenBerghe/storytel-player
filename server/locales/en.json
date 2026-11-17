@@ -158,8 +158,6 @@
     "replaceEpub": "Replace EPUB…",
     "replaceConfirm": "Replace {{name}}? Read along will use the new file instead.",
     "chooseNewFile": "Choose new file",
-    "progress": "{{percent}}% listened",
-    "moreNarrators": "+{{count}} more",
     "preparingAudio": "Preparing audio… {{percent}}%",
     "syncingProgress": "Syncing {{done}} of {{total}}",
     "prepareAudio": "Prepare audio for read along"

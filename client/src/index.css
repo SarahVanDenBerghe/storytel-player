@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The one cover border: library cards, book page, footer and full player. */
+@layer components {
+  .cover-border {
+    @apply border border-white/[0.05];
+  }
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
