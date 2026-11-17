@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface ModalProps {
@@ -22,6 +22,16 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   // Called before the early return so the hook order stays stable.
   const { t } = useTranslation();
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -36,6 +46,7 @@ const Modal: React.FC<ModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
         className={`bg-[#17171A] text-white rounded-[14px] w-full ${maxWidth} border border-white/10 max-h-[90vh] flex flex-col shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
@@ -43,7 +54,7 @@ const Modal: React.FC<ModalProps> = ({
         {hasHeader && (
           <div className="flex items-center gap-2 py-2 pr-2 pl-5 shrink-0">
             {title ? (
-              <h2 className="text-[15px] font-semibold text-white flex-1 min-w-0">
+              <h2 id={titleId} className="text-[15px] font-semibold text-white flex-1 min-w-0">
                 {title}
               </h2>
             ) : (
