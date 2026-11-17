@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../utils/api';
@@ -14,11 +14,28 @@ interface DashboardProps {
   setTriggerLogout?: (value: boolean) => void;
 }
 
+// The library as last loaded, and where it was scrolled, kept for the app's
+// lifetime: coming back from the player shows it at once (refreshed quietly in
+// the background) instead of a loading spinner, at the same scroll position.
+let cachedBooks: BookShelfEntity[] | null = null;
+let savedScrollTop = 0;
+
 export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [books, setBooks] = useState<BookShelfEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [books, setBooks] = useState<BookShelfEntity[]>(() => cachedBooks ?? []);
+  const [isLoading, setIsLoading] = useState(cachedBooks === null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Back at the same place in the list; the position is saved when leaving.
+  useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTop = savedScrollTop;
+    return () => {
+      savedScrollTop = scroller.scrollTop;
+    };
+  }, []);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,9 +61,11 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
 
   const loadBookshelf = async () => {
     try {
-      setIsLoading(true);
+      // A spinner only when there is nothing to show yet.
+      if (cachedBooks === null) setIsLoading(true);
       const response = await api.get<BookShelfResponse>('/bookshelf');
-      setBooks(response.data.books || []);
+      cachedBooks = response.data.books || [];
+      setBooks(cachedBooks);
     } catch (err: any) {
       try {
         const offline = await api.get<BookShelfResponse>('/offline/bookshelf');
@@ -152,7 +171,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   let body: React.ReactNode;
   if (isLoading) {
     body = (
-      <div role="status" className="flex flex-col items-center gap-3 py-20 text-[13px] text-[#9CA3AF]">
+      <div role="status" className="h-full flex flex-col items-center justify-center gap-3 text-[13px] text-[#9CA3AF] animate-fade-in">
         <div className="w-6 h-6 rounded-full border-2 border-white/10 border-t-[#FF5100] animate-spin" aria-hidden="true" />
         {t('dashboard.loading', 'Loading your library...')}
       </div>
@@ -238,7 +257,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
         </button>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-4 pb-12">{body}</div>
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-4 pb-12">{body}</div>
 
       <ConfirmRemoveBookModal
         isOpen={!!bookToRemove}
