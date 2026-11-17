@@ -314,5 +314,19 @@
     },
     "filters": "Filters",
     "preview": "Preview"
+  },
+  "readAlong": {
+    "open": "Read along",
+    "bookText": "Book text",
+    "estimated": "Estimated",
+    "estimatedDetail": "The highlighted paragraph is estimated from the position in the audio.",
+    "textSize": "Text size: {{size}} px",
+    "chooseAnother": "Choose another EPUB",
+    "chooseAnotherShort": "Choose another",
+    "backToNow": "Back to now",
+    "emptyTitle": "Read along with this book",
+    "emptyBody": "Drop its EPUB here, or choose the file. It stays on this computer.",
+    "chooseEpub": "Choose EPUB",
+    "errorTitle": "This EPUB can't be read"
   }
 }

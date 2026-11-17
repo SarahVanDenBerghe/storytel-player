@@ -21,6 +21,7 @@ import SettingsModal from "./components/SettingsModal";
 import ConfirmLogoutModal from "./components/ConfirmLogoutModal";
 import PlayerBar from "./components/PlayerBar";
 import SearchView from "./components/SearchView";
+import ReadingView from "./components/ReadingView";
 import { AudioProvider } from "./contexts/AudioContext";
 
 const useMemoryRouter =
@@ -210,6 +211,7 @@ function App() {
               <Route path="/search" element={<SearchView />} />
               <Route path="/player/:bookId" element={<PlayerView />} />
               <Route path="/book/:bookId" element={<BookView />} />
+              <Route path="/read/:bookId" element={<ReadingView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
 

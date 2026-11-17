@@ -23,6 +23,7 @@ interface PlayerControlsProps {
     onShowChaptersModal: () => void;
     onShowBookmarksModal: () => void;
     onDownloadClick: () => void;
+    onReadAlong: () => void;
 }
 
 const SKIP_SECONDS = 15;
@@ -32,6 +33,7 @@ const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outlin
 // actions (e.g. "Read along") can simply be appended to the row.
 const actionBtn = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors ${focusRing}`;
 const actionIdle = 'bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white';
+const actionSoft = 'bg-[#FF5100]/[0.14] text-[#FFB38F] hover:bg-[#FF5100]/[0.22]';
 const actionActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D] hover:bg-[#FF5100]/[0.22]';
 const skipBtn = `h-11 min-w-[56px] px-2.5 rounded-[10px] bg-transparent text-[15px] font-semibold tabular-nums text-[#E5E7EB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 
@@ -68,6 +70,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     onShowChaptersModal,
     onShowBookmarksModal,
     onDownloadClick,
+    onReadAlong,
 }) => {
     const {t} = useTranslation();
 
@@ -236,6 +239,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                         </div>
                     </div>
                 </div>
+
+                <button type="button" onClick={onReadAlong} className={`${actionBtn} ${actionSoft}`}>
+                    <svg {...iconProps}><path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/></svg>
+                    {t('readAlong.open')}
+                </button>
             </div>
         </div>
     );

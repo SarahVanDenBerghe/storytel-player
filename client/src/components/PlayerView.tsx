@@ -392,6 +392,7 @@ function PlayerView() {
                         onShowChaptersModal={() => chapters.setShowChaptersModal(true)}
                         onShowBookmarksModal={() => bookmarks.setShowBookmarksModal(true)}
                         onDownloadClick={handleDownloadClick}
+                        onReadAlong={() => navigate(`/read/${bookId}`)}
                     />
                 </div>
             </div>

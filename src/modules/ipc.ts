@@ -1,5 +1,7 @@
-import { ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import { BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import fs from 'fs';
 import path from 'path';
+import { readZipTextEntries } from './epubZip';
 import { storeManager } from './store';
 import { ServerManager } from './server';
 import { TrayManager } from './tray';
@@ -34,6 +36,7 @@ export class IpcManager {
     this.setupWindowHandlers();
     this.setupLogsHandlers();
     this.setupAuthHandlers();
+    this.setupEpubHandlers();
   }
 
   private setupStoreHandlers(): void {
@@ -189,5 +192,55 @@ export class IpcManager {
         return this.ssoManager.openSsoWindow(parent, provider);
       }
     );
+  }
+
+  // Read along: the EPUB chosen for each audiobook, stored as an absolute path
+  // under `readAlong.epubPaths[bookId]`. The file itself stays where it is.
+  private setupEpubHandlers(): void {
+    const STORE_KEY = 'readAlong.epubPaths';
+    const getPaths = (): Record<string, string> =>
+      storeManager.get<Record<string, string>>(STORE_KEY) || {};
+    const storePath = (bookId: unknown, filePath: unknown): { name: string } => {
+      if (typeof bookId !== 'string' || !bookId) throw new Error('Invalid book id');
+      if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
+        throw new Error('Invalid EPUB path');
+      }
+      if (path.extname(filePath).toLowerCase() !== '.epub') {
+        throw new Error('Not an EPUB file');
+      }
+      // Write only the paths map, so other `readAlong.*` settings are kept.
+      storeManager.set(STORE_KEY, { ...getPaths(), [bookId]: filePath });
+      return { name: path.basename(filePath) };
+    };
+
+    ipcMain.handle('epub:choose', async (event: IpcMainInvokeEvent, bookId: string) => {
+      const options: Electron.OpenDialogOptions = {
+        properties: ['openFile'],
+        filters: [{ name: 'EPUB', extensions: ['epub'] }],
+      };
+      const parent = BrowserWindow.fromWebContents(event.sender);
+      const result = parent
+        ? await dialog.showOpenDialog(parent, options)
+        : await dialog.showOpenDialog(options);
+      if (result.canceled || result.filePaths.length === 0) return null;
+      return storePath(bookId, result.filePaths[0]);
+    });
+
+    ipcMain.handle(
+      'epub:set-path',
+      (_event: IpcMainInvokeEvent, bookId: string, filePath: string) => storePath(bookId, filePath)
+    );
+
+    ipcMain.handle('epub:load', async (_event: IpcMainInvokeEvent, bookId: string) => {
+      const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;
+      if (!filePath || !fs.existsSync(filePath)) return null;
+      let buf: Buffer;
+      try {
+        buf = await fs.promises.readFile(filePath);
+      } catch (err) {
+        throw new Error(`Cannot read EPUB file: ${(err as Error).message}`);
+      }
+      return { name: path.basename(filePath), entries: readZipTextEntries(buf) };
+    });
   }
 }

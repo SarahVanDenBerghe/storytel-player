@@ -5,6 +5,8 @@ interface NavbarProps {
     barTitle: string;
     onBackClick: () => void;
     children?: React.ReactNode;
+    /** Extra classes for the bar, e.g. to make it a normal row in narrow windows. */
+    className?: string;
 }
 
 /**
@@ -12,13 +14,13 @@ interface NavbarProps {
  * content floating top-right. The parent element must be `position: relative`.
  * `barTitle` is not shown; it labels the navigation landmark for screen readers.
  */
-function Navbar({onBackClick, barTitle, children}: NavbarProps) {
+function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) {
     const {t} = useTranslation();
 
     return (
         <nav
             aria-label={barTitle}
-            className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-3 py-2 pointer-events-none"
+            className={`absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-3 py-2 pointer-events-none ${className}`}
         >
             <button
                 type="button"
@@ -32,8 +34,8 @@ function Navbar({onBackClick, barTitle, children}: NavbarProps) {
                 </svg>
             </button>
             {children && (
-                <div className="pointer-events-auto min-w-0 max-w-[50%] h-11 flex items-center text-[13px] text-[#9CA3AF]">
-                    <div className="truncate">{children}</div>
+                <div className="pointer-events-auto min-w-0 h-11 flex items-center gap-1 text-[13px] text-[#9CA3AF]">
+                    {children}
                 </div>
             )}
         </nav>

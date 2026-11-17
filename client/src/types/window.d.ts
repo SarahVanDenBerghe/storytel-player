@@ -43,6 +43,16 @@ declare global {
       setAlwaysOnTop: (alwaysOnTop: boolean) => Promise<void>;
       isAlwaysOnTop: () => Promise<boolean>;
     };
+    /** Read along: the EPUB stored per audiobook (Electron only). */
+    electronEpub?: {
+      /** Opens a file dialog; resolves with null when cancelled. */
+      choose: (bookId: string) => Promise<{ name: string } | null>;
+      /** Stores a dropped file's path; rejects when it is not an .epub. */
+      setPath: (bookId: string, path: string) => Promise<{ name: string }>;
+      /** Text entries of the stored EPUB, or null when none is stored or the file is gone. */
+      load: (bookId: string) => Promise<{ name: string; entries: Record<string, string> } | null>;
+      pathForFile: (file: File) => string;
+    };
     electronAuth?: {
       openSsoWindow: (provider?: 'google' | 'apple') => Promise<{
         cancelled: boolean;
