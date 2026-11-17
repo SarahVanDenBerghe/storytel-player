@@ -113,7 +113,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             {/* Top strip: drag the window here. Close dot left (as on macOS), menus right. */}
             <div
                 style={dragRegion}
-                className={`absolute inset-x-0 top-0 z-30 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu ? 'opacity-100' : onHover}`}
+                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu ? 'opacity-100' : onHover}`}
             >
                 <button
                     type="button"
