@@ -94,8 +94,12 @@ app.on('window-all-closed', async () => {
     }
 });
 
+// Dock click: bring the main window back. Closing it only hides it, and the
+// read-along pop-out may still be open, so "no windows at all" is not the test.
 app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (windowManager.getWindow()) {
+        windowManager.show();
+    } else {
         windowManager.create();
     }
 });

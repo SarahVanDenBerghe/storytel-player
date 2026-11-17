@@ -15,7 +15,8 @@
   position: fixed;
   inset: 0 0 auto 0;
   height: 52px;
-  z-index: 1;
+  /* Below the page, so clicks still reach its buttons; dragging works where nothing interactive sits. */
+  z-index: -1;
   -webkit-app-region: drag;
 }
 .mac-titlebar button,

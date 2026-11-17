@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../utils/api';
@@ -28,7 +28,6 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadBookshelf();
@@ -150,13 +149,6 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
   const secondaryButton = `h-9 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#D1D5DB] text-[13px] font-medium transition-colors ${focusRing}`;
 
-  const filters = [
-    { status: null, label: t('dashboard.filters.all', 'All') },
-    { status: 1, label: t('dashboard.filters.notStarted', 'Not started') },
-    { status: 2, label: t('dashboard.filters.started', 'Started') },
-    { status: 3, label: t('dashboard.filters.concluded', 'Concluded') },
-  ];
-
   let body: React.ReactNode;
   if (isLoading) {
     body = (
@@ -230,90 +222,14 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white">
-      {/* Header row: title, count, progress filters, library filter, find books, settings */}
-      <header className="titlebar-inset flex-shrink-0 flex flex-wrap items-center gap-3 px-6 pt-4 pb-3">
-        <h1 className="m-0 text-[15px] font-semibold">{t('dashboard.title', 'My Library')}</h1>
-        {!isLoading && !error && (
-          <span className="text-[13px] text-[#9CA3AF]">{t('dashboard.bookCount', { count: books.length })}</span>
-        )}
-        <div
-          role="group"
-          aria-label={t('dashboard.filters.label', 'Filter by progress')}
-          className="ml-2 flex gap-0.5 p-0.5 rounded-[10px] bg-white/[0.06]"
-        >
-          {filters.map(({ status, label }) => {
-            const isActive = filterStatus === status;
-            return (
-              <button
-                key={String(status)}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => setFilterStatus(status)}
-                className={`h-[30px] px-3 rounded-lg text-[12px] font-medium transition-colors ${focusRing} ${
-                  isActive ? 'bg-[#2A2A2E] text-white' : 'bg-transparent text-[#9CA3AF] hover:text-white'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        <span className="flex-1" />
-
-        <label className="relative flex items-center">
-          <span className="sr-only">{t('dashboard.search', 'Search my library...')}</span>
-          <svg
-            aria-hidden="true"
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            className="absolute left-2.5 text-[#9CA3AF] pointer-events-none"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" />
-          </svg>
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('dashboard.search', 'Search my library...')}
-            className={`w-[200px] h-9 pl-8 ${searchQuery ? 'pr-8' : 'pr-2.5'} rounded-[10px] border border-white/10 bg-transparent text-white text-[13px] placeholder-[#9CA3AF] focus:outline-none focus-visible:border-[#FF5100]`}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              aria-label={t('common.close', 'Close')}
-              className={`absolute right-1.5 w-6 h-6 rounded-md flex items-center justify-center text-[#9CA3AF] hover:text-white ${focusRing}`}
-            >
-              <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </label>
-
-        <button
-          type="button"
-          onClick={() => navigate('/search')}
-          className={`h-9 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#E5E7EB] text-[13px] font-medium flex items-center gap-2 transition-colors ${focusRing}`}
-        >
-          {t('dashboard.findBooks', 'Find books')}
-          <span className="text-[11px] text-[#9CA3AF]">⌘K</span>
-        </button>
-
+      {/* A plain player: no title, filters or search, only the settings cog. */}
+      <header className="flex-shrink-0 flex justify-end px-3 pt-2">
         <button
           type="button"
           onClick={onOpenSettings}
           aria-label={t('settings.title', 'Settings')}
           title={t('settings.title', 'Settings')}
-          className={`w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
+          className={`w-11 h-11 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
         >
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
