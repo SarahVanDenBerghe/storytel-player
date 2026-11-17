@@ -51,6 +51,8 @@ declare global {
   type ReadAlongPopoutControl =
     | { type: 'seek'; timeSec: number }
     | { type: 'toggle' }
+    /** Next playback speed, wrapping around (as the speed button in the main window). */
+    | { type: 'cycleSpeed' }
     /** Negative seconds skip backward. */
     | { type: 'skip'; seconds: number };
 

@@ -23,6 +23,8 @@ const READING_LINE = 0.4;
 const MAX_PREDICTION_SEC = 1;
 // The follow dot's left edge sits this far left of the text column (6 px dot, centred 27 px out).
 const DOT_OFFSET = 30;
+// The pop-out window is small: smaller text and line height than the main window's, and no dot.
+const POPOUT_TEXT_SHRINK = 2;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
@@ -412,8 +414,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         const article = articleRef.current;
         if (view !== 'ready' || !scroller || !article) return;
         const observer = new ResizeObserver(() => {
-            // Narrow window (the pop-out): centre the dot in the padding instead.
-            setDotLeft(article.offsetLeft >= DOT_OFFSET ? article.offsetLeft - DOT_OFFSET : article.offsetLeft / 2 - 3);
+            setDotLeft(Math.max(article.offsetLeft - DOT_OFFSET, 0));
             if (followingRef.current) scrollToPlace(currentTimeRef.current);
         });
         observer.observe(scroller);
@@ -471,8 +472,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 >
                     <article
                         ref={articleRef}
-                        className="max-w-[660px] mx-auto leading-[1.75] select-text"
-                        style={{fontSize: textSize, fontFamily: SERIF_STACK}}
+                        className={`max-w-[660px] mx-auto select-text ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'}`}
+                        style={{fontSize: isPopout ? textSize - POPOUT_TEXT_SHRINK : textSize, fontFamily: SERIF_STACK}}
                         onClick={handleArticleClick}
                     >
                         {paragraphs.map((p, i) => (
@@ -487,7 +488,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         ))}
                     </article>
                 </div>
-                {following && currentIndex >= 0 && dotLeft !== null && (
+                {!isPopout && following && currentIndex >= 0 && dotLeft !== null && (
                 <span
                     aria-hidden="true"
                     className="pointer-events-none absolute w-1.5 h-1.5 -translate-y-1/2 rounded-full bg-[#FF5100]"

@@ -324,6 +324,7 @@ export class IpcManager {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
       const valid =
         control?.type === 'toggle' ||
+        control?.type === 'cycleSpeed' ||
         (control?.type === 'seek' && isNumber(control.timeSec) && control.timeSec >= 0) ||
         (control?.type === 'skip' && isNumber(control.seconds));
       if (valid) mainContents()?.send('readAlong:popout-control', control);

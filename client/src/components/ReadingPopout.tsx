@@ -112,6 +112,15 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                     >
                         +{SKIP_SECONDS}s
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => control({type: 'cycleSpeed'})}
+                        aria-label={t('player.speed')}
+                        title={t('player.speed')}
+                        className={`${controlBtn} tabular-nums`}
+                    >
+                        {playback.playbackRate}×
+                    </button>
                 </div>
             )}
         </div>

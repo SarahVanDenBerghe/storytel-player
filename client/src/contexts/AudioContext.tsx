@@ -606,9 +606,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => window.electronEpub?.onPopoutControl((control) => {
     if (control.type === 'seek') seek(control.timeSec);
     else if (control.type === 'toggle') togglePlayPause();
+    else if (control.type === 'cycleSpeed') cyclePlaybackRate();
     else if (control.seconds >= 0) skipForward(control.seconds);
     else skipBackward(-control.seconds);
-  }), [seek, togglePlayPause, skipForward, skipBackward]);
+  }), [seek, togglePlayPause, cyclePlaybackRate, skipForward, skipBackward]);
 
   return (
     <AudioContext.Provider
