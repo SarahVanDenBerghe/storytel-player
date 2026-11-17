@@ -203,13 +203,20 @@ function rate(a: SyncAnchor, b: SyncAnchor): number | null {
   return dt > 0 ? (b.wordIndex - a.wordIndex) / dt : null;
 }
 
+export interface SyncWordPosition {
+  /** Fractional word index, clamped to the book: 12.5 is halfway through word 12. */
+  wordIndex: number;
+  /** True when an anchor lies within 60 s of the asked time. */
+  synced: boolean;
+}
+
 /**
- * The paragraph being heard at `timeSec`, from anchors sorted by time.
- * Between anchors: linear interpolation. Outside them: extrapolation at the
- * rate of the two nearest anchors (2.5 words/s with one anchor). Returns null
- * only when there are no anchors.
+ * The word being heard at `timeSec`, from anchors sorted by time, as a
+ * fractional index. Between anchors: linear interpolation. Outside them:
+ * extrapolation at the rate of the two nearest anchors (2.5 words/s with one
+ * anchor). Returns null only when there are no anchors (or no words).
  */
-export function positionAt(index: BookIndex, anchors: SyncAnchor[], timeSec: number): SyncPosition | null {
+export function wordPositionAt(index: BookIndex, anchors: SyncAnchor[], timeSec: number): SyncWordPosition | null {
   if (anchors.length === 0 || index.words.length === 0 || !Number.isFinite(timeSec)) return null;
   const first = anchors[0];
   const last = anchors[anchors.length - 1];
@@ -240,8 +247,17 @@ export function positionAt(index: BookIndex, anchors: SyncAnchor[], timeSec: num
     nearestSec = Math.min(timeSec - a.timeSec, b.timeSec - timeSec);
   }
 
-  const clamped = Math.min(Math.max(Math.round(wordIndex), 0), index.words.length - 1);
-  return { paragraphIndex: index.paragraphOfWord[clamped], synced: nearestSec <= SYNCED_SEC };
+  return {
+    wordIndex: Math.min(Math.max(wordIndex, 0), index.words.length - 1),
+    synced: nearestSec <= SYNCED_SEC,
+  };
+}
+
+/** The paragraph being heard at `timeSec`: wordPositionAt rounded to the nearest word. */
+export function positionAt(index: BookIndex, anchors: SyncAnchor[], timeSec: number): SyncPosition | null {
+  const position = wordPositionAt(index, anchors, timeSec);
+  if (!position) return null;
+  return { paragraphIndex: index.paragraphOfWord[Math.round(position.wordIndex)], synced: position.synced };
 }
 
 /**

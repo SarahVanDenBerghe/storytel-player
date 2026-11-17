@@ -9,6 +9,7 @@ import {
   normalizeWords,
   positionAt,
   timeAtParagraph,
+  wordPositionAt,
 } from '../src/utils/readAlongSync';
 
 // 10 paragraphs of 10 distinct words each: word n is "wn", paragraph p holds words 10p–10p+9.
@@ -154,4 +155,33 @@ test('finds the audio time where a paragraph starts, only inside the synced rang
     text: Array.from({ length: 10 }, (_, k) => `x${p * 10 + k}`).join(' '),
   })));
   assert.equal(timeAtParagraph(big, anchors, 39), null);
+});
+
+test('word position: null without anchors', () => {
+  assert.equal(wordPositionAt(index, [], 10), null);
+});
+
+test('word position: interpolates a fractional word between anchors', () => {
+  const anchors = [
+    { timeSec: 100, wordIndex: 20 },
+    { timeSec: 110, wordIndex: 30 }, // 1 word/s
+  ];
+  const position = wordPositionAt(index, anchors, 100.4);
+  assert.ok(position);
+  assert.ok(Math.abs(position.wordIndex - 20.4) < 1e-9);
+  assert.equal(position.synced, true);
+  // positionAt is the same position rounded to a word: 20.4 → word 20 → paragraph 2.
+  assert.deepEqual(positionAt(index, anchors, 100.4), { paragraphIndex: 2, synced: true });
+});
+
+test('word position: extrapolates past the last anchor and clamps to the book', () => {
+  const anchors = [
+    { timeSec: 100, wordIndex: 10 },
+    { timeSec: 110, wordIndex: 20 }, // 1 word/s
+  ];
+  assert.ok(Math.abs(wordPositionAt(index, anchors, 135.5)!.wordIndex - 45.5) < 1e-9);
+  assert.deepEqual(wordPositionAt(index, anchors, 500), { wordIndex: 99, synced: false });
+  assert.deepEqual(wordPositionAt(index, anchors, 0), { wordIndex: 0, synced: false });
+  // One anchor: 2.5 words/s.
+  assert.equal(wordPositionAt(index, [{ timeSec: 100, wordIndex: 10 }], 101)!.wordIndex, 12.5);
 });

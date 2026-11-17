@@ -4,7 +4,7 @@ import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
 import {useAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
-import {buildBookIndex, matchTranscript, positionAt, timeAtParagraph} from '../utils/readAlongSync';
+import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph, wordPositionAt} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 
 // Persisted reading text size (px), stored as a number.
@@ -17,6 +17,12 @@ const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
 const SERIF_STACK = "Charter, 'Iowan Old Style', Georgia, serif";
 // Keys that scroll a focused scroller: pressing one means the user took over.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
+// Follow mode keeps the spoken word on this line, as a fraction of the scroller's height from its top.
+const READING_LINE = 0.4;
+// Between two reports of the audio time, predict at most this far ahead (audio seconds).
+const MAX_PREDICTION_SEC = 1;
+// The follow dot's left edge sits this far left of the text column (8 px dot, centred 16 px out).
+const DOT_OFFSET = 20;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
@@ -24,6 +30,37 @@ const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A
 
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
 type ParagraphPosition = 'before' | 'current' | 'after';
+
+// Where the narration is: a paragraph and how far through its words (0–1).
+interface ReadingPlace {
+    paragraphIndex: number;
+    fraction: number;
+    /** The position comes from a nearby sync anchor. */
+    synced: boolean;
+}
+
+function readingPlace(
+    index: BookIndex,
+    anchors: SyncAnchor[],
+    lengths: number[],
+    timeSec: number,
+    duration: number,
+): ReadingPlace | null {
+    const bookFraction = Number.isFinite(timeSec / duration) ? timeSec / duration : 0;
+    if (index.words.length === 0) {
+        // No word the sync can use (e.g. a script outside a-z): estimate by characters, at the paragraph start.
+        const paragraphIndex = estimateParagraph(bookFraction, lengths);
+        return paragraphIndex < 0 ? null : {paragraphIndex, fraction: 0, synced: false};
+    }
+    const lastWord = index.words.length - 1;
+    const position = wordPositionAt(index, anchors, timeSec);
+    // Without anchors, assume the narration advances evenly through the words.
+    const word = position ? position.wordIndex : Math.min(Math.max(bookFraction * index.words.length, 0), lastWord);
+    const paragraphIndex = index.paragraphOfWord[Math.floor(word)];
+    const start = index.firstWordOfParagraph[paragraphIndex];
+    const end = index.firstWordOfParagraph[paragraphIndex + 1] ?? index.words.length;
+    return {paragraphIndex, fraction: (word - start) / (end - start), synced: !!position?.synced};
+}
 
 // What the main process has told us about the Whisper sync of one book.
 interface SyncData {
@@ -42,27 +79,22 @@ const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) 
 );
 
 // Memoised so a playback tick only re-renders the paragraphs whose position changed.
-const Paragraph = React.memo(function Paragraph({index, text, heading, position, synced, title}: {
+// Read paragraphs are dimmed; the current one and later ones look the same.
+const Paragraph = React.memo(function Paragraph({index, text, heading, position, title}: {
     index: number;
     text: string;
     heading: boolean;
     position: ParagraphPosition;
-    /** Current paragraph only: the position comes from a nearby sync anchor. */
-    synced: boolean;
     title?: string;
 }) {
     const Tag = heading ? 'h2' : 'p';
-    const tone = position === 'current'
-        ? synced
-            ? 'py-3 border-transparent bg-[#FF5100]/[0.14] text-white'
-            : 'py-3 border-dashed border-white/35 bg-white/[0.04] text-white'
-        : `py-1 border-transparent ${position === 'before' ? 'text-[#8B929C]' : 'text-[#E5E7EB]'}`;
+    const headingStyle = heading ? `text-[1.15em] font-semibold ${index > 0 ? 'mt-[1em]' : ''}` : '';
     return (
         <Tag
             data-index={index}
             title={title}
             aria-current={position === 'current' ? 'true' : undefined}
-            className={`mb-5 px-[14px] rounded-[10px] border ${heading ? 'text-[1.15em] font-semibold' : ''} ${tone}`}
+            className={`mb-[0.6em] ${headingStyle} ${position === 'before' ? 'text-[#8B929C]' : 'text-[#E5E7EB]'}`}
         >
             {text}
         </Tag>
@@ -85,7 +117,17 @@ function ReadingView() {
     const requestRef = useRef(0);
     const currentTimeRef = useRef(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
+    const articleRef = useRef<HTMLElement>(null);
     const pointerOnScrollerRef = useRef(false);
+    // Set to false synchronously on user input, so the scroll loop stops before React re-renders.
+    const followingRef = useRef(true);
+    // scrollTop as read back after our own last write: a scroll event at this value is ours.
+    const lastScrollTopRef = useRef<number | null>(null);
+    // The last reported audio time, when it was reported and the rate then: the base for prediction.
+    const reportRef = useRef({time: 0, at: 0, rate: 1});
+    const placeAtRef = useRef<(timeSec: number) => ReadingPlace | null>(() => null);
+    const [reducedMotion, setReducedMotion] = useState(false);
+    const [dotLeft, setDotLeft] = useState<number | null>(null);
 
     const paragraphs = bookId ? booksText[bookId] : undefined;
     const view: LoadStatus = status === 'ready' && !paragraphs ? 'loading' : status;
@@ -238,13 +280,13 @@ function ReadingView() {
         () => (bookIndex && segments ? matchTranscript(bookIndex, segments) : []),
         [bookIndex, segments],
     );
-    const syncedPosition = showPosition && bookIndex ? positionAt(bookIndex, anchors, audio.currentTime) : null;
-    const currentIndex = !showPosition
-        ? -1
-        : syncedPosition
-            ? syncedPosition.paragraphIndex
-            : estimateParagraph(audio.currentTime / audio.duration, lengths);
-    const isSynced = !!syncedPosition?.synced;
+    const placeAt = (timeSec: number) => (showPosition && bookIndex
+        ? readingPlace(bookIndex, anchors, lengths, timeSec, audio.duration)
+        : null);
+    placeAtRef.current = placeAt;
+    const place = placeAt(audio.currentTime);
+    const currentIndex = place ? place.paragraphIndex : -1;
+    const isSynced = !!place?.synced;
 
     const syncProgress = syncData?.progress ?? null;
     const chip: 'synced' | 'finding' | 'estimated' = isSynced
@@ -276,20 +318,80 @@ function ReadingView() {
         setFollowing(true);
     };
 
-    // Follow mode: keep the current paragraph centred.
+    useEffect(() => {
+        const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => setReducedMotion(query.matches);
+        update();
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+    }, []);
+
+    // Follow mode, teleprompter style: the spoken word stays on the reading line.
+    // Every programmatic scroll goes through here.
+    const scrollToPlace = useCallback((timeSec: number) => {
+        const scroller = scrollerRef.current;
+        const place = placeAtRef.current(timeSec);
+        const el = place ? articleRef.current?.children[place.paragraphIndex] as HTMLElement | undefined : undefined;
+        if (!scroller || !place || !el) return;
+        // Interpolate up to the next paragraph's top so the gap between
+        // paragraphs is crossed smoothly instead of in a hop.
+        const next = el.nextElementSibling as HTMLElement | null;
+        const span = next ? next.offsetTop - el.offsetTop : el.offsetHeight;
+        const y = el.offsetTop + place.fraction * span;
+        const maxTop = scroller.scrollHeight - scroller.clientHeight;
+        const top = Math.min(Math.max(y - READING_LINE * scroller.clientHeight, 0), maxTop);
+        if (Math.abs(top - scroller.scrollTop) >= 0.5) scroller.scrollTop = top;
+        // Read back: the browser may round or clamp what we wrote.
+        lastScrollTopRef.current = scroller.scrollTop;
+    }, []);
+
+    // Declared before the scroll effects so they see the current values.
+    useEffect(() => {
+        followingRef.current = following;
+    }, [following]);
+    useEffect(() => {
+        reportRef.current = {time: audio.currentTime, at: performance.now(), rate: audio.playbackRate};
+    }, [audio.currentTime, audio.isPlaying, audio.playbackRate]);
+
+    // While playing: move every frame, predicting the audio time between the
+    // context's few reports per second.
+    const animate = following && audio.isPlaying && showPosition && !reducedMotion;
+    useEffect(() => {
+        if (!animate) return;
+        let frame = 0;
+        const tick = () => {
+            if (followingRef.current) {
+                const {time, at, rate} = reportRef.current;
+                const ahead = Math.min(Math.max(((performance.now() - at) / 1000) * rate, 0), MAX_PREDICTION_SEC);
+                scrollToPlace(time + ahead);
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        frame = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(frame);
+    }, [animate, scrollToPlace]);
+
+    // Paused (or reduced motion): position once, again after a seek, a new
+    // paragraph (reduced motion), new anchors or another text size.
+    const staticKey = reducedMotion ? currentIndex : audio.currentTime;
+    useEffect(() => {
+        if (!following || animate || !showPosition) return;
+        scrollToPlace(currentTimeRef.current);
+    }, [following, animate, showPosition, staticKey, anchors, textSize, scrollToPlace]);
+
+    // A resize reflows the text: keep the place, and keep the follow dot just
+    // left of the text column (inside the scroller's padding on narrow windows).
     useEffect(() => {
         const scroller = scrollerRef.current;
-        if (!following || currentIndex < 0 || !scroller) return;
-        const el = scroller.querySelector<HTMLElement>(`[data-index="${currentIndex}"]`);
-        if (!el) return;
-        const maxTop = scroller.scrollHeight - scroller.clientHeight;
-        const top = Math.min(Math.max(el.offsetTop - (scroller.clientHeight - el.offsetHeight) / 2, 0), maxTop);
-        const distance = Math.abs(top - scroller.scrollTop);
-        if (distance < 1) return;
-        pointerOnScrollerRef.current = false;
-        // Long jumps (opening the book, seeking) are instant; reading pace is smooth.
-        scroller.scrollTo({top, behavior: distance > scroller.clientHeight * 3 ? 'auto' : 'smooth'});
-    }, [currentIndex, following, textSize, view]);
+        const article = articleRef.current;
+        if (view !== 'ready' || !scroller || !article) return;
+        const observer = new ResizeObserver(() => {
+            setDotLeft(Math.max(article.offsetLeft - DOT_OFFSET, 0));
+            if (followingRef.current) scrollToPlace(currentTimeRef.current);
+        });
+        observer.observe(scroller);
+        return () => observer.disconnect();
+    }, [view, scrollToPlace]);
 
     // A scrollbar drag is a scroll that happens while the pointer is held down on
     // the scroller itself; release can happen anywhere.
@@ -306,7 +408,10 @@ function ReadingView() {
     }, []);
 
     // Only user input stops following, never our own programmatic scrolls.
-    const stopFollowing = () => setFollowing(false);
+    const stopFollowing = () => {
+        followingRef.current = false;
+        setFollowing(false);
+    };
     const scrollerHandlers = {
         onWheel: stopFollowing,
         onTouchMove: stopFollowing,
@@ -316,39 +421,52 @@ function ReadingView() {
         onPointerDown: (e: React.PointerEvent) => {
             if (e.target === e.currentTarget) pointerOnScrollerRef.current = true;
         },
-        onScroll: () => {
-            if (pointerOnScrollerRef.current) stopFollowing();
+        // A scrollbar drag. Our own writes also fire scroll events while the
+        // pointer is down (e.g. pressed on the margin): those land exactly where we put them.
+        onScroll: (e: React.UIEvent<HTMLDivElement>) => {
+            if (!pointerOnScrollerRef.current) return;
+            const ours = lastScrollTopRef.current;
+            if (ours === null || Math.abs(e.currentTarget.scrollTop - ours) > 1) stopFollowing();
         },
     };
 
     let body: React.ReactNode;
     if (view === 'ready' && paragraphs) {
         body = (
-            <div
-                ref={scrollerRef}
-                tabIndex={0}
-                role="region"
-                aria-label={t('readAlong.bookText')}
-                className="relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]"
-                {...scrollerHandlers}
-            >
-                <article
-                    className="max-w-[660px] mx-auto leading-[1.75] select-text"
-                    style={{fontSize: textSize, fontFamily: SERIF_STACK}}
-                    onClick={handleArticleClick}
+            <div className="relative flex-1 min-h-0 flex flex-col">
+                <div
+                    ref={scrollerRef}
+                    tabIndex={0}
+                    role="region"
+                    aria-label={t('readAlong.bookText')}
+                    className="relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]"
+                    {...scrollerHandlers}
                 >
-                    {paragraphs.map((p, i) => (
-                        <Paragraph
-                            key={i}
-                            index={i}
-                            text={p.text}
-                            heading={p.heading}
-                            position={currentIndex < 0 || i > currentIndex ? 'after' : i === currentIndex ? 'current' : 'before'}
-                            synced={i === currentIndex && isSynced}
-                            title={setPlaceTitle}
-                        />
-                    ))}
-                </article>
+                    <article
+                        ref={articleRef}
+                        className="max-w-[660px] mx-auto leading-[1.75] select-text"
+                        style={{fontSize: textSize, fontFamily: SERIF_STACK}}
+                        onClick={handleArticleClick}
+                    >
+                        {paragraphs.map((p, i) => (
+                            <Paragraph
+                                key={i}
+                                index={i}
+                                text={p.text}
+                                heading={p.heading}
+                                position={currentIndex < 0 || i > currentIndex ? 'after' : i === currentIndex ? 'current' : 'before'}
+                                title={setPlaceTitle}
+                            />
+                        ))}
+                    </article>
+                </div>
+                {following && currentIndex >= 0 && dotLeft !== null && (
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute w-2 h-2 -translate-y-1/2 rounded-full bg-[#FF5100]"
+                    style={{top: `${READING_LINE * 100}%`, left: dotLeft}}
+                />
+            )}
             </div>
         );
     } else if (view === 'empty') {
