@@ -8,6 +8,7 @@ import {
   mergeManualAnchors,
   normalizeWords,
   positionAt,
+  readingPlace,
   timeAtParagraph,
   wordPositionAt,
 } from '../src/utils/readAlongSync';
@@ -184,4 +185,13 @@ test('word position: extrapolates past the last anchor and clamps to the book', 
   assert.deepEqual(wordPositionAt(index, anchors, 0), { wordIndex: 0, synced: false });
   // One anchor: 2.5 words/s.
   assert.equal(wordPositionAt(index, [{ timeSec: 100, wordIndex: 10 }], 101)!.wordIndex, 12.5);
+});
+
+test('before any anchor, a part of a split audiobook starts at its share of the ebook', () => {
+  const lengths = paragraphs.map((p) => p.text.length);
+  // 100 words; at the start of the audio, with no anchors yet.
+  assert.equal(readingPlace(index, [], lengths, 0, 1000)?.paragraphIndex, 0);
+  assert.equal(readingPlace(index, [], lengths, 0, 1000, { n: 2, total: 2 })?.paragraphIndex, 5);
+  // Halfway through part 2 of 2 is three quarters through the ebook.
+  assert.equal(readingPlace(index, [], lengths, 500, 1000, { n: 2, total: 2 })?.paragraphIndex, 7);
 });

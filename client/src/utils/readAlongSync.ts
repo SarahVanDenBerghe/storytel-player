@@ -3,6 +3,8 @@
 // for where in the book that window starts; confident, in-order windows become
 // anchors (audio time → word), and positions between anchors are interpolated.
 
+import { estimateParagraph } from './epub';
+
 /** Words per vote bucket: a window votes for the 25-word block it starts in. */
 const BUCKET_WORDS = 25;
 /** Transcript windows are 25 s of segments, on a grid that restarts per chunk. */
@@ -287,4 +289,41 @@ export function timeAtParagraph(index: BookIndex, anchors: SyncAnchor[], paragra
   const timeSec = a.timeSec + (wordIndex - a.wordIndex) / r;
   const outside = Math.max(anchors[0].timeSec - timeSec, timeSec - anchors[anchors.length - 1].timeSec, 0);
   return outside <= SYNCED_SEC ? Math.max(timeSec, 0) : null;
+}
+
+// Where the narration is: a paragraph and how far through its words (0–1).
+export interface ReadingPlace {
+    paragraphIndex: number;
+    fraction: number;
+    /** The position comes from a nearby sync anchor. */
+    synced: boolean;
+}
+
+export function readingPlace(
+    index: BookIndex,
+    anchors: SyncAnchor[],
+    lengths: number[],
+    timeSec: number,
+    duration: number,
+    part?: {n: number; total: number},
+): ReadingPlace | null {
+    const audioFraction = Number.isFinite(timeSec / duration) ? timeSec / duration : 0;
+    // A part of a split audiobook ("(2 of 2)") covers its share of the one ebook,
+    // so the guess before any sync anchor starts there instead of at the top.
+    const bookFraction = part && part.n >= 1 && part.n <= part.total
+        ? (part.n - 1 + audioFraction) / part.total
+        : audioFraction;
+    if (index.words.length === 0) {
+        // No word the sync can use (e.g. a script outside a-z): estimate by characters, at the paragraph start.
+        const paragraphIndex = estimateParagraph(bookFraction, lengths);
+        return paragraphIndex < 0 ? null : {paragraphIndex, fraction: 0, synced: false};
+    }
+    const lastWord = index.words.length - 1;
+    const position = wordPositionAt(index, anchors, timeSec);
+    // Without anchors, assume the narration advances evenly through the words.
+    const word = position ? position.wordIndex : Math.min(Math.max(bookFraction * index.words.length, 0), lastWord);
+    const paragraphIndex = index.paragraphOfWord[Math.floor(word)];
+    const start = index.firstWordOfParagraph[paragraphIndex];
+    const end = index.firstWordOfParagraph[paragraphIndex + 1] ?? index.words.length;
+    return {paragraphIndex, fraction: (word - start) / (end - start), synced: !!position?.synced};
 }

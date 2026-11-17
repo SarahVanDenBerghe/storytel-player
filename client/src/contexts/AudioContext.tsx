@@ -452,8 +452,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // Read along pop-out: report the playback state (the main process keeps the
   // last one for a pop-out that opens later).
   useEffect(() => {
-    window.electronEpub?.sendPlayback({ bookId: activeBookId, currentTime, duration, isPlaying, playbackRate });
-  }, [activeBookId, currentTime, duration, isPlaying, playbackRate]);
+    window.electronEpub?.sendPlayback({
+      bookId: activeBookId, bookName: activeBook?.book?.name ?? null, currentTime, duration, isPlaying, playbackRate,
+    });
+  }, [activeBookId, activeBook, currentTime, duration, isPlaying, playbackRate]);
 
   const skipForward = useCallback(
     (seconds: number = SKIP_FORWARD_SECONDS) => {

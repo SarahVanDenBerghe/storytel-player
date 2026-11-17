@@ -65,6 +65,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
         duration: playback?.duration ?? 0,
         isPlaying: playback?.isPlaying ?? false,
         playbackRate: playback?.playbackRate ?? 1,
+        activeBookName: playback?.bookName ?? null,
         seek: (timeSec: number) => control({type: 'seek', timeSec}),
     }), [playback]);
 

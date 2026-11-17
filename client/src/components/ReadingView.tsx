@@ -3,8 +3,9 @@ import {useNavigate, useParams} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
 import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContext';
-import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
-import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph, wordPositionAt} from '../utils/readAlongSync';
+import {EpubParagraph, parseEpub} from '../utils/epub';
+import {cleanBookTitle} from '../utils/helpers';
+import {buildBookIndex, matchTranscript, ReadingPlace, readingPlace, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 import {ensureAudioDownloaded} from '../utils/readAlongAudio';
 import EpubButton from './EpubButton';
@@ -36,38 +37,10 @@ const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A
 
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
 /** The part of the player the reading view needs; the pop-out window feeds it over IPC. */
-export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'>;
-
-// Where the narration is: a paragraph and how far through its words (0–1).
-interface ReadingPlace {
-    paragraphIndex: number;
-    fraction: number;
-    /** The position comes from a nearby sync anchor. */
-    synced: boolean;
-}
-
-function readingPlace(
-    index: BookIndex,
-    anchors: SyncAnchor[],
-    lengths: number[],
-    timeSec: number,
-    duration: number,
-): ReadingPlace | null {
-    const bookFraction = Number.isFinite(timeSec / duration) ? timeSec / duration : 0;
-    if (index.words.length === 0) {
-        // No word the sync can use (e.g. a script outside a-z): estimate by characters, at the paragraph start.
-        const paragraphIndex = estimateParagraph(bookFraction, lengths);
-        return paragraphIndex < 0 ? null : {paragraphIndex, fraction: 0, synced: false};
-    }
-    const lastWord = index.words.length - 1;
-    const position = wordPositionAt(index, anchors, timeSec);
-    // Without anchors, assume the narration advances evenly through the words.
-    const word = position ? position.wordIndex : Math.min(Math.max(bookFraction * index.words.length, 0), lastWord);
-    const paragraphIndex = index.paragraphOfWord[Math.floor(word)];
-    const start = index.firstWordOfParagraph[paragraphIndex];
-    const end = index.firstWordOfParagraph[paragraphIndex + 1] ?? index.words.length;
-    return {paragraphIndex, fraction: (word - start) / (end - start), synced: !!position?.synced};
-}
+export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'> & {
+    /** Title of the playing book; "(2 of 2)" in it places a part within the whole ebook. */
+    activeBookName?: string | null;
+};
 
 // What the main process has told us about the Whisper sync of one book.
 interface SyncData {
@@ -117,6 +90,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const audio = popoutAudio ?? sharedAudio;
     if (!audio) throw new Error('ReadingView needs an AudioProvider or popoutAudio');
     const isPopout = !!popoutAudio;
+    const bookPart = cleanBookTitle((isPopout ? popoutAudio?.activeBookName : sharedAudio?.activeBook?.book?.name) ?? '').part;
     // Main window: the player, for downloading the audio when the sync needs it.
     const playerRef = useRef(sharedAudio);
     playerRef.current = sharedAudio;
@@ -335,7 +309,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         [bookIndex, segments],
     );
     const placeAt = (timeSec: number) => (showPosition && bookIndex
-        ? readingPlace(bookIndex, anchors, lengths, timeSec, audio.duration)
+        ? readingPlace(bookIndex, anchors, lengths, timeSec, audio.duration, bookPart)
         : null);
     placeAtRef.current = placeAt;
     const place = placeAt(audio.currentTime);

@@ -41,6 +41,8 @@ declare global {
   /** What the main window's player tells the read-along pop-out. */
   interface ReadAlongPlayback {
     bookId: string | null;
+    /** The book's title, e.g. "Golden Son (2 of 2) …": places a part within the ebook. */
+    bookName?: string | null;
     currentTime: number;
     duration: number;
     isPlaying: boolean;
