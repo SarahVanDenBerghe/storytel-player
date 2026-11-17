@@ -1,6 +1,7 @@
 import React from 'react';
 import {useTranslation} from 'react-i18next';
 import {formatTime} from '../utils/helpers';
+import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 
 interface PlayerControlsProps {
     isPlaying: boolean;
@@ -26,7 +27,6 @@ interface PlayerControlsProps {
     onReadAlong: () => void;
 }
 
-const SKIP_SECONDS = 15;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 // Small secondary action button; every entry of the action row uses it, so new
@@ -111,11 +111,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                 <button
                     type="button"
                     onClick={onSkipBackward}
-                    aria-label={t('player.skipBackward', {seconds: SKIP_SECONDS})}
-                    title={t('player.skipBackward', {seconds: SKIP_SECONDS})}
+                    aria-label={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
+                    title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                     className={skipBtn}
                 >
-                    −{SKIP_SECONDS}s
+                    −{SKIP_BACKWARD_SECONDS}s
                 </button>
 
                 <button
@@ -139,11 +139,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                 <button
                     type="button"
                     onClick={onSkipForward}
-                    aria-label={t('player.skipForward', {seconds: SKIP_SECONDS})}
-                    title={t('player.skipForward', {seconds: SKIP_SECONDS})}
+                    aria-label={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
+                    title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                     className={skipBtn}
                 >
-                    +{SKIP_SECONDS}s
+                    +{SKIP_FORWARD_SECONDS}s
                 </button>
             </div>
 

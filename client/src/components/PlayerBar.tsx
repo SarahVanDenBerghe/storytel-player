@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAudioContext } from '../contexts/AudioContext';
 import { buildCoverUrl, formatTime } from '../utils/helpers';
+import { SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS } from '../config/player';
 import ChaptersPopover from './ChaptersPopover';
 
 export function PlayerBar() {
@@ -147,12 +148,12 @@ export function PlayerBar() {
         <div className="flex items-center gap-[14px]">
           <button
             type="button"
-            onClick={() => skipBackward(15)}
-            aria-label={t('player.skipBackward', { seconds: 15 })}
-            title={t('player.skipBackward', { seconds: 15 })}
+            onClick={() => skipBackward(SKIP_BACKWARD_SECONDS)}
+            aria-label={t('player.skipBackward', { seconds: SKIP_BACKWARD_SECONDS })}
+            title={t('player.skipBackward', { seconds: SKIP_BACKWARD_SECONDS })}
             className={skipClass}
           >
-            −15s
+            −{SKIP_BACKWARD_SECONDS}s
           </button>
 
           <button
@@ -181,12 +182,12 @@ export function PlayerBar() {
 
           <button
             type="button"
-            onClick={() => skipForward(15)}
-            aria-label={t('player.skipForward', { seconds: 15 })}
-            title={t('player.skipForward', { seconds: 15 })}
+            onClick={() => skipForward(SKIP_FORWARD_SECONDS)}
+            aria-label={t('player.skipForward', { seconds: SKIP_FORWARD_SECONDS })}
+            title={t('player.skipForward', { seconds: SKIP_FORWARD_SECONDS })}
             className={skipClass}
           >
-            +15s
+            +{SKIP_FORWARD_SECONDS}s
           </button>
         </div>
 

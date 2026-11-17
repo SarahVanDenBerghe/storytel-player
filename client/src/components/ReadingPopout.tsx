@@ -2,8 +2,8 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {MemoryRouter, Route, Routes} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import ReadingView, {ReadingAudio} from './ReadingView';
+import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 
-const SKIP_SECONDS = 15;
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold text-[#E5E7EB] hover:bg-white/[0.08] transition-colors ${focusRing}`;
 // Shown while the pointer is over the window or a control has keyboard focus.
@@ -83,12 +83,12 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                 <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[#1A1A1A]/95 border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${onHover}`}>
                     <button
                         type="button"
-                        onClick={() => control({type: 'skip', seconds: -SKIP_SECONDS})}
-                        aria-label={t('player.skipBackward', {seconds: SKIP_SECONDS})}
-                        title={t('player.skipBackward', {seconds: SKIP_SECONDS})}
+                        onClick={() => control({type: 'skip', seconds: -SKIP_BACKWARD_SECONDS})}
+                        aria-label={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
+                        title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                         className={controlBtn}
                     >
-                        −{SKIP_SECONDS}s
+                        −{SKIP_BACKWARD_SECONDS}s
                     </button>
                     <button
                         type="button"
@@ -105,12 +105,12 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                     </button>
                     <button
                         type="button"
-                        onClick={() => control({type: 'skip', seconds: SKIP_SECONDS})}
-                        aria-label={t('player.skipForward', {seconds: SKIP_SECONDS})}
-                        title={t('player.skipForward', {seconds: SKIP_SECONDS})}
+                        onClick={() => control({type: 'skip', seconds: SKIP_FORWARD_SECONDS})}
+                        aria-label={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
+                        title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                         className={controlBtn}
                     >
-                        +{SKIP_SECONDS}s
+                        +{SKIP_FORWARD_SECONDS}s
                     </button>
                     <button
                         type="button"
