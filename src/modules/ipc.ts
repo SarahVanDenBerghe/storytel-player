@@ -44,40 +44,20 @@ export class IpcManager {
     this.setupDownloadFolderHandlers();
   }
 
-  // The folder downloaded audiobooks go to, picked by the user once (asked on
-  // the first download) and changeable in Settings. The server reads
-  // DOWNLOAD_PATH on every download, so a change applies right away.
+  // The folder downloaded audiobooks go to: fixed (~/Music/<app name>, set as
+  // DOWNLOAD_PATH in main.ts), never picked. Settings shows it.
   private setupDownloadFolderHandlers(): void {
-    const KEY = 'settings.downloadFolder';
-    const stored = (): string | null => {
-      const folder = storeManager.get<string>(KEY);
-      return folder && fs.existsSync(folder) ? folder : null;
+    const folder = (): string => {
+      const dir = process.env.DOWNLOAD_PATH || app.getPath('downloads');
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
     };
-    const choose = async (event: IpcMainInvokeEvent): Promise<string | null> => {
-      const options: Electron.OpenDialogOptions = {
-        title: i18n.t('download.chooseFolderTitle'),
-        message: i18n.t('download.chooseFolderMessage'),
-        buttonLabel: i18n.t('download.chooseFolderButton'),
-        properties: ['openDirectory', 'createDirectory'],
-        defaultPath: stored() ?? path.join(app.getPath('music'), 'Storytel'),
-      };
-      const parent = BrowserWindow.fromWebContents(event.sender);
-      const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
-      if (result.canceled || result.filePaths.length === 0) return null;
-      const folder = result.filePaths[0];
-      storeManager.set(KEY, folder);
-      process.env.DOWNLOAD_PATH = folder;
-      return folder;
-    };
-
-    ipcMain.handle('downloads:get-folder', () => stored());
+    ipcMain.handle('downloads:get-folder', () => folder());
     ipcMain.handle('downloads:show-folder', async () => {
-      const folder = stored();
-      if (folder) await shell.openPath(folder);
+      await shell.openPath(folder());
     });
-    ipcMain.handle('downloads:choose-folder', (event: IpcMainInvokeEvent) => choose(event));
-    // Before a download: the stored folder, or ask for one (null when cancelled).
-    ipcMain.handle('downloads:ensure-folder', (event: IpcMainInvokeEvent) => stored() ?? choose(event));
+    // Before a download: the fixed folder, created if needed. Never asks.
+    ipcMain.handle('downloads:ensure-folder', () => folder());
   }
 
   private setupStoreHandlers(): void {
@@ -311,9 +291,15 @@ export class IpcManager {
   private setupReadAlongSyncHandlers(): void {
     const sync = createReadAlongSync({
       userDataDir: app.getPath('userData'),
-      downloadsDirs: () => [
-        ...new Set([process.env.DOWNLOAD_PATH, process.env.LEGACY_DOWNLOAD_PATH].filter((dir): dir is string => !!dir)),
-      ],
+      downloadsDirs: () => {
+        let legacy: string[] = [];
+        try {
+          legacy = JSON.parse(process.env.LEGACY_DOWNLOAD_PATHS || '[]');
+        } catch {
+          legacy = [];
+        }
+        return [...new Set([process.env.DOWNLOAD_PATH, ...legacy].filter((dir): dir is string => typeof dir === 'string' && !!dir))];
+      },
       onProgress: (progress) => {
         for (const win of BrowserWindow.getAllWindows()) {
           if (!win.isDestroyed()) win.webContents.send('readAlong:sync-progress', progress);

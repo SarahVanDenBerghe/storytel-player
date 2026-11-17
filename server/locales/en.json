@@ -216,10 +216,7 @@
     "deleteButton": "Delete File",
     "keepButton": "Keep File",
     "failed": "Download failed",
-    "operationFailed": "Could not update the downloaded file",
-    "chooseFolderTitle": "Choose a folder for audiobooks",
-    "chooseFolderMessage": "Downloaded audiobooks are saved here. Avoid iCloud Drive: each book is about 250 MB.",
-    "chooseFolderButton": "Use this folder"
+    "operationFailed": "Could not update the downloaded file"
   },
   "updater": {
     "available": {

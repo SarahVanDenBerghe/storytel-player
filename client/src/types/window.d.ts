@@ -91,13 +91,11 @@ declare global {
     };
     /** Folder for downloaded audiobooks (Electron only). */
     electronDownloads?: {
-      /** The picked folder, or null when none is picked yet. */
+      /** The fixed download folder (~/Music/<app name>). */
       getFolder: () => Promise<string | null>;
       /** Opens the picked folder in Finder. */
       showFolder: () => Promise<void>;
-      /** Opens a folder dialog; resolves with null when cancelled. */
-      chooseFolder: () => Promise<string | null>;
-      /** The picked folder, or asks for one; null when the user cancels. */
+      /** The fixed download folder, created if needed (never asks). */
       ensureFolder: () => Promise<string | null>;
     };
     /** Read along: the EPUB stored per audiobook (Electron only). */

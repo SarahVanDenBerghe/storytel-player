@@ -104,7 +104,6 @@ contextBridge.exposeInMainWorld('electronAuth', {
 contextBridge.exposeInMainWorld('electronDownloads', {
   getFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:get-folder'),
   showFolder: (): Promise<void> => ipcRenderer.invoke('downloads:show-folder'),
-  chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:choose-folder'),
   ensureFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:ensure-folder'),
 });
 

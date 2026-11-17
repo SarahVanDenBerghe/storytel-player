@@ -100,13 +100,19 @@ function downloadsDir(): string {
   return dir;
 }
 
-// Folders searched for a downloaded book: the current folder, then the one
-// downloads used before (LEGACY_DOWNLOAD_PATH, ~/Downloads), so older
-// downloads keep playing.
+// Folders searched for a downloaded book: the current folder, then the ones
+// downloads used before (LEGACY_DOWNLOAD_PATHS, a JSON array set by the
+// Electron main process), so older downloads keep playing.
 function downloadLookupDirs(): string[] {
-  const legacy = process.env.LEGACY_DOWNLOAD_PATH;
   const current = downloadsDir();
-  return legacy && path.resolve(legacy) !== path.resolve(current) ? [current, legacy] : [current];
+  let legacy: string[] = [];
+  try {
+    const parsed = JSON.parse(process.env.LEGACY_DOWNLOAD_PATHS || "[]");
+    if (Array.isArray(parsed)) legacy = parsed.filter((dir): dir is string => typeof dir === "string");
+  } catch {
+    legacy = [];
+  }
+  return [current, ...legacy.filter((dir) => path.resolve(dir) !== path.resolve(current))];
 }
 
 // Downloaded files are named "<title> [<bookId>].mp3" so they are recognizable

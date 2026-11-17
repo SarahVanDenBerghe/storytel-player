@@ -1,4 +1,6 @@
 import {app, BrowserWindow} from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import {WindowManager} from './modules/window';
 import {TrayManager} from './modules/tray';
 import {ServerManager} from './modules/server';
@@ -21,11 +23,16 @@ let ssoManager: SsoManager;
 async function initialize(): Promise<void> {
 
     process.env.IS_ELECTRON = 'true';
-    // Downloads go to the folder the user picked (settings.downloadFolder, see
-    // setupDownloadFolderHandlers in modules/ipc.ts). Until then, and for older
-    // downloads, ~/Downloads.
-    process.env.LEGACY_DOWNLOAD_PATH = app.getPath('downloads');
-    process.env.DOWNLOAD_PATH = storeManager.get<string>('settings.downloadFolder') || app.getPath('downloads');
+    // Downloads always go to one fixed, visible folder outside iCloud, created
+    // silently: ~/Music/<app name>. Folders used before (a folder picked in an
+    // earlier build, and ~/Downloads) are still searched, so older downloads play.
+    const downloadsFolder = path.join(app.getPath('music'), app.getName());
+    fs.mkdirSync(downloadsFolder, {recursive: true});
+    process.env.DOWNLOAD_PATH = downloadsFolder;
+    const pickedBefore = storeManager.get<string>('settings.downloadFolder');
+    process.env.LEGACY_DOWNLOAD_PATHS = JSON.stringify(
+        [pickedBefore, app.getPath('downloads')].filter((dir): dir is string => !!dir && dir !== downloadsFolder),
+    );
     process.env.USER_DATA_PATH = app.getPath('userData');
 
     windowManager = new WindowManager(isDev, isDebug);
