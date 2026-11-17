@@ -113,11 +113,11 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         aria-pressed={starred}
         aria-label={starred ? t('upNext.removeStar') : t('upNext.addStar')}
         title={starred ? t('upNext.removeStar') : t('upNext.addStar')}
-        className={`absolute top-2 ${isFinished ? 'right-[38px]' : 'right-2'} w-6 h-6 rounded-full bg-[#0A0A0A]/75 flex items-center justify-center transition-[opacity,transform] duration-200 ease-out group-hover:-translate-y-0.5 ${
-          starred ? 'opacity-100 text-[#FF7A3D]' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-white'
-        } ${focusRing}`}
+        className={`absolute top-2 ${isFinished ? 'right-[38px]' : 'right-2'} w-7 h-7 rounded-full bg-[#0A0A0A]/75 flex items-center justify-center transition-[opacity,transform,color,background-color] duration-200 ease-out group-hover:-translate-y-0.5 ${
+          starred ? 'opacity-100 text-[#FF7A3D]' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-white hover:text-[#FF7A3D]'
+        } hover:bg-[#0A0A0A]/95 hover:scale-110 ${focusRing}`}
       >
-        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinejoin="round">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinejoin="round">
           <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" />
         </svg>
       </button>

@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronWindow', {
   isAlwaysOnTop: (): Promise<boolean> =>
     ipcRenderer.invoke('window-is-always-on-top'),
   isFullScreen: (): Promise<boolean> => ipcRenderer.invoke('window-is-full-screen'),
+  coverColor: (url: string): Promise<string | null> => ipcRenderer.invoke('covers:color', url),
   onFullScreenChange: (callback: (fullScreen: boolean) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, fullScreen: boolean) => callback(fullScreen);
     ipcRenderer.on('window:fullscreen', listener);

@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent, shell } from '
 import fs from 'fs';
 import path from 'path';
 import { readZipTextEntries } from './epubZip';
+import { coverColor } from './coverColor';
 import { createReadAlongSync, isValidBookId } from './readAlongSync';
 import { storeManager } from './store';
 import { ServerManager } from './server';
@@ -222,6 +223,9 @@ export class IpcManager {
     ipcMain.handle('window-is-always-on-top', () => {
       return this.windowManager.isAlwaysOnTop();
     });
+
+    // A cover's main colour (Up next tint); see coverColor.ts.
+    ipcMain.handle('covers:color', (_event: IpcMainInvokeEvent, url: unknown) => coverColor(url));
 
     ipcMain.handle('window-is-full-screen', () => this.windowManager.getWindow()?.isFullScreen() ?? false);
   }

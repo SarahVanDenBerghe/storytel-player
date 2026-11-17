@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {BookShelfEntity} from '../interfaces/books';
@@ -24,9 +24,35 @@ interface Item {
     isStarted: boolean;
 }
 
+// Cover colours as found by the main process (coverColor.ts), per URL.
+const coverColors = new Map<string, string | null>();
+
+/** The cover's main colour (#rrggbb, darkened for white text), or null until known. */
+function useCoverColor(url: string): string | null {
+    const [color, setColor] = useState<string | null>(() => coverColors.get(url) ?? null);
+    useEffect(() => {
+        if (!url || !window.electronWindow) return;
+        if (coverColors.has(url)) {
+            setColor(coverColors.get(url) ?? null);
+            return;
+        }
+        let alive = true;
+        window.electronWindow.coverColor(url)
+            .then((found) => {
+                coverColors.set(url, found);
+                if (alive) setColor(found);
+            })
+            .catch(() => undefined);
+        return () => {
+            alive = false;
+        };
+    }, [url]);
+    return color;
+}
+
 /**
  * The home page's "Up next": the starred books in their saved order (useUpNext),
- * as one block on the current book's blurred cover. The current book is the first
+ * as one block tinted with the current cover's main colour. The current book is the first
  * unfinished one; the books after it sit in a Next column. Nothing renders when
  * no book is starred (or every starred book is finished).
  */
@@ -60,6 +86,7 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
     });
 
     const currentIndex = items.findIndex((item) => !item.isFinished);
+    const tint = useCoverColor(currentIndex >= 0 ? items[currentIndex].cover : '');
     if (currentIndex < 0) return null;
     const current = items[currentIndex];
     const queue = items.slice(currentIndex + 1);
@@ -77,11 +104,16 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
         <section aria-label={t('upNext.title')}>
             <h2 className={`${heading} mb-4`}>{t('upNext.title')}</h2>
 
-            <div className="group/unb relative overflow-hidden rounded-[12px] bg-[#131315] border border-white/[0.06] animate-fade-in">
-                {/* Backdrop: the current cover, heavily blurred */}
-                <img src={current.cover} alt="" aria-hidden="true"
-                     className="absolute -left-[10%] -top-[60%] w-[120%] h-[220%] object-cover blur-[64px] saturate-[1.3] opacity-[0.32] pointer-events-none"/>
-                <div className="absolute inset-0 bg-[#0A0A0A]/35 pointer-events-none"/>
+            <div className="group/unb relative overflow-hidden rounded-[12px] bg-[#131315] border border-white/[0.025] animate-fade-in">
+                {/* Backdrop: a soft gradient from the current cover's main colour, faded in once known */}
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out"
+                    style={{
+                        opacity: tint ? 1 : 0,
+                        background: tint ? `linear-gradient(115deg, ${tint} 0%, ${tint}b3 40%, ${tint}33 75%, transparent 100%)` : undefined,
+                    }}
+                />
                 {/* Only one book: its artwork fills the right side and fades into the block */}
                 {queue.length === 0 && (
                     <img src={current.cover} alt="" aria-hidden="true"
