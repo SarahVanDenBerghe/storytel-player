@@ -9,6 +9,8 @@ interface ChaptersPopoverProps {
   currentChapter: CurrentChapterInfo | null;
   onSelectChapter: (startTime: number) => void;
   onClose: () => void;
+  /** Where it opens relative to its button (the footer default sits above the bar). */
+  positionClass?: string;
 }
 
 export function ChaptersPopover({
@@ -16,6 +18,7 @@ export function ChaptersPopover({
   currentChapter,
   onSelectChapter,
   onClose,
+  positionClass = 'bottom-[88px] right-20 sm:right-32',
 }: ChaptersPopoverProps) {
   const { t } = useTranslation();
   const currentChapterRef = useRef<HTMLButtonElement>(null);
@@ -32,7 +35,7 @@ export function ChaptersPopover({
 
   return (
     <div
-      className="absolute bottom-[88px] right-20 sm:right-32 w-[340px] max-h-[380px] bg-[#17171A] border border-white/[0.12] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-2.5 z-50 flex flex-col animate-in fade-in zoom-in-95 duration-100 select-none"
+      className={`absolute ${positionClass} w-[340px] max-h-[380px] bg-[#17171A] border border-white/[0.12] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-2.5 z-50 flex flex-col animate-in fade-in zoom-in-95 duration-100 select-none`}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header Row */}

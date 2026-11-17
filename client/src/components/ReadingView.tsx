@@ -7,6 +7,7 @@ import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
 import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph, wordPositionAt} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 import {ensureAudioDownloaded} from '../utils/readAlongAudio';
+import EpubButton from './EpubButton';
 import apiClient from '../utils/api';
 
 // Persisted reading text size (px), stored as a number.
@@ -613,18 +614,15 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                 </svg>
                             </button>
                         )}
-                        <button
-                            type="button"
-                            onClick={chooseEpub}
-                            aria-label={t('readAlong.chooseAnother')}
-                            title={t('readAlong.chooseAnother')}
-                            className={iconBtn}
-                        >
-                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                            </svg>
-                        </button>
+                        {bookId && (
+                            <EpubButton
+                                mode="reading"
+                                bookId={bookId}
+                                book={sharedAudio && String(sharedAudio.activeBookId) === String(bookId) ? sharedAudio.activeBook : null}
+                                consumableId={sharedAudio?.activeConsumableId}
+                                onChanged={() => void load(bookId)}
+                            />
+                        )}
                     </>
                 )}
             </Navbar>}

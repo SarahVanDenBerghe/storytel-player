@@ -5,7 +5,7 @@ import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import Navbar from './Navbar';
 import BookmarkModals from "./BookmarkModals";
-import PlaybackSpeedModal from "./PlaybackSpeedModal";
+import PlayerTools from "./PlayerTools";
 import ChaptersModal from "./ChaptersModal";
 import EpubButton from './EpubButton';
 import PlayerControls from "./PlayerControls";
@@ -68,7 +68,6 @@ function PlayerView() {
 
     const [error, setError] = useState('');
     const [isLoadingBookData, setIsLoadingBookData] = useState(true);
-    const [showPlaybackSpeedModal, setShowPlaybackSpeedModal] = useState(false);
     const [showKeyOverlay, setShowKeyOverlay] = useState<'play' | 'pause' | 'forward' | 'backward' | null>(null);
     const [isDownloaded, setIsDownloaded] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -264,12 +263,6 @@ function PlayerView() {
         }
     };
 
-    // Playback rate change handler
-    const handlePlaybackRateChange = (newRate: number) => {
-        audio.setRate(newRate);
-        setShowPlaybackSpeedModal(false);
-    };
-
     // Keyboard shortcuts handler
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
@@ -318,7 +311,35 @@ function PlayerView() {
 
     return (
         <div className="flex-1 flex flex-col relative bg-[#0A0A0A] text-white">
-            <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate('/')}/>
+            <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate('/')}>
+                {/* Download (offline listening) lives here: Read along has no page of its own for it. */}
+                <button
+                    id="download-btn"
+                    type="button"
+                    onClick={handleDownloadClick}
+                    className={`h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100] ${
+                        isDownloaded || isDownloading
+                            ? 'bg-[#FF5100]/[0.15] text-[#FF7A3D] hover:bg-[#FF5100]/[0.22]'
+                            : 'bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white'
+                    }`}
+                >
+                    {isDownloading ? (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                        </svg>
+                    ) : (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d={isDownloaded ? 'M5 13l4 4L19 7' : 'M12 4v11M7 10l5 5 5-5M5 20h14'}/>
+                        </svg>
+                    )}
+                    {isDownloading
+                        ? t('player.downloading', 'Downloading…')
+                        : isDownloaded
+                            ? t('player.downloaded', 'Downloaded')
+                            : t('player.download')}
+                </button>
+            </Navbar>
 
             {/* Keyboard Overlay */}
             {showKeyOverlay && (
@@ -369,36 +390,23 @@ function PlayerView() {
                         isPlaying={audio.isPlaying}
                         currentTime={audio.currentTime}
                         duration={audio.duration}
-                        volume={audio.volume}
-                        isMuted={audio.isMuted}
                         playbackRate={audio.playbackRate}
-                        hasChapters={chapterList.length > 0}
-                        isDownloaded={isDownloaded}
-                        isDownloading={isDownloading}
                         onPlayPause={audio.togglePlayPause}
                         onSeek={audio.seek}
-                        onVolumeChange={audio.setVolume}
-                        onToggleMute={audio.toggleMute}
                         onSkipForward={() => audio.skipForward(SKIP_FORWARD_SECONDS)}
                         onSkipBackward={() => audio.skipBackward(SKIP_BACKWARD_SECONDS)}
-                        onShowPlaybackSpeedModal={() => setShowPlaybackSpeedModal(true)}
-                        onShowChaptersModal={() => chapters.setShowChaptersModal(true)}
-                        onShowBookmarksModal={() => bookmarks.setShowBookmarksModal(true)}
-                        onDownloadClick={handleDownloadClick}
-                        onReadAlong={() => navigate(`/read/${bookId}`)}
                     >
-                        {bookId && <EpubButton bookId={bookId} book={book} consumableId={activeConsumableId}/>}
+                        {bookId && <EpubButton mode="player" bookId={bookId} book={book} consumableId={activeConsumableId}/>}
                     </PlayerControls>
                 </div>
             </div>
 
+            {/* Tools, as in the footer: speed, chapters, bookmarks, volume */}
+            <div className="absolute right-5 bottom-5 z-20">
+                <PlayerTools popoverOffset="bottom-full mb-2" onShowBookmarks={() => bookmarks.setShowBookmarksModal(true)}/>
+            </div>
+
             {/* Modals */}
-            <PlaybackSpeedModal
-                isOpen={showPlaybackSpeedModal}
-                playbackRate={audio.playbackRate}
-                onClose={() => setShowPlaybackSpeedModal(false)}
-                onRateChange={handlePlaybackRateChange}
-            />
 
 
             <ChaptersModal

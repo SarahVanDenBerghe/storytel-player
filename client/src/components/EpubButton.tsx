@@ -1,4 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {BookShelfEntity} from '../interfaces/books';
 import api from '../utils/api';
@@ -8,23 +9,39 @@ import {ensureAudioDownloaded} from '../utils/readAlongAudio';
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 // Same look as the full player's other action buttons (PlayerControls).
 const actionBtn = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white ${focusRing}`;
+const actionSoft = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors bg-[#FF5100]/[0.14] text-[#FFB38F] hover:bg-[#FF5100]/[0.22] ${focusRing}`;
+// The reading view's corner icon buttons.
+const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 const smallBtn = `h-8 px-3 rounded-[8px] text-[12px] font-semibold transition-colors ${focusRing}`;
+const BookIcon = () => (
+    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
+    </svg>
+);
 
 /**
- * Read along's EPUB for one book, in the full player: choose one, or see the
- * current file and replace it (with a confirmation, so a stray click never drops
- * it). Choosing downloads the audio if needed and starts the Whisper sync; the
- * button then shows "Preparing audio… n%" and "Syncing x of y". The other parts
- * of a multi-part book share the EPUB.
+ * Read along's EPUB for one book. Choosing one downloads the audio if needed and
+ * starts the Whisper sync ("Preparing audio… n%", then "Syncing x of y"); the
+ * other parts of a multi-part book share it.
+ * - mode "player" (full player): the one main button, "Choose EPUB" until one is
+ *   attached, then "Read along".
+ * - mode "reading" (Read along view): a corner button whose menu shows the file
+ *   and replaces it, with a confirmation so a stray click never drops it.
  */
-function EpubButton({bookId, book, consumableId}: {
+function EpubButton({mode, bookId, book, consumableId, onChanged}: {
+    mode: 'player' | 'reading';
     bookId: string;
     book: BookShelfEntity | null;
     consumableId?: string | null;
+    /** Called after a new EPUB is stored (the reading view reloads its text). */
+    onChanged?: () => void;
 }) {
     const {t} = useTranslation();
+    const navigate = useNavigate();
     const epubApi = window.electronEpub;
-    const [epubName, setEpubName] = useState<string | null>(null);
+    // undefined while still looking it up, null when the book has none.
+    const [epubName, setEpubName] = useState<string | null | undefined>(undefined);
     const [preparingPercent, setPreparingPercent] = useState<number | null>(null);
     const [syncProgress, setSyncProgress] = useState<ReadAlongSyncProgress | null>(null);
     const [audioOnDisk, setAudioOnDisk] = useState<boolean | null>(null);
@@ -50,12 +67,12 @@ function EpubButton({bookId, book, consumableId}: {
     // The stored EPUB; without one, take another part's (multi-part books).
     useEffect(() => {
         const epub = window.electronEpub;
-        if (!epub || !book) return;
+        if (!epub) return;
         let alive = true;
-        setEpubName(null);
+        setEpubName(undefined);
         (async () => {
             let name = await epub.name(bookId);
-            if (!name) {
+            if (!name && book) {
                 const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
                 for (const part of otherBookParts(book, shelf)) {
                     const partId = String(part.abook?.id || part.id);
@@ -114,6 +131,7 @@ function EpubButton({bookId, book, consumableId}: {
             const chosen = await epubApi.choose(bookId);
             if (!chosen) return;
             setEpubName(chosen.name);
+            onChanged?.();
             const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
             const parts = otherBookParts(book, shelf).map((part: BookShelfEntity) => String(part.abook?.id || part.id));
             if (parts.length > 0) await epubApi.link(bookId, parts);
@@ -126,32 +144,50 @@ function EpubButton({bookId, book, consumableId}: {
     if (!epubApi) return null;
 
     const syncing = syncProgress?.state === 'running';
-    const label = preparingPercent !== null
+    const status = preparingPercent !== null
         ? t('bookView.preparingAudio', {percent: preparingPercent})
         : syncing && syncProgress && syncProgress.chunksTotal > 0
             ? t('bookView.syncingProgress', {done: syncProgress.chunksDone, total: syncProgress.chunksTotal})
-            : epubName ? t('bookView.epub') : t('bookView.chooseEpub');
+            : null;
+
+    if (mode === 'player') {
+        // Before the EPUB is known: nothing, so the button doesn't flip between labels.
+        if (epubName === undefined) return null;
+        return epubName ? (
+            <button type="button" onClick={() => navigate(`/read/${bookId}`)} className={`${actionSoft} tabular-nums`}>
+                <BookIcon/>
+                {t('readAlong.open')}
+                {status && <span className="text-[#9CA3AF] font-normal">· {status}</span>}
+            </button>
+        ) : (
+            <button type="button" onClick={chooseEpub} className={`${actionBtn} tabular-nums`}>
+                <BookIcon/>
+                {status ?? t('bookView.chooseEpub')}
+            </button>
+        );
+    }
 
     return (
         <div className="relative" ref={menuRef}>
             <button
                 type="button"
-                onClick={epubName ? () => setMenu(menu === 'closed' ? 'open' : 'closed') : chooseEpub}
-                aria-expanded={epubName ? menu !== 'closed' : undefined}
-                className={`${actionBtn} tabular-nums`}
+                onClick={() => setMenu(menu === 'closed' ? 'open' : 'closed')}
+                aria-expanded={menu !== 'closed'}
+                aria-label={t('bookView.epubTitle')}
+                title={status ?? t('bookView.epubTitle')}
+                className={iconBtn}
             >
-                <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/>
                     <path d="M14 3v6h6"/>
                 </svg>
-                {label}
             </button>
             {epubName && menu !== 'closed' && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2 text-left">
+                <div className="absolute top-full right-0 mt-1.5 w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2 text-left">
                     <div className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">{t('bookView.epubTitle')}</div>
                     <div className="text-[13px] text-[#E5E7EB] break-words">{epubName}</div>
-                    {syncing && <div className="text-[12px] text-[#9CA3AF]">{t('bookView.epubSyncing')}</div>}
+                    {status && <div className="text-[12px] text-[#9CA3AF] tabular-nums">{status}</div>}
                     {audioOnDisk === false && preparingPercent === null && (
                         <button
                             type="button"
