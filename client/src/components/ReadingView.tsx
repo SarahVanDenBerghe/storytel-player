@@ -5,7 +5,7 @@ import Navbar from './Navbar';
 import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, parseEpub} from '../utils/epub';
 import {cleanBookTitle} from '../utils/helpers';
-import {buildBookIndex, matchTranscript, ReadingPlace, readingPlace, timeAtParagraph} from '../utils/readAlongSync';
+import {BookIndex, buildBookIndex, matchTranscript, ReadingPlace, readingPlace, SyncAnchor, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} from '../utils/readAlongAudio';
 import TextSizeMenu from './TextSizeMenu';
@@ -62,8 +62,17 @@ interface SyncData {
     progress: ReadAlongSyncProgress | null;
     segments: ReadAlongSegment[] | null;
     manualAnchors: ReadAlongManualAnchor[];
+    /** The saved transcript has been read once (the real position is known). */
+    loaded: boolean;
 }
 const NO_MANUAL_ANCHORS: ReadAlongManualAnchor[] = [];
+// Kept for the app's lifetime, so reopening Read along starts at the synced
+// place instead of an estimate that jumps once the transcript is read again,
+// and does not rebuild the word index or re-match the transcript.
+const syncCache: Record<string, SyncData> = {};
+const indexCache = new WeakMap<EpubParagraph[], BookIndex>();
+const anchorsCache = new WeakMap<ReadAlongSegment[], {index: BookIndex; anchors: SyncAnchor[]}>();
+const NO_ANCHORS: SyncAnchor[] = [];
 
 const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) => (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -138,7 +147,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const [status, setStatus] = useState<LoadStatus>(() => (bookId && parsedBooks[bookId] ? 'ready' : 'loading'));
     const [textSize, setTextSize] = useState(() => knownTextSize ?? DEFAULT_TEXT_SIZE);
     const [following, setFollowing] = useState(true);
-    const [sync, setSync] = useState<SyncData | null>(null);
+    const [sync, setSync] = useState<SyncData | null>(() => (bookId ? syncCache[bookId] ?? null : null));
     const requestRef = useRef(0);
     const currentTimeRef = useRef(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -265,9 +274,13 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         let fetchedChunks = -1;
         let requested = 0;
         let applied = 0;
-        const update = (change: (prev: SyncData) => SyncData) => setSync((prev) => change(
-            prev?.bookId === bookId ? prev : {bookId, progress: null, segments: null, manualAnchors: NO_MANUAL_ANCHORS},
-        ));
+        const update = (change: (prev: SyncData) => SyncData) => setSync((prev) => {
+            const next = change(prev?.bookId === bookId
+                ? prev
+                : syncCache[bookId] ?? {bookId, progress: null, segments: null, manualAnchors: NO_MANUAL_ANCHORS, loaded: false});
+            syncCache[bookId] = next;
+            return next;
+        });
         const fetchSnapshot = () => {
             const request = ++requested;
             api.syncGet(bookId)
@@ -281,9 +294,14 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         progress: prev.progress ?? snapshot.progress,
                         segments: snapshot.transcript?.segments ?? null,
                         manualAnchors: snapshot.manualAnchors,
+                        loaded: true,
                     }));
                 })
-                .catch((err) => console.error('Read along: cannot read the sync data', err));
+                .catch((err) => {
+                    console.error('Read along: cannot read the sync data', err);
+                    // Show the text anyway, at the estimated place.
+                    if (alive) update((prev) => ({...prev, loaded: true}));
+                });
         };
         const onProgress = (progress: ReadAlongSyncProgress) => {
             // Starting another book emits 'idle' for the cancelled one: filter by book.
@@ -323,14 +341,25 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     }, [bookId, syncActive, isPopout]);
 
     const syncData = sync?.bookId === bookId ? sync : null;
-    const bookIndex = useMemo(() => (paragraphs ? buildBookIndex(paragraphs) : null), [paragraphs]);
+    const bookIndex = useMemo(() => {
+        if (!paragraphs) return null;
+        const cached = indexCache.get(paragraphs) ?? buildBookIndex(paragraphs);
+        indexCache.set(paragraphs, cached);
+        return cached;
+    }, [paragraphs]);
     const segments = syncData?.segments ?? null;
     // Recomputed only when a chunk arrives (new segments). Manual anchors are no
     // longer used: a click now moves the audio to the text, not the other way round.
-    const anchors = useMemo(
-        () => (bookIndex && segments ? matchTranscript(bookIndex, segments) : []),
-        [bookIndex, segments],
-    );
+    const anchors = useMemo(() => {
+        if (!bookIndex || !segments) return NO_ANCHORS;
+        const cached = anchorsCache.get(segments);
+        if (cached && cached.index === bookIndex) return cached.anchors;
+        const matched = matchTranscript(bookIndex, segments);
+        anchorsCache.set(segments, {index: bookIndex, anchors: matched});
+        return matched;
+    }, [bookIndex, segments]);
+    // Hold the text back (invisible, laid out) until the real place is known, then fade it in.
+    const revealed = !syncActive || !!syncData?.loaded;
     const placeAt = (timeSec: number) => (showPosition && bookIndex
         ? readingPlace(bookIndex, anchors, lengths, timeSec, audio.duration, bookPart)
         : null);
@@ -432,7 +461,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     useLayoutEffect(() => {
         if (view !== 'ready' || !followingRef.current) return;
         scrollToPlace(currentTimeRef.current);
-    }, [view, textSize, scrollToPlace]);
+    }, [view, textSize, revealed, anchors, scrollToPlace]);
 
     // Paused (or reduced motion): position once, again after a seek, a new
     // paragraph (reduced motion), new anchors or another text size.
@@ -505,7 +534,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 >
                     <article
                         ref={articleRef}
-                        className={`max-w-[660px] mx-auto select-text ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'}`}
+                        className={`max-w-[660px] mx-auto select-text transition-opacity duration-200 ease-out ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'} ${revealed ? 'opacity-100' : 'opacity-0'}`}
                         style={{fontSize: isPopout ? textSize - POPOUT_TEXT_SHRINK : textSize, fontFamily: SERIF_STACK}}
                         onClick={handleArticleClick}
                     >

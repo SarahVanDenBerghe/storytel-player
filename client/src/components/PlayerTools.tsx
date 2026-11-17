@@ -72,7 +72,7 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                     aria-expanded={menu === 'speed'}
                     title={t('player.speed', 'Speed')}
                     className={`h-9 px-2.5 rounded-[10px] text-[12px] font-bold tabular-nums transition-colors flex items-center justify-center ${focusRing} ${
-                        playbackRate !== 1.0 ? pillActive : pillIdle
+                        pillIdle
                     }`}
                 >
                     {playbackRate.toFixed(Number.isInteger(playbackRate * 10) ? 1 : 2)}×
@@ -192,7 +192,14 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
 
             {/* Mode: listen (full player) or read along, two views of the same book. */}
             {showModeToggle && activeBookId && (
-                <div role="group" aria-label={t('player.mode')} className="flex flex-shrink-0 p-0.5 rounded-[10px] bg-white/[0.06]">
+                <div role="group" aria-label={t('player.mode')} className="relative flex flex-shrink-0 gap-1 p-1 rounded-[10px] bg-white/[0.06]">
+                    {/* Inset highlight that slides to the active mode (hidden on other pages). */}
+                    <span
+                        aria-hidden="true"
+                        className={`absolute top-1 left-1 w-7 h-7 rounded-[7px] bg-white/[0.12] transition-[transform,opacity] duration-200 ease-out ${
+                            isReading ? 'translate-x-8' : 'translate-x-0'
+                        } ${isListening || isReading ? 'opacity-100' : 'opacity-0'}`}
+                    />
                     {([
                         {route: 'player', active: isListening, label: t('player.listenMode'), icon: (
                             <>
@@ -211,8 +218,8 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                             aria-label={label}
                             aria-pressed={active}
                             title={label}
-                            className={`w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors ${focusRing} ${
-                                active ? 'bg-white/[0.12] text-white' : 'text-[#9CA3AF] hover:text-white'
+                            className={`relative w-7 h-7 rounded-[7px] flex items-center justify-center transition-colors duration-200 ${focusRing} ${
+                                active ? 'text-white' : 'text-[#9CA3AF] hover:text-white'
                             }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
