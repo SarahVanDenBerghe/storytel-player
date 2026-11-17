@@ -4,6 +4,7 @@ import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
 import {useAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
+import {buildBookIndex, matchTranscript, mergeManualAnchors, positionAt} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 
 // Persisted reading text size (px), stored as a number.
@@ -24,6 +25,15 @@ const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
 type ParagraphPosition = 'before' | 'current' | 'after';
 
+// What the main process has told us about the Whisper sync of one book.
+interface SyncData {
+    bookId: string;
+    progress: ReadAlongSyncProgress | null;
+    segments: ReadAlongSegment[] | null;
+    manualAnchors: ReadAlongManualAnchor[];
+}
+const NO_MANUAL_ANCHORS: ReadAlongManualAnchor[] = [];
+
 const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) => (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
          strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -32,19 +42,25 @@ const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) 
 );
 
 // Memoised so a playback tick only re-renders the paragraphs whose position changed.
-const Paragraph = React.memo(function Paragraph({index, text, heading, position}: {
+const Paragraph = React.memo(function Paragraph({index, text, heading, position, synced, title}: {
     index: number;
     text: string;
     heading: boolean;
     position: ParagraphPosition;
+    /** Current paragraph only: the position comes from a nearby sync anchor. */
+    synced: boolean;
+    title?: string;
 }) {
     const Tag = heading ? 'h2' : 'p';
     const tone = position === 'current'
-        ? 'py-3 border-dashed border-white/35 bg-white/[0.04] text-white'
+        ? synced
+            ? 'py-3 border-transparent bg-[#FF5100]/[0.14] text-white'
+            : 'py-3 border-dashed border-white/35 bg-white/[0.04] text-white'
         : `py-1 border-transparent ${position === 'before' ? 'text-[#8B929C]' : 'text-[#E5E7EB]'}`;
     return (
         <Tag
             data-index={index}
+            title={title}
             aria-current={position === 'current' ? 'true' : undefined}
             className={`mb-5 px-[14px] rounded-[10px] border ${heading ? 'text-[1.15em] font-semibold' : ''} ${tone}`}
         >
@@ -65,7 +81,9 @@ function ReadingView() {
     const [status, setStatus] = useState<LoadStatus>('loading');
     const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
     const [following, setFollowing] = useState(true);
+    const [sync, setSync] = useState<SyncData | null>(null);
     const requestRef = useRef(0);
+    const currentTimeRef = useRef(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const pointerOnScrollerRef = useRef(false);
 
@@ -157,9 +175,113 @@ function ReadingView() {
     // Position: only while this book is the one loaded in the player.
     const lengths = useMemo(() => (paragraphs ?? []).map((p) => p.text.length), [paragraphs]);
     const isThisBook = !!bookId && String(audio.activeBookId) === String(bookId) && audio.duration > 0;
-    const currentIndex = isThisBook && view === 'ready'
-        ? estimateParagraph(audio.currentTime / audio.duration, lengths)
-        : -1;
+    const showPosition = isThisBook && view === 'ready';
+    currentTimeRef.current = audio.currentTime;
+
+    // Whisper sync: transcribe from the listening position, refetch the
+    // transcript whenever another chunk is done.
+    const syncActive = showPosition && !!epubApi;
+    useEffect(() => {
+        const api = window.electronEpub;
+        if (!bookId || !syncActive || !api) return;
+        let alive = true;
+        let fetchedChunks = -1;
+        let requested = 0;
+        let applied = 0;
+        const update = (change: (prev: SyncData) => SyncData) => setSync((prev) => change(
+            prev?.bookId === bookId ? prev : {bookId, progress: null, segments: null, manualAnchors: NO_MANUAL_ANCHORS},
+        ));
+        const fetchSnapshot = () => {
+            const request = ++requested;
+            api.syncGet(bookId)
+                .then((snapshot) => {
+                    // Drop replies for a book we left, and replies older than one already applied.
+                    if (!alive || request < applied) return;
+                    applied = request;
+                    fetchedChunks = Math.max(fetchedChunks, snapshot.progress.chunksDone);
+                    update((prev) => ({
+                        ...prev,
+                        progress: prev.progress ?? snapshot.progress,
+                        segments: snapshot.transcript?.segments ?? null,
+                        manualAnchors: snapshot.manualAnchors,
+                    }));
+                })
+                .catch((err) => console.error('Read along: cannot read the sync data', err));
+        };
+        const onProgress = (progress: ReadAlongSyncProgress) => {
+            // Starting another book emits 'idle' for the cancelled one: filter by book.
+            if (!alive || progress.bookId !== bookId) return;
+            update((prev) => ({...prev, progress}));
+            if (progress.chunksDone > fetchedChunks) {
+                fetchedChunks = progress.chunksDone;
+                fetchSnapshot();
+            }
+        };
+        // Subscribe first so no progress event is missed while starting.
+        const unsubscribe = api.onSyncProgress(onProgress);
+        fetchSnapshot();
+        api.syncStart(bookId, currentTimeRef.current)
+            .then(onProgress)
+            .catch((err) => console.error('Read along: cannot start the sync', err));
+        return () => {
+            alive = false;
+            unsubscribe();
+        };
+    }, [bookId, syncActive]);
+
+    const syncData = sync?.bookId === bookId ? sync : null;
+    const bookIndex = useMemo(() => (paragraphs ? buildBookIndex(paragraphs) : null), [paragraphs]);
+    const segments = syncData?.segments ?? null;
+    const manualAnchors = syncData?.manualAnchors ?? NO_MANUAL_ANCHORS;
+    // Recomputed only when a chunk arrives (new segments) or a manual anchor is set.
+    const autoAnchors = useMemo(
+        () => (bookIndex && segments ? matchTranscript(bookIndex, segments) : []),
+        [bookIndex, segments],
+    );
+    const anchors = useMemo(
+        () => (bookIndex ? mergeManualAnchors(bookIndex, autoAnchors, manualAnchors) : []),
+        [bookIndex, autoAnchors, manualAnchors],
+    );
+    const syncedPosition = showPosition && bookIndex ? positionAt(bookIndex, anchors, audio.currentTime) : null;
+    const currentIndex = !showPosition
+        ? -1
+        : syncedPosition
+            ? syncedPosition.paragraphIndex
+            : estimateParagraph(audio.currentTime / audio.duration, lengths);
+    const isSynced = !!syncedPosition?.synced;
+
+    const syncProgress = syncData?.progress ?? null;
+    const chip: 'synced' | 'finding' | 'estimated' = isSynced
+        ? 'synced'
+        : syncProgress?.state === 'running' ? 'finding' : 'estimated';
+    let chipDetail: string | undefined;
+    if (chip === 'finding' && syncProgress && syncProgress.chunksTotal > 0) {
+        chipDetail = t('readAlong.findingDetail', {done: syncProgress.chunksDone, total: syncProgress.chunksTotal});
+    } else if (chip === 'estimated') {
+        const problem = syncProgress && (syncProgress.state === 'unavailable' || syncProgress.state === 'error');
+        chipDetail = problem && syncProgress.message ? syncProgress.message : t('readAlong.estimatedDetail');
+    }
+
+    // Set my place by hand: a click on a paragraph (not the end of a text selection).
+    const canSetPlace = isThisBook && !!epubApi;
+    const setPlaceTitle = canSetPlace ? t('readAlong.setPlace') : undefined;
+    const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
+        if (!bookId || !canSetPlace || !epubApi) return;
+        // Part of a double or triple click: the user is selecting words.
+        if (e.detail > 1) return;
+        if ((window.getSelection()?.toString() ?? '') !== '') return;
+        const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index]');
+        const paragraphIndex = Number(el?.dataset.index);
+        if (!el || !Number.isInteger(paragraphIndex)) return;
+        epubApi.setManualAnchor(bookId, audio.currentTime, paragraphIndex)
+            .then((saved) => {
+                setSync((prev) => prev?.bookId === bookId
+                    ? {...prev, manualAnchors: saved}
+                    : {bookId, progress: null, segments: null, manualAnchors: saved});
+                setFollowing(true);
+            })
+            .catch((err) => console.error('Read along: cannot save your place', err));
+    };
 
     // Follow mode: keep the current paragraph centred.
     useEffect(() => {
@@ -220,6 +342,7 @@ function ReadingView() {
                 <article
                     className="max-w-[660px] mx-auto leading-[1.75] select-text"
                     style={{fontSize: textSize, fontFamily: SERIF_STACK}}
+                    onClick={handleArticleClick}
                 >
                     {paragraphs.map((p, i) => (
                         <Paragraph
@@ -228,6 +351,8 @@ function ReadingView() {
                             text={p.text}
                             heading={p.heading}
                             position={currentIndex < 0 || i > currentIndex ? 'after' : i === currentIndex ? 'current' : 'before'}
+                            synced={i === currentIndex && isSynced}
+                            title={setPlaceTitle}
                         />
                     ))}
                 </article>
@@ -283,12 +408,23 @@ function ReadingView() {
                     <>
                         {currentIndex >= 0 && (
                             <span
-                                title={t('readAlong.estimatedDetail')}
-                                className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[12px] font-medium text-[#9CA3AF] whitespace-nowrap"
+                                title={chipDetail}
+                                className={`inline-flex items-center gap-1.5 h-7 px-2.5 text-[12px] font-medium whitespace-nowrap ${chip === 'synced' ? 'text-[#FFB38F]' : 'text-[#9CA3AF]'}`}
                             >
-                                <span aria-hidden="true" className="w-2 h-2 rounded-full border-2 border-[#9CA3AF]"/>
-                                <span><span aria-hidden="true">≈ </span>{t('readAlong.estimated')}</span>
-                                <span className="sr-only">{t('readAlong.estimatedDetail')}</span>
+                                <span
+                                    aria-hidden="true"
+                                    className={`w-2 h-2 rounded-full border-2 ${
+                                        chip === 'synced'
+                                            ? 'bg-[#FF5100] border-[#FF5100]'
+                                            : chip === 'finding' ? 'border-dashed border-[#9CA3AF]' : 'border-[#9CA3AF]'
+                                    }`}
+                                />
+                                {chip === 'synced' && <span>{t('readAlong.synced')}</span>}
+                                {chip === 'finding' && <span>{t('readAlong.finding')}</span>}
+                                {chip === 'estimated' && (
+                                    <span><span aria-hidden="true">≈ </span>{t('readAlong.estimated')}</span>
+                                )}
+                                {chipDetail && <span className="sr-only">{chipDetail}</span>}
                             </span>
                         )}
                         <button
