@@ -3,19 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../utils/api';
 import BookCard from './BookCard';
-import LoadingState from './LoadingState';
-import ErrorState from './ErrorState';
 import ConfirmRemoveBookModal from './ConfirmRemoveBookModal';
 import { BookShelfEntity, BookShelfResponse } from '../interfaces/books';
 import { removeFromBookshelfErrorKey } from '../utils/helpers';
 
 interface DashboardProps {
   onLogout: () => void;
+  onOpenSettings: () => void;
   triggerLogout?: boolean;
   setTriggerLogout?: (value: boolean) => void;
 }
 
-export function Dashboard({ onLogout, triggerLogout, setTriggerLogout }: DashboardProps) {
+export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<BookShelfEntity[]>([]);
@@ -60,32 +59,6 @@ export function Dashboard({ onLogout, triggerLogout, setTriggerLogout }: Dashboa
       setIsLoading(false);
     }
   };
-
-  // Status counts
-  const counts = useMemo(() => {
-    let notStarted = 0;
-    let started = 0;
-    let concluded = 0;
-
-    for (const b of books) {
-      const s = +b.status;
-      const pos = b.abookMark?.pos || 0;
-      if (s === 3) {
-        concluded += 1;
-      } else if (s === 2 || (pos > 0 && s !== 3)) {
-        started += 1;
-      } else {
-        notStarted += 1;
-      }
-    }
-
-    return {
-      all: books.length,
-      notStarted,
-      started,
-      concluded,
-    };
-  }, [books]);
 
   // Filtered and sorted books
   const filteredBooks = useMemo(() => {
@@ -172,161 +145,183 @@ export function Dashboard({ onLogout, triggerLogout, setTriggerLogout }: Dashboa
     }
   };
 
-  if (isLoading) {
-    return <LoadingState message={t('dashboard.loading', 'Loading your library...')} />;
-  }
+  const focusRing =
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
+  const secondaryButton = `h-9 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#D1D5DB] text-[13px] font-medium transition-colors ${focusRing}`;
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0A] text-white">
-        <ErrorState error={error} onRetry={() => window.location.reload()} onLogout={onLogout} />
+  const filters = [
+    { status: null, label: t('dashboard.filters.all', 'All') },
+    { status: 1, label: t('dashboard.filters.notStarted', 'Not started') },
+    { status: 2, label: t('dashboard.filters.started', 'Started') },
+    { status: 3, label: t('dashboard.filters.concluded', 'Concluded') },
+  ];
+
+  let body: React.ReactNode;
+  if (isLoading) {
+    body = (
+      <div role="status" className="flex flex-col items-center gap-3 py-20 text-[13px] text-[#9CA3AF]">
+        <div className="w-6 h-6 rounded-full border-2 border-white/10 border-t-[#FF5100] animate-spin" aria-hidden="true" />
+        {t('dashboard.loading', 'Loading your library...')}
+      </div>
+    );
+  } else if (error) {
+    body = (
+      <div className="max-w-sm mx-auto py-20 text-center">
+        <h2 className="text-[15px] font-semibold text-white mb-1">{t('errorState.title')}</h2>
+        <p className="text-[13px] text-[#9CA3AF] mb-5">{error}</p>
+        <div className="flex justify-center gap-2">
+          <button type="button" onClick={() => window.location.reload()} className={secondaryButton}>
+            {t('errorState.tryAgain')}
+          </button>
+          <button type="button" onClick={onLogout} className={secondaryButton}>
+            {t('errorState.logout')}
+          </button>
+        </div>
+      </div>
+    );
+  } else if (books.length === 0) {
+    body = (
+      <div className="max-w-sm mx-auto py-20 text-center">
+        <h2 className="text-[15px] font-semibold text-white mb-1">{t('dashboard.noBooks', 'No books found')}</h2>
+        <p className="text-[13px] text-[#9CA3AF] mb-5">
+          {t('dashboard.emptyLibrary', 'Your library appears to be empty.')}
+        </p>
+        <button type="button" onClick={() => navigate('/search')} className={secondaryButton}>
+          {t('dashboard.exploreCatalog', 'Explore the catalog (⌘K)')}
+        </button>
+      </div>
+    );
+  } else if (filteredBooks.length === 0) {
+    body = (
+      <div className="max-w-sm mx-auto py-20 text-center">
+        <h2 className="text-[15px] font-semibold text-white mb-5">
+          {t('dashboard.noFilterMatch', 'No books matched your filter.')}
+        </h2>
+        <button
+          type="button"
+          onClick={() => {
+            setFilterStatus(null);
+            setSearchQuery('');
+          }}
+          className={secondaryButton}
+        >
+          {t('dashboard.resetFilters', 'Reset filters')}
+        </button>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="max-w-[1000px] mx-auto grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-7 gap-y-8">
+        {filteredBooks
+          .filter((book) => !!book?.abook || !!book?.book)
+          .map((book) => (
+            <BookCard
+              key={book.abook?.id || book.id || book.book?.consumableId}
+              book={book}
+              onBookSelect={handleBookSelect}
+              onRemove={setBookToRemove}
+              onQuickPlay={handleQuickPlay}
+            />
+          ))}
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white overflow-y-auto custom-scrollbar">
-      <main className="max-w-7xl mx-auto py-7 px-6 pb-28">
-        {/* Top Header & Search Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-3">
-              <span>{t('dashboard.title', 'My Library')}</span>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#1A1A1A] border border-white/10 text-gray-400">
-                {t('dashboard.bookCount', { count: books.length })}
-              </span>
-            </h1>
-          </div>
-
-          {/* Quick filter in library */}
-          <div className="relative w-full md:w-72">
-            <div className="relative flex items-center bg-[#1A1A1A] border border-white/[0.08] focus-within:border-[#FF5100]/60 focus-within:ring-1 focus-within:ring-[#FF5100]/30 rounded-xl px-3.5 h-10 transition-all shadow-inner">
-              <svg
-                className="w-4 h-4 text-gray-400 flex-shrink-0 mr-2.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-                />
-              </svg>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('dashboard.search', 'Search my library...')}
-                className="w-full bg-transparent text-white placeholder-gray-500 text-xs focus:outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="text-gray-400 hover:text-white ml-1.5 p-1 rounded-full hover:bg-white/10"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Status Tabs */}
-        <div className="flex items-center gap-2 mb-7 overflow-x-auto pb-1 no-scrollbar border-b border-white/[0.06] pt-1">
-          {[
-            { status: null, label: t('dashboard.filters.all', 'All'), count: counts.all },
-            { status: 2, label: t('dashboard.filters.started', 'Started'), count: counts.started },
-            { status: 1, label: t('dashboard.filters.notStarted', 'Not started'), count: counts.notStarted },
-            { status: 3, label: t('dashboard.filters.concluded', 'Concluded'), count: counts.concluded },
-          ].map(({ status, label, count }) => {
+    <div className="flex-1 min-h-0 flex flex-col bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white">
+      {/* Header row: title, count, progress filters, library filter, find books, settings */}
+      <header className="flex-shrink-0 flex flex-wrap items-center gap-3 px-6 pt-4 pb-3">
+        <h1 className="m-0 text-[15px] font-semibold">{t('dashboard.title', 'My Library')}</h1>
+        {!isLoading && !error && (
+          <span className="text-[13px] text-[#9CA3AF]">{t('dashboard.bookCount', { count: books.length })}</span>
+        )}
+        <div
+          role="group"
+          aria-label={t('dashboard.filters.label', 'Filter by progress')}
+          className="ml-2 flex gap-0.5 p-0.5 rounded-[10px] bg-white/[0.06]"
+        >
+          {filters.map(({ status, label }) => {
             const isActive = filterStatus === status;
             return (
               <button
                 key={String(status)}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => setFilterStatus(status)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all select-none ${
-                  isActive
-                    ? 'bg-[#FF5100]/15 text-[#FF5100] border border-[#FF5100]/40 shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                className={`h-[30px] px-3 rounded-lg text-[12px] font-medium transition-colors ${focusRing} ${
+                  isActive ? 'bg-[#2A2A2E] text-white' : 'bg-transparent text-[#9CA3AF] hover:text-white'
                 }`}
               >
-                <span>{label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    isActive ? 'bg-[#FF5100] text-white' : 'bg-[#222225] text-gray-400'
-                  }`}
-                >
-                  {count}
-                </span>
+                {label}
               </button>
             );
           })}
         </div>
 
-        {/* Book Grid */}
-        {books.length === 0 ? (
-          <div className="text-center py-20 bg-[#141414] border border-white/[0.06] rounded-3xl p-8 max-w-lg mx-auto shadow-2xl">
-            <div className="w-16 h-16 mx-auto mb-4 bg-white/[0.04] border border-white/[0.08] rounded-2xl flex items-center justify-center text-gray-500">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
+        <span className="flex-1" />
+
+        <label className="relative flex items-center">
+          <span className="sr-only">{t('dashboard.search', 'Search my library...')}</span>
+          <svg
+            aria-hidden="true"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            className="absolute left-2.5 text-[#9CA3AF] pointer-events-none"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('dashboard.search', 'Search my library...')}
+            className={`w-[200px] h-9 pl-8 ${searchQuery ? 'pr-8' : 'pr-2.5'} rounded-[10px] border border-white/10 bg-transparent text-white text-[13px] placeholder-[#9CA3AF] focus:outline-none focus-visible:border-[#FF5100]`}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label={t('common.close', 'Close')}
+              className={`absolute right-1.5 w-6 h-6 rounded-md flex items-center justify-center text-[#9CA3AF] hover:text-white ${focusRing}`}
+            >
+              <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </div>
-            <h3 className="text-white text-lg font-bold mb-1">
-              {t('dashboard.noBooks', 'No books found')}
-            </h3>
-            <p className="text-gray-400 text-xs max-w-sm mx-auto mb-5">
-              {t('dashboard.emptyLibrary', 'Your library appears to be empty.')}
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/search')}
-              className="px-5 py-2.5 rounded-xl bg-[#FF5100] text-white text-xs font-bold shadow-lg shadow-[#FF5100]/30 hover:brightness-110 active:scale-95 transition-all"
-            >
-              {t('dashboard.exploreCatalog', 'Explore the catalog (⌘K)')}
             </button>
-          </div>
-        ) : filteredBooks.length === 0 ? (
-          <div className="text-center py-16 bg-[#141414] border border-white/[0.06] rounded-3xl p-8 space-y-3 max-w-lg mx-auto shadow-xl">
-            <p className="text-gray-300 text-sm font-medium">{t('dashboard.noFilterMatch', 'No books matched your filter.')}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStatus(null);
-                setSearchQuery('');
-              }}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-white font-semibold transition-all"
-            >
-              {t('dashboard.resetFilters', 'Reset filters')}
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
-            {filteredBooks
-              .filter((book) => !!book?.abook || !!book?.book)
-              .map((book) => (
-                <BookCard
-                  key={book.abook?.id || book.id || book.book?.consumableId}
-                  book={book}
-                  onBookSelect={handleBookSelect}
-                  onRemove={setBookToRemove}
-                  onQuickPlay={handleQuickPlay}
-                />
-              ))}
-          </div>
-        )}
-      </main>
+          )}
+        </label>
+
+        <button
+          type="button"
+          onClick={() => navigate('/search')}
+          className={`h-9 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#E5E7EB] text-[13px] font-medium flex items-center gap-2 transition-colors ${focusRing}`}
+        >
+          {t('dashboard.findBooks', 'Find books')}
+          <span className="text-[11px] text-[#9CA3AF]">⌘K</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          aria-label={t('settings.title', 'Settings')}
+          title={t('settings.title', 'Settings')}
+          className={`w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
+        >
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
+          </svg>
+        </button>
+      </header>
+
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-4 pb-12">{body}</div>
 
       <ConfirmRemoveBookModal
         isOpen={!!bookToRemove}

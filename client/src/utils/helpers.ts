@@ -165,3 +165,27 @@ export const truncateTitle = (title: string, maxLength: number = 30): string => 
     if (title.length <= maxLength) return title;
     return title.substring(0, maxLength - 3) + '...';
 };
+
+// Shorten a raw Storytel title for compact cards: drop a "[...]" edition tag and
+// everything after it, pull "(n of m)" out as a part number, and (only when there
+// was no tag) cut the subtitle after the first ": ".
+export const cleanBookTitle = (raw: string): { title: string; part?: { n: number; total: number } } => {
+    let title = raw;
+    const tagIndex = title.search(/\[[^\]]*\]/);
+    if (tagIndex >= 0) title = title.slice(0, tagIndex);
+
+    let part: { n: number; total: number } | undefined;
+    const partMatch = title.match(/\((\d+)\s+of\s+(\d+)\)/i);
+    if (partMatch) {
+        part = { n: Number(partMatch[1]), total: Number(partMatch[2]) };
+        title = title.replace(partMatch[0], ' ');
+    }
+
+    if (tagIndex < 0) {
+        const colonIndex = title.indexOf(': ');
+        if (colonIndex >= 0) title = title.slice(0, colonIndex);
+    }
+
+    title = title.replace(/\s+/g, ' ').trim();
+    return part ? { title, part } : { title };
+};

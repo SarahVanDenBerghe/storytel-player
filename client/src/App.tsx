@@ -6,7 +6,7 @@ import {
   MemoryRouter,
   BrowserRouter,
   useLocation,
-  useSearchParams,
+  useNavigate,
 } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LoginForm from "./components/LoginForm";
@@ -19,7 +19,6 @@ import WelcomeModal from "./components/WelcomeModal";
 import LogsModal from "./components/LogsModal";
 import SettingsModal from "./components/SettingsModal";
 import ConfirmLogoutModal from "./components/ConfirmLogoutModal";
-import TopBar from "./components/TopBar";
 import PlayerBar from "./components/PlayerBar";
 import SearchView from "./components/SearchView";
 import { AudioProvider } from "./contexts/AudioContext";
@@ -30,35 +29,28 @@ const Router = useMemoryRouter ? MemoryRouter : BrowserRouter;
 
 function AuthenticatedLayout({
   children,
-  onOpenSettings,
-  onLogout,
 }: {
   children: React.ReactNode;
-  onOpenSettings: () => void;
-  onLogout: () => void;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isPlayerView = location.pathname.startsWith('/player/');
-  // The global top bar belongs to the library and search screens only.
-  const showTopBar = location.pathname === '/' || location.pathname === '/search';
-  const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const isSearchPage = location.pathname === '/search';
 
-  // Keep topbar search in sync if url search param changes
+  // Global Cmd+K / Ctrl+K shortcut: open the catalog search from any page.
   useEffect(() => {
-    const q = searchParams.get('q') || '';
-    setSearchQuery(q);
-  }, [searchParams]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (!isSearchPage) navigate('/search');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchPage, navigate]);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#0A0A0A] text-white select-none">
-      {showTopBar && (
-        <TopBar
-          onOpenSettings={onOpenSettings}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-      )}
       <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative flex flex-col">
         {children}
       </main>
@@ -202,16 +194,14 @@ function App() {
     <Router>
       <AudioProvider>
         {isAuthenticated ? (
-          <AuthenticatedLayout
-            onOpenSettings={() => setShowSettingsModal(true)}
-            onLogout={() => setShowConfirmModal(true)}
-          >
+          <AuthenticatedLayout>
             <Routes>
               <Route
                 path="/"
                 element={
                   <Dashboard
                     onLogout={handleLogout}
+                    onOpenSettings={() => setShowSettingsModal(true)}
                     triggerLogout={triggerLogout}
                     setTriggerLogout={setTriggerLogout}
                   />
