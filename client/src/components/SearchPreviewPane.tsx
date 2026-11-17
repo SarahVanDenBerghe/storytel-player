@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SearchResultBook } from '../interfaces/books';
 import { buildCoverUrl, formatMicrosecondsTime, localizedLanguageName } from '../utils/helpers';
@@ -20,15 +21,16 @@ export function SearchPreviewPane({
 }: SearchPreviewPaneProps) {
   const { t, i18n } = useTranslation();
 
+  const asideClass =
+    'flex-[0_1_340px] min-w-0 max-h-full box-border p-6 flex flex-col gap-3.5 overflow-y-auto custom-scrollbar select-none';
+
   if (!book) {
     return (
-      <aside className="w-[340px] p-[22px] bg-[#0D0D0F] border-l border-white/[0.05] flex flex-col items-center justify-center text-center flex-shrink-0 select-none">
-        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-gray-600 mb-3">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-        </div>
-        <p className="text-sm font-medium text-gray-400">{t('search.selectBookHint', 'Select a book to preview')}</p>
+      <aside aria-label={t('search.preview', 'Preview')} className={`${asideClass} items-center justify-center text-center`}>
+        <svg aria-hidden="true" className="w-7 h-7 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <p className="m-0 text-[13px] text-[#9CA3AF]">{t('search.selectBookHint', 'Select a book to preview')}</p>
       </aside>
     );
   }
@@ -39,123 +41,94 @@ export function SearchPreviewPane({
           hours: t('search.hours'),
           minutes: t('search.minutes'),
         })
-      : '—';
+      : '';
   const languageLabel = book.language
     ? localizedLanguageName(book.language, i18n.language, book.languageName)
-    : (book.languageName ? (book.languageName.charAt(0).toUpperCase() + book.languageName.slice(1)) : '—');
+    : (book.languageName ? (book.languageName.charAt(0).toUpperCase() + book.languageName.slice(1)) : '');
+  const formats = [
+    book.hasAbook ? t('search.audiobook', 'Audiobook') : '',
+    book.hasEbook ? t('search.ebook', 'E-book') : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const meta = [formats, durationText, languageLabel].filter(Boolean).join(' · ');
+  const addLabel = isAdded ? t('bookView.inLibrary', 'In Library') : t('bookView.addToLibrary', 'Add to Library');
+
+  const focusRing =
+    'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 
   return (
-    <aside className="w-[340px] p-[22px] bg-[#0D0D0F] border-l border-white/[0.05] flex flex-col flex-shrink-0 select-none overflow-y-auto custom-scrollbar">
-      {/* Cover (168x168) */}
-      <div className="w-[168px] h-[168px] rounded-[14px] mx-auto overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.6)] bg-gray-900 flex-shrink-0 mb-5 relative">
+    <aside aria-label={t('search.preview', 'Preview')} className={asideClass}>
+      {/* Cover (160x160) */}
+      <div className="w-40 h-40 rounded-[12px] overflow-hidden bg-[#121214] flex-shrink-0 flex items-center justify-center text-[#9CA3AF]">
         {book.coverUrl ? (
-          <img
-            src={buildCoverUrl(book.coverUrl)}
-            alt={book.title}
-            className="w-full h-full object-cover"
-          />
+          <img src={buildCoverUrl(book.coverUrl)} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-600">
-            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
+          <svg aria-hidden="true" className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
         )}
       </div>
 
-      {/* Title & Author */}
-      <div className="text-center mb-5">
-        <h2 className="text-[19px] font-bold text-white leading-snug line-clamp-2">
-          {book.title}
-        </h2>
-        <p className="text-sm text-[#9ca3af] mt-1 line-clamp-1">
-          {book.authors}
-        </p>
+      {/* Title, author, meta */}
+      <div>
+        <h2 className="m-0 text-base font-semibold leading-[1.3] text-white">{book.title}</h2>
+        {book.authors && <p className="mt-1 mb-0 text-[13px] text-[#D1D5DB]">{book.authors}</p>}
+        {meta && <p className="mt-1.5 mb-0 text-xs text-[#9CA3AF]">{meta}</p>}
       </div>
 
-      {/* Action Buttons: Listen & Add */}
-      <div className="flex items-center gap-2.5 mb-6">
+      {/* Actions: Listen, Details, Add */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onPlay(book.id)}
-          className="flex-1 h-[42px] rounded-xl bg-gradient-to-r from-[#FF5100] to-[#FF6B2B] hover:brightness-110 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF5100]/25 active:scale-95 transition-all"
+          className={`h-9 px-3.5 rounded-[10px] bg-[#FF5100] hover:brightness-110 text-[#0A0A0A] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${focusRing}`}
         >
-          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
+          <svg aria-hidden="true" className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z" />
           </svg>
           <span>{t('bookView.listen', 'Listen')}</span>
         </button>
-
+        <Link
+          to={`/book/${book.id}`}
+          className={`h-9 px-3 rounded-[10px] border border-white/[0.14] text-[#D1D5DB] hover:text-white hover:bg-white/[0.04] text-[13px] flex items-center no-underline transition-colors ${focusRing}`}
+        >
+          {t('search.details', 'Details')}
+        </Link>
+        {/* Add to library (kept from the previous design) */}
         <button
           type="button"
           onClick={() => onAddToLibrary(book.id)}
           disabled={isAdded || isAdding}
-          className={`h-[42px] px-3.5 rounded-xl border font-medium text-xs flex items-center gap-1.5 transition-all ${
+          aria-label={addLabel}
+          title={addLabel}
+          aria-busy={isAdding || undefined}
+          className={`w-9 h-9 rounded-[10px] border border-white/[0.14] flex items-center justify-center transition-colors ${focusRing} ${
             isAdded
-              ? 'bg-green-600/20 text-green-400 border-green-500/40 cursor-default'
-              : isAdding
-              ? 'bg-[#1A1A1A] text-white border-white/20 animate-pulse'
-              : 'bg-[#1A1A1A] hover:bg-[#242426] text-white border-white/10'
+              ? 'text-[#FF7A3D] cursor-default'
+              : 'text-[#D1D5DB] hover:text-white hover:bg-white/[0.04]'
           }`}
         >
           {isAdded ? (
-            <>
-              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>{t('bookView.inLibrary', 'In Library')}</span>
-            </>
+            <svg aria-hidden="true" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12l5 5 9-10" />
+            </svg>
           ) : isAdding ? (
-            <span>{t('common.saving', 'Saving...')}</span>
+            <svg aria-hidden="true" className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
           ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>{t('bookView.addToLibrary', 'Add to Library')}</span>
-            </>
+            <svg aria-hidden="true" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           )}
         </button>
       </div>
 
-      {/* Metadata Rows */}
-      <div className="border-t border-b border-white/[0.06] divide-y divide-white/[0.04] py-1 text-[13px] mb-5">
-        <div className="py-2.5 flex items-center justify-between">
-          <span className="text-gray-500">{t('bookView.language', 'Language')}</span>
-          <span className="text-gray-200 font-medium">{languageLabel}</span>
-        </div>
-        <div className="py-2.5 flex items-center justify-between">
-          <span className="text-gray-500">{t('bookView.duration', 'Duration')}</span>
-          <span className="text-gray-200 font-medium">{durationText}</span>
-        </div>
-        {book.narrators && (
-          <div className="py-2.5 flex items-center justify-between">
-            <span className="text-gray-500">{t('bookView.narrator', 'Narrator')}</span>
-            <span className="text-gray-200 font-medium truncate max-w-[170px] text-right" title={book.narrators}>
-              {book.narrators}
-            </span>
-          </div>
-        )}
-        {book.category && (
-          <div className="py-2.5 flex items-center justify-between">
-            <span className="text-gray-500">{t('bookView.category', 'Category')}</span>
-            <span className="text-gray-200 font-medium truncate max-w-[170px] text-right" title={book.category}>
-              {book.category}
-            </span>
-          </div>
-        )}
-      </div>
-
       {/* Description */}
       {book.description && (
-        <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            {t('bookView.description', 'Description')}
-          </h4>
-          <p className="text-[13px] leading-relaxed text-[#d1d5db] font-normal text-pretty">
-            {book.description}
-          </p>
-        </div>
+        <p className="m-0 text-[13px] leading-[1.6] text-[#D1D5DB] line-clamp-6 text-pretty">{book.description}</p>
       )}
     </aside>
   );

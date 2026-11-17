@@ -8,16 +8,58 @@ import SearchFilterRail, { DurationFilter, LanguageStat } from './SearchFilterRa
 import SearchResultList, { SortOption } from './SearchResultList';
 import SearchPreviewPane from './SearchPreviewPane';
 
+const focusRing =
+  'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
+
 interface SearchViewProps {
   query?: string;
 }
 
 export function SearchView({ query: propQuery }: SearchViewProps) {
   const { t, i18n } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const activeQuery = propQuery !== undefined ? propQuery : (searchParams.get('q') || '');
+
+  // Local input value, kept in sync with the active query (URL or prop)
+  const [inputValue, setInputValue] = useState(activeQuery);
+  useEffect(() => {
+    setInputValue(activeQuery);
+  }, [activeQuery]);
+
+  // Autofocus the search box when the page opens
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Cmd+K / Ctrl+K while already on this page: focus the search box.
+  // Navigation to /search from other pages is handled by the app layout.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (val) next.set('q', val);
+        else next.delete('q');
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const [rawResults, setRawResults] = useState<SearchResultBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,7 +229,7 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0A0A0A] overflow-hidden relative select-none">
+    <div className="flex flex-col h-full w-full bg-[#0A0A0A] text-white overflow-hidden relative select-none">
       {/* Toast feedback banner */}
       {toastMessage && (
         <div
@@ -210,7 +252,39 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
         </div>
       )}
 
-      {/* 1. Left: Filter Rail (248px) */}
+      {/* Header row: back button + centred search box */}
+      <div className="flex items-center gap-3 px-3 py-2 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          aria-label={t('common.back', 'Back')}
+          className={`w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
+        >
+          <svg aria-hidden="true" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <label className="flex-1 max-w-[640px] mx-auto relative flex items-center">
+          <span className="sr-only">{t('search.title', 'Search Storytel')}</span>
+          <svg aria-hidden="true" className="w-4 h-4 absolute left-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={inputValue}
+            onChange={handleQueryChange}
+            placeholder={t('search.placeholder', 'Search by title, author, or narrator...')}
+            className="w-full h-11 pl-10 pr-3.5 rounded-[12px] bg-[#121214] border border-white/[0.14] text-white text-sm placeholder-[#9CA3AF] outline-none focus:border-[#FF5100]/60 transition-colors"
+          />
+        </label>
+        <span className="w-11 flex-shrink-0" aria-hidden="true" />
+      </div>
+
+      {/* Three columns (wrap on narrow windows) */}
+      <div className="flex-1 min-h-0 flex flex-wrap overflow-y-auto custom-scrollbar">
+      {/* 1. Left: Filter Rail (188px) */}
       <SearchFilterRail
         languageStats={languageStats}
         selectedLanguages={selectedLanguages}
@@ -221,66 +295,65 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
         totalHits={rawResults.length}
       />
 
-      {/* 2. Center: Result List (flex) */}
-      {isLoading && rawResults.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0A0A0A]">
-          <div className="w-8 h-8 border-2 border-[#FF5100] border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-sm font-medium text-gray-400">{t('search.searching', 'Searching...')}</p>
-        </div>
-      ) : !activeQuery.trim() ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0A0A0A]">
-          <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-gray-500 mb-3">
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+      {/* 2. Center: Results, between two vertical dividers */}
+      <section
+        aria-label={t('search.results', 'Search results')}
+        className="flex-[1_1_380px] min-w-0 min-h-0 max-h-full flex flex-col border-x border-white/[0.06]"
+      >
+        {isLoading && rawResults.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-7 h-7 border-2 border-[#FF5100] border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-[13px] text-[#9CA3AF]">{t('search.searching', 'Searching...')}</p>
           </div>
-          <h3 className="text-base font-bold text-white mb-1">{t('search.title', 'Search Storytel')}</h3>
-          <p className="text-xs text-gray-500 max-w-sm">
-            {t('search.initialPrompt', "Type to search Storytel's vast catalog of audiobooks")}
-          </p>
-        </div>
-      ) : rawResults.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0A0A0A]">
-          <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-gray-500 mb-3">
-            <svg className="w-7 h-7 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        ) : !activeQuery.trim() ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <svg aria-hidden="true" className="w-7 h-7 text-[#9CA3AF] mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
             </svg>
+            <h3 className="text-[15px] font-semibold text-white mb-1">{t('search.title', 'Search Storytel')}</h3>
+            <p className="text-[13px] text-[#9CA3AF] max-w-sm">
+              {t('search.initialPrompt', "Type to search Storytel's vast catalog of audiobooks")}
+            </p>
           </div>
-          <h3 className="text-base font-bold text-white mb-1">
-            {t('search.noResults', 'No books found for')} ”{activeQuery}”
-          </h3>
-          <p className="text-xs text-gray-500 max-w-sm">
-            {t('search.noResultsHint', 'Check the spelling or try another search term')}
-          </p>
-        </div>
-      ) : filteredResults.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0A0A0A]">
-          <h3 className="text-sm font-bold text-white mb-2">{t('search.noFilterMatch', 'No matches with the selected filters')}</h3>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedLanguages([]);
-              setSelectedDuration('all');
-            }}
-            className="px-4 py-2 rounded-xl bg-[#FF5100] text-white text-xs font-semibold shadow-md shadow-[#FF5100]/25 hover:brightness-110 transition-all"
-          >
-            {t('search.showAllLanguages', { total: rawResults.length })}
-          </button>
-        </div>
-      ) : (
-        <SearchResultList
-          results={filteredResults}
-          totalRawHits={rawResults.length}
-          selectedBookId={selectedBook?.id || null}
-          onSelectBook={(book) => setSelectedBook(book)}
-          onPlayBook={(e, id) => handlePlayBook(e, id)}
-          onAddToLibrary={(e, id) => handleAddToLibrary(e, id)}
-          addedBooks={addedBooks}
-          addingBookId={addingBookId}
-          sortBy={sortBy}
-          onChangeSort={setSortBy}
-        />
-      )}
+        ) : rawResults.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <h3 className="text-[15px] font-semibold text-white mb-1 break-words max-w-full">
+              {t('search.noResults', 'No books found for')} ”{activeQuery}”
+            </h3>
+            <p className="text-[13px] text-[#9CA3AF] max-w-sm">
+              {t('search.noResultsHint', 'Check the spelling or try another search term')}
+            </p>
+          </div>
+        ) : filteredResults.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <h3 className="text-[15px] font-semibold text-white mb-3">{t('search.noFilterMatch', 'No matches with the selected filters')}</h3>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLanguages([]);
+                setSelectedDuration('all');
+              }}
+              className={`h-9 px-3.5 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#D1D5DB] text-[13px] transition-colors ${focusRing}`}
+            >
+              {t('search.showAllLanguages', { total: rawResults.length })}
+            </button>
+          </div>
+        ) : (
+          <SearchResultList
+            results={filteredResults}
+            totalRawHits={rawResults.length}
+            selectedBookId={selectedBook?.id || null}
+            onSelectBook={(book) => setSelectedBook(book)}
+            onPlayBook={(e, id) => handlePlayBook(e, id)}
+            onAddToLibrary={(e, id) => handleAddToLibrary(e, id)}
+            addedBooks={addedBooks}
+            addingBookId={addingBookId}
+            sortBy={sortBy}
+            onChangeSort={setSortBy}
+          />
+        )}
+      </section>
 
       {/* 3. Right: Preview Pane (340px) */}
       <SearchPreviewPane
@@ -290,6 +363,7 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
         isAdded={selectedBook ? !!addedBooks[selectedBook.id] : false}
         isAdding={selectedBook ? addingBookId === selectedBook.id : false}
       />
+      </div>
     </div>
   );
 }

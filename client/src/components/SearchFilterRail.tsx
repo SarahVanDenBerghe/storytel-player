@@ -32,135 +32,70 @@ export function SearchFilterRail({
 
   const isAllLanguagesSelected = selectedLanguages.length === 0;
 
+  const sectionLabel = 'm-0 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]';
+  const optionClass = (selected: boolean) =>
+    `w-full h-8 px-2.5 rounded-[8px] flex items-center gap-1.5 text-left text-[13px] transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100] ${
+      selected ? 'bg-[#2A2A2E] text-white' : 'bg-transparent text-[#D1D5DB] hover:bg-white/[0.04] hover:text-white'
+    }`;
+
+  const durations: { id: DurationFilter; label: string }[] = [
+    { id: 'all', label: t('search.allLengths', 'All lengths') },
+    { id: 'under5', label: `< 5 ${t('search.hours')}` },
+    { id: '5to15', label: `5–15 ${t('search.hours')}` },
+    { id: 'over15', label: `> 15 ${t('search.hours')}` },
+  ];
+
   return (
-    <aside className="w-[248px] p-5 gap-6 border-r border-white/[0.05] bg-[#0A0A0A] flex flex-col flex-shrink-0 select-none overflow-y-auto custom-scrollbar">
+    <aside
+      aria-label={t('search.filters', 'Filters')}
+      className="flex-[0_0_188px] max-h-full box-border pt-4 pb-4 pl-6 pr-3 flex flex-col gap-5 overflow-y-auto custom-scrollbar select-none"
+    >
       {/* 1. Language Section */}
       <div>
-        <div className="flex items-center justify-between mb-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-[#6b7280]">
-            {t('search.filterByLanguage', 'Language')}
-          </span>
-          {!isAllLanguagesSelected && (
-            <button
-              type="button"
-              onClick={onSelectAllLanguages}
-              className="text-[11px] font-semibold text-[#FF5100] hover:text-[#ff6b2b] transition-colors"
-            >
-              {t('search.showAllLanguages', { total: totalHits })}
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          {/* 'All' Row */}
-          <button
-            type="button"
-            onClick={onSelectAllLanguages}
-            className={`w-full h-9 px-2.5 rounded-[10px] flex items-center justify-between text-xs font-medium transition-all ${
-              isAllLanguagesSelected
-                ? 'bg-[#FF5100]/10 border border-[#FF5100]/40 text-white'
-                : 'text-gray-300 hover:bg-white/5 hover:text-white border border-transparent'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-[18px] h-[18px] rounded-[5px] flex items-center justify-center flex-shrink-0 transition-colors ${
-                  isAllLanguagesSelected
-                    ? 'bg-[#FF5100] text-white'
-                    : 'border-[1.5px] border-white/20'
-                }`}
-              >
-                {isAllLanguagesSelected && (
-                  <svg className="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-              <span className="truncate">{t('search.allLanguages', 'All')}</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#222225] text-gray-400">
-              {totalHits}
-            </span>
-          </button>
-
-          {/* Individual Language Rows */}
+        <h2 className={sectionLabel}>{t('search.filterByLanguage', 'Language')}</h2>
+        <div className="flex flex-col gap-0.5">
           {languageStats.map((stat) => {
             const isSelected = selectedLanguages.includes(stat.iso.toLowerCase());
             return (
               <button
                 key={stat.iso}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onToggleLanguage(stat.iso)}
-                className={`w-full h-9 px-2.5 rounded-[10px] flex items-center justify-between text-xs font-medium transition-all ${
-                  isSelected
-                    ? 'bg-[#FF5100]/10 border border-[#FF5100]/40 text-white'
-                    : 'text-gray-300 hover:bg-white/5 hover:text-white border border-transparent'
-                }`}
+                className={optionClass(isSelected)}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`w-[18px] h-[18px] rounded-[5px] flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isSelected
-                        ? 'bg-[#FF5100] text-white'
-                        : 'border-[1.5px] border-white/20'
-                    }`}
-                  >
-                    {isSelected && (
-                      <svg className="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="truncate">{stat.name}</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#222225] text-gray-400">
-                  {stat.count}
-                </span>
+                <span className="truncate">{stat.name}</span>
+                <span className="text-[#9CA3AF] flex-shrink-0">{stat.count}</span>
               </button>
             );
           })}
+          {/* 'All' row: clears the language selection */}
+          <button
+            type="button"
+            aria-pressed={isAllLanguagesSelected}
+            onClick={onSelectAllLanguages}
+            className={optionClass(isAllLanguagesSelected)}
+          >
+            <span className="truncate">{t('search.allLanguages', 'All')}</span>
+            <span className="text-[#9CA3AF] flex-shrink-0">{totalHits}</span>
+          </button>
         </div>
       </div>
 
       {/* 2. Length Section */}
       <div>
-        <div className="mb-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-[#6b7280]">
-            {t('search.filterByLength', 'Length')}
-          </span>
-        </div>
-        <div className="space-y-1">
-          {[
-            { id: 'all' as DurationFilter, label: t('search.allLengths', 'All lengths') },
-            { id: 'under5' as DurationFilter, label: `< 5 ${t('search.hours')}` },
-            { id: '5to15' as DurationFilter, label: `5–15 ${t('search.hours')}` },
-            { id: 'over15' as DurationFilter, label: `> 15 ${t('search.hours')}` },
-          ].map((dur) => {
+        <h2 className={sectionLabel}>{t('search.filterByLength', 'Length')}</h2>
+        <div className="flex flex-col gap-0.5">
+          {durations.map((dur) => {
             const isSelected = selectedDuration === dur.id;
             return (
               <button
                 key={dur.id}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onChangeDuration(dur.id)}
-                className={`w-full h-9 px-2.5 rounded-[10px] flex items-center gap-2.5 text-xs font-medium transition-all ${
-                  isSelected
-                    ? 'bg-[#FF5100]/10 border border-[#FF5100]/40 text-white'
-                    : 'text-gray-300 hover:bg-white/5 hover:text-white border border-transparent'
-                }`}
+                className={optionClass(isSelected)}
               >
-                <div
-                  className={`w-[18px] h-[18px] rounded-[5px] flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isSelected
-                      ? 'bg-[#FF5100] text-white'
-                      : 'border-[1.5px] border-white/20'
-                  }`}
-                >
-                  {isSelected && (
-                    <svg className="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
                 <span className="truncate">{dur.label}</span>
               </button>
             );
