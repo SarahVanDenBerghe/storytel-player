@@ -23,6 +23,9 @@ const READING_LINE = 0.4;
 const MAX_PREDICTION_SEC = 1;
 // The follow dot's left edge sits this far left of the text column (6 px dot, centred 27 px out).
 const DOT_OFFSET = 30;
+// While following, text above the reading line fades out towards the top of the
+// scroller; the spoken line and everything below it stay fully visible.
+const FOLLOW_FADE = `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc(${READING_LINE * 100}% - 2em))`;
 // The pop-out window is small: smaller text and line height than the main window's, and no dot.
 const POPOUT_TEXT_SHRINK = 2;
 
@@ -33,7 +36,6 @@ const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
 /** The part of the player the reading view needs; the pop-out window feeds it over IPC. */
 export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'>;
-type ParagraphPosition = 'before' | 'current' | 'after';
 
 // Where the narration is: a paragraph and how far through its words (0–1).
 interface ReadingPlace {
@@ -82,13 +84,13 @@ const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) 
     </svg>
 );
 
-// Memoised so a playback tick only re-renders the paragraphs whose position changed.
-// Read paragraphs are dimmed; the current one and later ones look the same.
-const Paragraph = React.memo(function Paragraph({index, text, heading, position, title}: {
+// Memoised so a playback tick only re-renders the paragraphs whose state changed.
+// All paragraphs share one colour; read text fades through the scroller's mask (FOLLOW_FADE).
+const Paragraph = React.memo(function Paragraph({index, text, heading, current, title}: {
     index: number;
     text: string;
     heading: boolean;
-    position: ParagraphPosition;
+    current: boolean;
     title?: string;
 }) {
     const Tag = heading ? 'h2' : 'p';
@@ -97,8 +99,8 @@ const Paragraph = React.memo(function Paragraph({index, text, heading, position,
         <Tag
             data-index={index}
             title={title}
-            aria-current={position === 'current' ? 'true' : undefined}
-            className={`mb-[0.6em] ${headingStyle} ${position === 'before' ? 'text-[#8B929C]' : 'text-[#E5E7EB]'}`}
+            aria-current={current ? 'true' : undefined}
+            className={`mb-[0.6em] text-[#E5E7EB] ${headingStyle}`}
         >
             {text}
         </Tag>
@@ -468,6 +470,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     role="region"
                     aria-label={t('readAlong.bookText')}
                     className="relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]"
+                    style={following && currentIndex >= 0 ? {maskImage: FOLLOW_FADE} : undefined}
                     {...scrollerHandlers}
                 >
                     <article
@@ -482,7 +485,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                 index={i}
                                 text={p.text}
                                 heading={p.heading}
-                                position={currentIndex < 0 || i > currentIndex ? 'after' : i === currentIndex ? 'current' : 'before'}
+                                current={i === currentIndex}
                                 title={setPlaceTitle}
                             />
                         ))}
