@@ -36,12 +36,19 @@ test('counts a bucket at most once per pair, so confidence never exceeds 100%', 
   assert.equal(match.confidence, 1);
 });
 
-test('matches a window to the bucket it starts in', () => {
+test('matches a window to the exact word it starts on, not its bucket start', () => {
   const words = Array.from({ length: 20 }, (_, k) => `w${53 + k}`);
   const match = matchWindow(index, words);
   assert.ok(match);
-  assert.equal(match.wordIndex, 50);
+  assert.equal(match.wordIndex, 53);
   assert.equal(match.confidence, 1);
+});
+
+test('finds the exact start when a window straddles a bucket boundary', () => {
+  const words = Array.from({ length: 20 }, (_, k) => `w${70 + k}`);
+  const match = matchWindow(index, words);
+  assert.ok(match);
+  assert.equal(match.wordIndex, 70);
 });
 
 test('keeps confident windows as anchors at their first segment start', () => {

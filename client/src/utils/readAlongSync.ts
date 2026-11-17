@@ -121,7 +121,22 @@ export function matchWindow(
     }
   }
   if (bestBucket < 0) return null;
-  const wordIndex = Math.min(bestBucket * BUCKET_WORDS, Math.max(index.words.length - 1, 0));
+  // The bucket only says roughly where the window starts; rounding down to its
+  // first word would put the highlight up to 24 words behind. Use the median
+  // start implied by the pairs that agree (best bucket and its neighbours, as a
+  // window can straddle a bucket boundary).
+  const offsets: number[] = [];
+  for (let i = 0; i < pairs; i++) {
+    const positions = index.pairPositions.get(`${windowWords[i]} ${windowWords[i + 1]}`);
+    if (!positions) continue;
+    for (const pos of positions) {
+      const start = pos - i;
+      if (Math.abs(Math.floor(start / BUCKET_WORDS) - bestBucket) <= 1) offsets.push(start);
+    }
+  }
+  offsets.sort((a, b) => a - b);
+  const median = offsets[Math.floor(offsets.length / 2)];
+  const wordIndex = Math.min(Math.max(median, 0), Math.max(index.words.length - 1, 0));
   return { wordIndex, pairs, confidence: bestVotes / pairs };
 }
 
