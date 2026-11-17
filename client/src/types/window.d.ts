@@ -82,6 +82,15 @@ declare global {
       setAlwaysOnTop: (alwaysOnTop: boolean) => Promise<void>;
       isAlwaysOnTop: () => Promise<boolean>;
     };
+    /** Folder for downloaded audiobooks (Electron only). */
+    electronDownloads?: {
+      /** The picked folder, or null when none is picked yet. */
+      getFolder: () => Promise<string | null>;
+      /** Opens a folder dialog; resolves with null when cancelled. */
+      chooseFolder: () => Promise<string | null>;
+      /** The picked folder, or asks for one; null when the user cancels. */
+      ensureFolder: () => Promise<string | null>;
+    };
     /** Read along: the EPUB stored per audiobook (Electron only). */
     electronEpub?: {
       /** Opens a file dialog; resolves with null when cancelled. */

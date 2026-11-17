@@ -40,6 +40,39 @@ export class IpcManager {
     this.setupEpubHandlers();
     this.setupReadAlongSyncHandlers();
     this.setupReadAlongPopoutHandlers();
+    this.setupDownloadFolderHandlers();
+  }
+
+  // The folder downloaded audiobooks go to, picked by the user once (asked on
+  // the first download) and changeable in Settings. The server reads
+  // DOWNLOAD_PATH on every download, so a change applies right away.
+  private setupDownloadFolderHandlers(): void {
+    const KEY = 'settings.downloadFolder';
+    const stored = (): string | null => {
+      const folder = storeManager.get<string>(KEY);
+      return folder && fs.existsSync(folder) ? folder : null;
+    };
+    const choose = async (event: IpcMainInvokeEvent): Promise<string | null> => {
+      const options: Electron.OpenDialogOptions = {
+        title: i18n.t('download.chooseFolderTitle'),
+        message: i18n.t('download.chooseFolderMessage'),
+        buttonLabel: i18n.t('download.chooseFolderButton'),
+        properties: ['openDirectory', 'createDirectory'],
+        defaultPath: stored() ?? path.join(app.getPath('music'), 'Storytel'),
+      };
+      const parent = BrowserWindow.fromWebContents(event.sender);
+      const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
+      if (result.canceled || result.filePaths.length === 0) return null;
+      const folder = result.filePaths[0];
+      storeManager.set(KEY, folder);
+      process.env.DOWNLOAD_PATH = folder;
+      return folder;
+    };
+
+    ipcMain.handle('downloads:get-folder', () => stored());
+    ipcMain.handle('downloads:choose-folder', (event: IpcMainInvokeEvent) => choose(event));
+    // Before a download: the stored folder, or ask for one (null when cancelled).
+    ipcMain.handle('downloads:ensure-folder', (event: IpcMainInvokeEvent) => stored() ?? choose(event));
   }
 
   private setupStoreHandlers(): void {
@@ -268,7 +301,9 @@ export class IpcManager {
   private setupReadAlongSyncHandlers(): void {
     const sync = createReadAlongSync({
       userDataDir: app.getPath('userData'),
-      downloadsDir: app.getPath('downloads'),
+      downloadsDirs: () => [
+        ...new Set([process.env.DOWNLOAD_PATH, process.env.LEGACY_DOWNLOAD_PATH].filter((dir): dir is string => !!dir)),
+      ],
       onProgress: (progress) => {
         for (const win of BrowserWindow.getAllWindows()) {
           if (!win.isDestroyed()) win.webContents.send('readAlong:sync-progress', progress);

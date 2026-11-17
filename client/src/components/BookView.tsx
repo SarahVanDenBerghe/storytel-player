@@ -5,6 +5,7 @@ import {BookShelfEntity} from "../interfaces/books";
 import Navbar from './Navbar';
 import {addToBookshelfErrorKey, buildCoverUrl, otherBookParts, removeFromBookshelfErrorKey, truncateTitle} from '../utils/helpers';
 import {useAudioContext} from '../contexts/AudioContext';
+import {ensureAudioDownloaded} from '../utils/readAlongAudio';
 import ConfirmRemoveBookModal from './ConfirmRemoveBookModal';
 import api from '../utils/api';
 import "../types/window.d.ts";
@@ -157,18 +158,51 @@ function BookView() {
     };
 
     // Read along: attach an EPUB without starting playback. The main process
-    // stores it per book (as ReadingView does) and, when the audiobook is
-    // downloaded, starts the Whisper sync from the beginning.
+    // stores it per book (as ReadingView does); the audio is then downloaded
+    // if needed and the Whisper sync starts from the beginning.
     const epubApi = window.electronEpub;
     const [epubName, setEpubName] = useState<string | null>(null);
-    const [epubSyncing, setEpubSyncing] = useState(false);
+    // Read-along state shown on the EPUB button: downloading the audio (percent),
+    // then the sync job's progress.
+    const [preparingPercent, setPreparingPercent] = useState<number | null>(null);
+    const [syncProgress, setSyncProgress] = useState<ReadAlongSyncProgress | null>(null);
+    const [audioOnDisk, setAudioOnDisk] = useState<boolean | null>(null);
     const bookName = book?.book?.name;
+
+    useEffect(() => {
+        const epub = window.electronEpub;
+        if (!bookId || !epub) return;
+        setSyncProgress(null);
+        setAudioOnDisk(null);
+        epub.syncGet(bookId).then((snapshot) => setSyncProgress(snapshot.progress)).catch(() => undefined);
+        api.get(`/download-status/${bookId}`)
+            .then((res) => setAudioOnDisk(!!res.data?.downloaded))
+            .catch(() => undefined);
+        return epub.onSyncProgress((progress) => {
+            if (progress.bookId === bookId) setSyncProgress(progress);
+        });
+    }, [bookId]);
+
+    const prepareAndSync = async () => {
+        if (!bookId || !epubApi || preparingPercent !== null) return;
+        setPreparingPercent(0);
+        try {
+            const ok = await ensureAudioDownloaded(bookId, book?.book?.consumableId, book, setPreparingPercent);
+            if (!ok) return;
+            setAudioOnDisk(true);
+            setSyncProgress(await epubApi.syncStart(bookId, 0));
+        } catch (err) {
+            console.error('Read along: cannot prepare the audio', err);
+        } finally {
+            setPreparingPercent(null);
+        }
+    };
+
     useEffect(() => {
         const epub = window.electronEpub;
         if (!bookId || !epub || !book) return;
         let alive = true;
         setEpubName(null);
-        setEpubSyncing(false);
         (async () => {
             let name = await epub.name(bookId);
             if (!name) {
@@ -223,8 +257,7 @@ function BookView() {
             const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
             const parts = otherBookParts(book, shelf).map((part: BookShelfEntity) => String(part.abook?.id || part.id));
             if (parts.length > 0) await epubApi.link(bookId, parts);
-            const progress = await epubApi.syncStart(bookId, 0);
-            setEpubSyncing(progress.state === 'running');
+            await prepareAndSync();
         } catch (err) {
             console.error('Read along: cannot attach the EPUB', err);
         }
@@ -322,6 +355,13 @@ function BookView() {
         {label: t('bookView.narrator'), value: narratorText, title: narrators.length > 2 ? narrators.join(', ') : undefined},
         {label: t('bookView.category'), value: book.book.category?.title || ''},
     ].filter((d) => d.value);
+
+    const syncing = syncProgress?.state === 'running';
+    const epubButtonLabel = preparingPercent !== null
+        ? t('bookView.preparingAudio', {percent: preparingPercent})
+        : syncing && syncProgress && syncProgress.chunksTotal > 0
+            ? t('bookView.syncingProgress', {done: syncProgress.chunksDone, total: syncProgress.chunksTotal})
+            : epubName ? t('bookView.epub') : t('bookView.chooseEpub');
 
     const playLabel = hasProgress
         ? t('bookView.continueWithProgress', {defaultValue: 'Continue · {{percent}}%', percent: progressPercent})
@@ -454,13 +494,25 @@ function BookView() {
                                              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
                                         </svg>
-                                        {epubName ? t('bookView.epub') : t('bookView.chooseEpub')}
+                                        {epubButtonLabel}
                                     </button>
                                     {epubName && epubMenu !== 'closed' && (
                                         <div className="absolute top-full left-0 mt-1.5 w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2">
                                             <div className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">{t('bookView.epubTitle')}</div>
                                             <div className="text-[13px] text-[#E5E7EB] break-words">{epubName}</div>
-                                            {epubSyncing && <div className="text-[12px] text-[#9CA3AF]">{t('bookView.epubSyncing')}</div>}
+                                            {syncing && <div className="text-[12px] text-[#9CA3AF]">{t('bookView.epubSyncing')}</div>}
+                                            {audioOnDisk === false && preparingPercent === null && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEpubMenu('closed');
+                                                        void prepareAndSync();
+                                                    }}
+                                                    className={`self-start mt-1 h-8 px-3 rounded-[8px] bg-[#FF5100] hover:bg-[#ff641a] text-[#0A0A0A] text-[12px] font-semibold transition-colors ${focusRing}`}
+                                                >
+                                                    {t('bookView.prepareAudio')}
+                                                </button>
+                                            )}
                                             {epubMenu === 'open' ? (
                                                 <button
                                                     type="button"

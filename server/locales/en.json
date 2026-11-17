@@ -159,7 +159,10 @@
     "replaceConfirm": "Replace {{name}}? Read along will use the new file instead.",
     "chooseNewFile": "Choose new file",
     "progress": "{{percent}}% listened",
-    "moreNarrators": "+{{count}} more"
+    "moreNarrators": "+{{count}} more",
+    "preparingAudio": "Preparing audio… {{percent}}%",
+    "syncingProgress": "Syncing {{done}} of {{total}}",
+    "prepareAudio": "Prepare audio for read along"
   },
   "chapters": {
     "title": "Audio Tracks & Chapters",
@@ -213,7 +216,10 @@
     "deleteButton": "Delete File",
     "keepButton": "Keep File",
     "failed": "Download failed",
-    "operationFailed": "Could not update the downloaded file"
+    "operationFailed": "Could not update the downloaded file",
+    "chooseFolderTitle": "Choose a folder for audiobooks",
+    "chooseFolderMessage": "Downloaded audiobooks are saved here. Avoid iCloud Drive: each book is about 250 MB.",
+    "chooseFolderButton": "Use this folder"
   },
   "updater": {
     "available": {
@@ -250,6 +256,8 @@
     "developer": "Developer",
     "viewLogs": "View Session Logs",
     "language": "Language",
+    "downloadFolder": "Download folder",
+    "downloadFolderNone": "Not chosen yet: asked on the first download",
     "languageAuto": "Auto"
   },
   "language": {
@@ -344,6 +352,8 @@
     "openPopout": "Open reading window",
     "closePopout": "Close reading window",
     "textSizeMenu": "Text size",
-    "textSizeOption": "{{size}} px"
+    "textSizeOption": "{{size}} px",
+    "preparing": "Preparing audio…",
+    "preparingDetail": "Downloading the audio to sync the text: {{percent}}%"
   }
 }

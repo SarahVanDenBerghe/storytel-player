@@ -207,6 +207,8 @@ function PlayerView() {
     // Handle download
     const handleDownload = async () => {
         if (!bookId || isDownloading) return;
+        // First download: ask where downloaded audiobooks go (cancel = no download).
+        if (window.electronDownloads && !(await window.electronDownloads.ensureFolder())) return;
 
         setIsDownloading(true);
         try {

@@ -90,13 +90,23 @@ function replyError(reply: FastifyReply, error: any) {
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "your-super-secret-jwt-key-change-this-in-production";
-const DOWNLOADS_DIR = process.env.IS_ELECTRON
-  ? "" + process.env.DOWNLOAD_PATH
-  : path.join(__dirname, "downloads");
+// Where new downloads go. Read on every use: in Electron the user can change
+// the folder while the app runs (main process sets DOWNLOAD_PATH).
+function downloadsDir(): string {
+  const dir = process.env.IS_ELECTRON
+    ? "" + process.env.DOWNLOAD_PATH
+    : path.join(__dirname, "downloads");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
-// Ensure downloads directory exists
-if (!fs.existsSync(DOWNLOADS_DIR)) {
-  fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
+// Folders searched for a downloaded book: the current folder, then the one
+// downloads used before (LEGACY_DOWNLOAD_PATH, ~/Downloads), so older
+// downloads keep playing.
+function downloadLookupDirs(): string[] {
+  const legacy = process.env.LEGACY_DOWNLOAD_PATH;
+  const current = downloadsDir();
+  return legacy && path.resolve(legacy) !== path.resolve(current) ? [current, legacy] : [current];
 }
 
 // Downloaded files are named "<title> [<bookId>].mp3" so they are recognizable
@@ -123,20 +133,26 @@ function buildDownloadPath(bookId: string, title?: string): string {
   const fileName = safeTitle
     ? `${safeTitle} [${bookId}].mp3`
     : `${bookId}.mp3`;
-  return path.join(DOWNLOADS_DIR, fileName);
+  return path.join(downloadsDir(), fileName);
 }
 
 function findDownloadedFile(bookId: string): string | null {
   if (!isValidBookId(bookId)) return null;
 
-  const legacyPath = path.join(DOWNLOADS_DIR, `${bookId}.mp3`);
-  if (fs.existsSync(legacyPath)) return legacyPath;
-
   const suffix = ` [${bookId}].mp3`;
-  const match = fs
-    .readdirSync(DOWNLOADS_DIR)
-    .find((name) => name.endsWith(suffix));
-  return match ? path.join(DOWNLOADS_DIR, match) : null;
+  for (const dir of downloadLookupDirs()) {
+    const legacyPath = path.join(dir, `${bookId}.mp3`);
+    if (fs.existsSync(legacyPath)) return legacyPath;
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+    const match = names.find((name) => name.endsWith(suffix));
+    if (match) return path.join(dir, match);
+  }
+  return null;
 }
 
 const activeDownloads = new Map<
@@ -145,6 +161,8 @@ const activeDownloads = new Map<
     controller: AbortController;
     writer: fs.WriteStream;
     filePath: string;
+    /** 0-100, for /api/download-status while the download runs. */
+    percentage: number;
   }
 >();
 
@@ -750,6 +768,7 @@ fastify.post<{
         controller,
         writer,
         filePath: partFilePath,
+        percentage: 0,
       });
 
       try {
@@ -773,6 +792,8 @@ fastify.post<{
             totalLength > 0
               ? Math.round((downloadedLength / totalLength) * 100)
               : 0;
+          const active = activeDownloads.get(bookId);
+          if (active) active.percentage = percentage;
 
           if (percentage % 10 === 0) {
             fastify.log.info(`Download progress for ${bookId}: ${percentage}%`);
@@ -956,7 +977,12 @@ fastify.get<{
   async (request, reply) => {
     try {
       const { bookId } = request.params;
-      reply.send({ downloaded: findDownloadedFile(bookId) !== null });
+      const active = activeDownloads.get(bookId);
+      reply.send({
+        downloaded: findDownloadedFile(bookId) !== null,
+        downloading: !!active,
+        percentage: active?.percentage ?? 0,
+      });
     } catch (error: any) {
       replyError(reply, error);
     }

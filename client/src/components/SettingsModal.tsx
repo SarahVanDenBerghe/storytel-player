@@ -21,13 +21,20 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
   const [showLogsModal, setShowLogsModal] = useState<boolean>(false);
   const [showLanguageModal, setShowLanguageModal] = useState<boolean>(false);
   const [languageState, setLanguageState] = useState<LanguageState | null>(null);
+  const [downloadFolder, setDownloadFolder] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchAccountInfo();
       fetchAlwaysOnTopSetting();
+      window.electronDownloads?.getFolder().then(setDownloadFolder).catch(() => undefined);
     }
   }, [isOpen]);
+
+  const changeDownloadFolder = async () => {
+    const folder = await window.electronDownloads?.chooseFolder().catch(() => null);
+    if (folder) setDownloadFolder(folder);
+  };
 
   // Also refresh after the picker closes, so the summary line stays accurate.
   useEffect(() => {
@@ -155,6 +162,20 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
               </span>
               <span aria-hidden="true" className="text-[#9CA3AF]">›</span>
             </button>
+            {window.electronDownloads && (
+              <>
+                {divider}
+                <button type="button" onClick={changeDownloadFolder} className={linkRow}>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-white">{t('settings.downloadFolder')}</span>
+                    <span className="block mt-0.5 text-xs text-[#9CA3AF] truncate" title={downloadFolder ?? undefined}>
+                      {downloadFolder ?? t('settings.downloadFolderNone')}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="text-[#9CA3AF]">›</span>
+                </button>
+              </>
+            )}
           </div>
         </section>
 

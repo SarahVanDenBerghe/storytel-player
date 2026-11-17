@@ -57,7 +57,8 @@ export interface SyncSnapshot {
 
 export interface ReadAlongSyncOptions {
   userDataDir: string;
-  downloadsDir: string;
+  /** Folders that may hold the downloaded audio (current folder first). */
+  downloadsDirs: () => string[];
   onProgress: (progress: SyncProgress) => void;
 }
 
@@ -90,18 +91,21 @@ function findTool(name: string): string | null {
 }
 
 /** Same lookup as findDownloadedFile in server/fastify-common.ts. */
-function findDownloadedAudio(downloadsDir: string, bookId: string): string | null {
-  const legacyPath = path.join(downloadsDir, `${bookId}.mp3`);
-  if (fs.existsSync(legacyPath)) return legacyPath;
+function findDownloadedAudio(downloadsDirs: string[], bookId: string): string | null {
   const suffix = ` [${bookId}].mp3`;
-  let names: string[];
-  try {
-    names = fs.readdirSync(downloadsDir);
-  } catch {
-    return null;
+  for (const dir of downloadsDirs) {
+    const legacyPath = path.join(dir, `${bookId}.mp3`);
+    if (fs.existsSync(legacyPath)) return legacyPath;
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+    const match = names.find((name) => name.endsWith(suffix));
+    if (match) return path.join(dir, match);
   }
-  const match = names.find((name) => name.endsWith(suffix));
-  return match ? path.join(downloadsDir, match) : null;
+  return null;
 }
 
 /** Spawns without a shell (file names contain spaces and brackets). Resolves with stdout. */
@@ -158,7 +162,7 @@ function isFinished(file: BookSyncFile | null): boolean {
 }
 
 export function createReadAlongSync(options: ReadAlongSyncOptions) {
-  const { userDataDir, downloadsDir, onProgress } = options;
+  const { userDataDir, downloadsDirs, onProgress } = options;
   const dataDir = path.join(userDataDir, 'readAlong');
   const modelPath = path.join(userDataDir, 'whisper', 'ggml-base.en.bin');
 
@@ -269,7 +273,7 @@ export function createReadAlongSync(options: ReadAlongSyncOptions) {
       if (!ffmpeg || !ffprobe) reason = 'FFmpeg is not installed: brew install ffmpeg';
       else if (!whisper) reason = 'Whisper is not installed: brew install whisper-cpp';
       else if (!fs.existsSync(modelPath)) reason = `Whisper model not found: ${modelPath}`;
-      const audioPath = reason ? null : findDownloadedAudio(downloadsDir, bookId);
+      const audioPath = reason ? null : findDownloadedAudio(downloadsDirs(), bookId);
       if (!reason && !audioPath) reason = 'Download this audiobook to sync the text';
       if (reason || !audioPath || !ffmpeg || !ffprobe || !whisper) {
         job.progress = { ...job.progress, state: 'unavailable', message: reason ?? undefined };

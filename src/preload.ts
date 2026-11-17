@@ -93,6 +93,13 @@ contextBridge.exposeInMainWorld('electronAuth', {
     ipcRenderer.invoke('auth:open-sso-window', provider),
 });
 
+// Download folder API (see setupDownloadFolderHandlers in src/modules/ipc.ts).
+contextBridge.exposeInMainWorld('electronDownloads', {
+  getFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:get-folder'),
+  chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:choose-folder'),
+  ensureFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:ensure-folder'),
+});
+
 // Read along API: the EPUB stored per audiobook, read in the main process.
 contextBridge.exposeInMainWorld('electronEpub', {
   choose: (bookId: string): Promise<{ name: string } | null> =>

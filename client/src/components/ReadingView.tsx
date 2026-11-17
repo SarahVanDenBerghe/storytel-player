@@ -6,6 +6,8 @@ import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContex
 import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
 import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph, wordPositionAt} from '../utils/readAlongSync';
 import storage from '../utils/storage';
+import {ensureAudioDownloaded} from '../utils/readAlongAudio';
+import apiClient from '../utils/api';
 
 // Persisted reading text size (px), stored as a number.
 export const TEXT_SIZE_KEY = 'readAlong.textSize';
@@ -114,6 +116,12 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const audio = popoutAudio ?? sharedAudio;
     if (!audio) throw new Error('ReadingView needs an AudioProvider or popoutAudio');
     const isPopout = !!popoutAudio;
+    // Main window: the player, for downloading the audio when the sync needs it.
+    const playerRef = useRef(sharedAudio);
+    playerRef.current = sharedAudio;
+    // Downloading the audio for the sync (percent), and the books already tried.
+    const [preparingPercent, setPreparingPercent] = useState<number | null>(null);
+    const preparedRef = useRef(new Set<string>());
     const epubApi = window.electronEpub;
     // Main window only: whether the pop-out reading window is open.
     const [popoutOpen, setPopoutOpen] = useState(false);
@@ -291,14 +299,30 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         // Subscribe first so no progress event is missed while starting.
         const unsubscribe = api.onSyncProgress(onProgress);
         fetchSnapshot();
-        api.syncStart(bookId, currentTimeRef.current)
-            .then(onProgress)
+        const start = () => api.syncStart(bookId, currentTimeRef.current).then((progress) => {
+            onProgress(progress);
+            return progress;
+        });
+        start()
+            .then(async (progress) => {
+                // No audio on disk: download it (main window only, once per book), then sync.
+                if (progress.state !== 'unavailable' || isPopout || preparedRef.current.has(bookId)) return;
+                const status = await apiClient.get(`/download-status/${bookId}`).then((res) => res.data).catch(() => null);
+                if (!alive || !status || status.downloaded) return;
+                preparedRef.current.add(bookId);
+                setPreparingPercent(0);
+                const player = playerRef.current;
+                const ok = await ensureAudioDownloaded(bookId, player?.activeConsumableId, player?.activeBook ?? null, (percent) => {
+                    if (alive) setPreparingPercent(percent);
+                }).finally(() => setPreparingPercent(null));
+                if (ok && alive) await start();
+            })
             .catch((err) => console.error('Read along: cannot start the sync', err));
         return () => {
             alive = false;
             unsubscribe();
         };
-    }, [bookId, syncActive]);
+    }, [bookId, syncActive, isPopout]);
 
     const syncData = sync?.bookId === bookId ? sync : null;
     const bookIndex = useMemo(() => (paragraphs ? buildBookIndex(paragraphs) : null), [paragraphs]);
@@ -318,11 +342,14 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const isSynced = !!place?.synced;
 
     const syncProgress = syncData?.progress ?? null;
-    const chip: 'synced' | 'finding' | 'estimated' = isSynced
+    const chip: 'synced' | 'preparing' | 'finding' | 'estimated' = isSynced
         ? 'synced'
+        : preparingPercent !== null ? 'preparing'
         : syncProgress?.state === 'running' ? 'finding' : 'estimated';
     let chipDetail: string | undefined;
-    if (chip === 'finding' && syncProgress && syncProgress.chunksTotal > 0) {
+    if (chip === 'preparing') {
+        chipDetail = t('readAlong.preparingDetail', {percent: preparingPercent});
+    } else if (chip === 'finding' && syncProgress && syncProgress.chunksTotal > 0) {
         chipDetail = t('readAlong.findingDetail', {done: syncProgress.chunksDone, total: syncProgress.chunksTotal});
     } else if (chip === 'estimated') {
         const problem = syncProgress && (syncProgress.state === 'unavailable' || syncProgress.state === 'error');
@@ -548,11 +575,12 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                     className={`w-2 h-2 rounded-full border-2 ${
                                         chip === 'synced'
                                             ? 'bg-[#FF5100] border-[#FF5100]'
-                                            : chip === 'finding' ? 'border-dashed border-[#9CA3AF]' : 'border-[#9CA3AF]'
+                                            : chip === 'finding' || chip === 'preparing' ? 'border-dashed border-[#9CA3AF]' : 'border-[#9CA3AF]'
                                     }`}
                                 />
                                 {chip === 'synced' && <span>{t('readAlong.synced')}</span>}
                                 {chip === 'finding' && <span>{t('readAlong.finding')}</span>}
+                                {chip === 'preparing' && <span>{t('readAlong.preparing')}</span>}
                                 {chip === 'estimated' && (
                                     <span><span aria-hidden="true">≈ </span>{t('readAlong.estimated')}</span>
                                 )}

@@ -6,6 +6,7 @@ import {IpcManager} from './modules/ipc';
 import {UpdaterManager} from './modules/updater';
 import {SsoManager} from './modules/sso';
 import {i18n} from './i18n';
+import {storeManager} from './modules/store';
 
 const isDev = process.env.NODE_ENV === 'development';
 const isDebug = process.env.IS_DEBUG === 'true';
@@ -20,7 +21,11 @@ let ssoManager: SsoManager;
 async function initialize(): Promise<void> {
 
     process.env.IS_ELECTRON = 'true';
-    process.env.DOWNLOAD_PATH = app.getPath('downloads');
+    // Downloads go to the folder the user picked (settings.downloadFolder, see
+    // setupDownloadFolderHandlers in modules/ipc.ts). Until then, and for older
+    // downloads, ~/Downloads.
+    process.env.LEGACY_DOWNLOAD_PATH = app.getPath('downloads');
+    process.env.DOWNLOAD_PATH = storeManager.get<string>('settings.downloadFolder') || app.getPath('downloads');
     process.env.USER_DATA_PATH = app.getPath('userData');
 
     windowManager = new WindowManager(isDev, isDebug);
