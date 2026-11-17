@@ -47,6 +47,13 @@ declare global {
     playbackRate: number;
   }
 
+  /** What the read-along pop-out asks the main window's player to do. */
+  type ReadAlongPopoutControl =
+    | { type: 'seek'; timeSec: number }
+    | { type: 'toggle' }
+    /** Negative seconds skip backward. */
+    | { type: 'skip'; seconds: number };
+
   interface Window {
     // TODO: Define proper types for tray control methods based on actual Electron IPC
     trayControls?: {
@@ -106,10 +113,10 @@ declare global {
       /** Pop-out: the last reported state, or null before any. */
       getPlayback: () => Promise<ReadAlongPlayback | null>;
       onPlayback: (callback: (playback: ReadAlongPlayback) => void) => () => void;
-      /** Pop-out: ask the main window to move the audio. */
-      seekFromPopout: (timeSec: number) => void;
-      /** Main window: a seek asked for by the pop-out. */
-      onPopoutSeek: (callback: (timeSec: number) => void) => () => void;
+      /** Pop-out: control the main window's player. */
+      popoutControl: (control: ReadAlongPopoutControl) => void;
+      /** Main window: a control sent by the pop-out. */
+      onPopoutControl: (callback: (control: ReadAlongPopoutControl) => void) => () => void;
     };
     electronAuth?: {
       openSsoWindow: (provider?: 'google' | 'apple') => Promise<{

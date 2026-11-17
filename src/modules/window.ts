@@ -171,6 +171,8 @@ export class WindowManager {
             minHeight: 200,
             alwaysOnTop: true,
             fullscreenable: false,
+            // No title bar: the pop-out draws its own close button and drag strip on hover.
+            frame: false,
             webPreferences: {
                 contextIsolation: true,
                 devTools: this.isDev || this.isDebug,

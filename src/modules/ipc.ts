@@ -295,7 +295,7 @@ export class IpcManager {
   }
 
   // Read along pop-out: the main window plays the audio and reports its
-  // playback state; the pop-out shows the text and can ask the main window to seek.
+  // playback state; the pop-out shows the text and sends player controls back.
   private setupReadAlongPopoutHandlers(): void {
     const mainContents = () => {
       const win = this.windowManager.getWindow();
@@ -319,10 +319,14 @@ export class IpcManager {
     });
     ipcMain.handle('readAlong:playback-get', () => lastPlayback);
 
-    ipcMain.on('readAlong:popout-seek', (event, timeSec: unknown) => {
+    const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+    ipcMain.on('readAlong:popout-control', (event, control: { type?: unknown; timeSec?: unknown; seconds?: unknown }) => {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
-      if (typeof timeSec !== 'number' || !Number.isFinite(timeSec) || timeSec < 0) return;
-      mainContents()?.send('readAlong:popout-seek', timeSec);
+      const valid =
+        control?.type === 'toggle' ||
+        (control?.type === 'seek' && isNumber(control.timeSec) && control.timeSec >= 0) ||
+        (control?.type === 'skip' && isNumber(control.seconds));
+      if (valid) mainContents()?.send('readAlong:popout-control', control);
     });
   }
 }

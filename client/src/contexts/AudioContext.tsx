@@ -448,11 +448,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Read along pop-out: report the playback state (the main process keeps the
-  // last one for a pop-out that opens later), and seek when the pop-out asks.
+  // last one for a pop-out that opens later).
   useEffect(() => {
     window.electronEpub?.sendPlayback({ bookId: activeBookId, currentTime, duration, isPlaying, playbackRate });
   }, [activeBookId, currentTime, duration, isPlaying, playbackRate]);
-  useEffect(() => window.electronEpub?.onPopoutSeek(seek), [seek]);
 
   const skipForward = useCallback(
     (seconds: number = 30) => {
@@ -602,6 +601,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       }
     };
   }, []);
+
+  // Read along pop-out: its player controls act on this player.
+  useEffect(() => window.electronEpub?.onPopoutControl((control) => {
+    if (control.type === 'seek') seek(control.timeSec);
+    else if (control.type === 'toggle') togglePlayPause();
+    else if (control.seconds >= 0) skipForward(control.seconds);
+    else skipBackward(-control.seconds);
+  }), [seek, togglePlayPause, skipForward, skipBackward]);
 
   return (
     <AudioContext.Provider

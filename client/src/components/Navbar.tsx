@@ -3,8 +3,7 @@ import {useTranslation} from 'react-i18next';
 
 interface NavbarProps {
     barTitle: string;
-    /** Leave it out to show no back button (the read-along pop-out window). */
-    onBackClick?: () => void;
+    onBackClick: () => void;
     children?: React.ReactNode;
     /** Extra classes for the bar, e.g. to make it a normal row in narrow windows. */
     className?: string;
@@ -23,7 +22,6 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
             aria-label={barTitle}
             className={`absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-3 py-2 pointer-events-none ${className}`}
         >
-            {onBackClick && (
             <button
                 type="button"
                 onClick={onBackClick}
@@ -35,9 +33,8 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
                     <path d="M15 18l-6-6 6-6"/>
                 </svg>
             </button>
-            )}
             {children && (
-                <div className="pointer-events-auto ml-auto min-w-0 h-11 flex items-center gap-1 text-[13px] text-[#9CA3AF]">
+                <div className="pointer-events-auto min-w-0 h-11 flex items-center gap-1 text-[13px] text-[#9CA3AF]">
                     {children}
                 </div>
             )}

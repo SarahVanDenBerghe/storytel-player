@@ -412,7 +412,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         const article = articleRef.current;
         if (view !== 'ready' || !scroller || !article) return;
         const observer = new ResizeObserver(() => {
-            setDotLeft(Math.max(article.offsetLeft - DOT_OFFSET, 0));
+            // Narrow window (the pop-out): centre the dot in the padding instead.
+            setDotLeft(article.offsetLeft >= DOT_OFFSET ? article.offsetLeft - DOT_OFFSET : article.offsetLeft / 2 - 3);
             if (followingRef.current) scrollToPlace(currentTimeRef.current);
         });
         observer.observe(scroller);
@@ -536,9 +537,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
-            <Navbar
+            {/* The pop-out shows only the text; ReadingPopout adds its own hover controls. */}
+            {!isPopout && <Navbar
                 barTitle={t('readAlong.open')}
-                onBackClick={isPopout ? undefined : () => navigate(`/player/${bookId}`)}
+                onBackClick={() => navigate(`/player/${bookId}`)}
                 className="max-[1100px]:static max-[1100px]:flex-shrink-0"
             >
                 {view === 'ready' && (
@@ -574,7 +576,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         >
                             Aa
                         </button>
-                        {!isPopout && epubApi && (
+                        {epubApi && (
                             <button
                                 type="button"
                                 onClick={togglePopout}
@@ -604,7 +606,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         </button>
                     </>
                 )}
-            </Navbar>
+            </Navbar>}
 
             {body}
 
@@ -612,7 +614,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 <button
                     type="button"
                     onClick={() => setFollowing(true)}
-                    className={`absolute left-1/2 -translate-x-1/2 bottom-4 z-20 min-h-[40px] px-[18px] rounded-full bg-[#FF5100] text-[#0A0A0A] text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
+                    className={`absolute left-1/2 -translate-x-1/2 ${isPopout ? 'bottom-16' : 'bottom-4'} z-20 min-h-[40px] px-[18px] rounded-full bg-[#FF5100] text-[#0A0A0A] text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
                 >
                     {t('readAlong.backToNow')}
                 </button>

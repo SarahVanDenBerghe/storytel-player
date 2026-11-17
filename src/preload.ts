@@ -132,11 +132,11 @@ contextBridge.exposeInMainWorld('electronEpub', {
     ipcRenderer.on('readAlong:playback', listener);
     return () => { ipcRenderer.removeListener('readAlong:playback', listener); };
   },
-  // Pop-out -> main window.
-  seekFromPopout: (timeSec: number): void => ipcRenderer.send('readAlong:popout-seek', timeSec),
-  onPopoutSeek: (callback: (timeSec: number) => void): (() => void) => {
-    const listener = (_event: IpcRendererEvent, timeSec: number) => callback(timeSec);
-    ipcRenderer.on('readAlong:popout-seek', listener);
-    return () => { ipcRenderer.removeListener('readAlong:popout-seek', listener); };
+  // Pop-out -> main window: seek, play/pause, skip.
+  popoutControl: (control: unknown): void => ipcRenderer.send('readAlong:popout-control', control),
+  onPopoutControl: (callback: (control: unknown) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, control: unknown) => callback(control);
+    ipcRenderer.on('readAlong:popout-control', listener);
+    return () => { ipcRenderer.removeListener('readAlong:popout-control', listener); };
   },
 });
