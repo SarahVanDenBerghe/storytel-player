@@ -2,6 +2,7 @@ import React from 'react';
 import { Chapter } from '../interfaces/chapters';
 import { useTranslation } from 'react-i18next';
 import { formatTime } from '../utils/helpers';
+import Modal from './Modal';
 
 interface ChaptersModalProps {
   isOpen: boolean;
@@ -25,102 +26,80 @@ function ChaptersModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-150">
-      <div className="bg-[#17171A] rounded-[16px] p-6 max-w-md w-full mx-4 max-h-[500px] flex flex-col border border-white/[0.12] shadow-[0_24px_60px_rgba(0,0,0,0.85)]">
-        <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/[0.08]">
-          <h3 className="text-base font-semibold text-white tracking-wide">
-            {t('chapters.title', 'Chapters')}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} title={t('chapters.title', 'Chapters')}>
+      {chapters && chapters.length > 0 ? (
+        <ul className="flex flex-col gap-0.5">
+          {chapters.map((chapter, index) => {
+            const chapterStartTime = typeof chapter.start === 'number' && !isNaN(chapter.start)
+              ? chapter.start
+              : chapters.slice(0, index).reduce((total, ch) => total + (ch.durationInSeconds || 0), 0);
+            const chapterDuration = chapter.durationInSeconds || 0;
+            const chapterEndTime = typeof chapter.end === 'number' && !isNaN(chapter.end)
+              ? chapter.end
+              : chapterStartTime + chapterDuration;
 
-        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
-          {chapters && chapters.length > 0 ? (
-            chapters.map((chapter, index) => {
-              const chapterStartTime = typeof chapter.start === 'number' && !isNaN(chapter.start)
-                ? chapter.start
-                : chapters.slice(0, index).reduce((total, ch) => total + (ch.durationInSeconds || 0), 0);
-              const chapterDuration = chapter.durationInSeconds || 0;
-              const chapterEndTime = typeof chapter.end === 'number' && !isNaN(chapter.end)
-                ? chapter.end
-                : chapterStartTime + chapterDuration;
+            const isCurrentChapter = currentTime >= chapterStartTime && currentTime < chapterEndTime;
+            const chapterProgress = isCurrentChapter && chapterDuration > 0
+              ? ((currentTime - chapterStartTime) / chapterDuration) * 100
+              : 0;
 
-              const isCurrentChapter = currentTime >= chapterStartTime && currentTime < chapterEndTime;
-              const chapterProgress = isCurrentChapter && chapterDuration > 0
-                ? ((currentTime - chapterStartTime) / chapterDuration) * 100
-                : 0;
-
-              return (
-                <div
-                  key={chapter.number || index}
-                  className={`rounded-[12px] border transition-all cursor-pointer overflow-hidden ${
-                    isCurrentChapter
-                      ? 'bg-[#FF5100]/15 border-[#FF5100]/40 shadow-sm'
-                      : 'bg-[#202024] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12]'
-                  }`}
+            return (
+              <li key={chapter.number || index}>
+                <button
+                  type="button"
+                  aria-current={isCurrentChapter ? 'true' : undefined}
                   onClick={() => {
                     onChapterClick(chapterStartTime);
                     onClose();
                   }}
+                  className={`relative w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-[10px] text-left overflow-hidden transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-[-2px] ${
+                    isCurrentChapter ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'
+                  }`}
                 >
-                  <div className="flex items-center justify-between p-3.5">
-                    <div className="flex-1 min-w-0 mr-3">
-                      <h4 className="font-medium text-white text-sm truncate">
-                        {chapter.title || `${t('chapters.chapter')} ${chapter.number || index + 1}`}
-                      </h4>
-                      {isCurrentChapter ? (
-                        <div className="flex justify-between items-center mt-1">
-                          <p className="text-xs text-[#FF5100] font-mono">
-                            {formatTime((currentTime - chapterStartTime) / playbackRate)}
-                          </p>
-                          <p className="text-xs text-gray-400 font-mono">
-                            -{formatTime(Math.max(0, chapterDuration - (currentTime - chapterStartTime)) / playbackRate)}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">
-                          {formatTime(chapterStartTime / playbackRate)} • {formatTime(chapterDuration / playbackRate)}
-                        </p>
-                      )}
-                    </div>
-                    {isCurrentChapter && (
-                      <div className="text-[#FF5100] flex-shrink-0">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-[13px] truncate ${isCurrentChapter ? 'text-[#FF5100] font-medium' : 'text-[#E5E7EB]'}`}>
+                      {chapter.title || `${t('chapters.chapter')} ${chapter.number || index + 1}`}
+                    </span>
+                    {isCurrentChapter ? (
+                      <span className="flex justify-between items-center mt-0.5 text-xs font-mono tabular-nums">
+                        <span className="text-[#FFB38F]">
+                          {formatTime((currentTime - chapterStartTime) / playbackRate)}
+                        </span>
+                        <span className="text-[#9CA3AF]">
+                          -{formatTime(Math.max(0, chapterDuration - (currentTime - chapterStartTime)) / playbackRate)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="block mt-0.5 text-xs text-[#9CA3AF] font-mono tabular-nums">
+                        {formatTime(chapterStartTime / playbackRate)} • {formatTime(chapterDuration / playbackRate)}
+                      </span>
                     )}
-                  </div>
-                  {/* Chapter Progress Bar */}
+                  </span>
                   {isCurrentChapter && (
-                    <div className="relative h-1 bg-white/10 w-full">
-                      <div
+                    <svg aria-hidden="true" className="w-4 h-4 shrink-0 text-[#FF5100]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z" />
+                    </svg>
+                  )}
+                  {/* Chapter progress */}
+                  {isCurrentChapter && (
+                    <span aria-hidden="true" className="absolute left-0 right-0 bottom-0 h-0.5 bg-white/10">
+                      <span
                         className="absolute top-0 left-0 h-full bg-[#FF5100] transition-all duration-300"
                         style={{ width: `${Math.min(Math.max(chapterProgress, 0), 100)}%` }}
                       />
-                    </div>
+                    </span>
                   )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="text-center text-gray-500 py-12">
-              <svg className="w-10 h-10 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <p className="text-sm text-gray-400">{t('chapters.noChapters', 'No chapters available')}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-center text-sm text-[#9CA3AF] py-10">
+          {t('chapters.noChapters', 'No chapters available')}
+        </p>
+      )}
+    </Modal>
   );
 }
 

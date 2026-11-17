@@ -97,140 +97,96 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
 
   if (!isOpen) return null;
 
+  const sectionLabel = 'mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]';
+  const group = 'flex flex-col rounded-[10px] bg-white/[0.04]';
+  const divider = <div aria-hidden="true" className="h-px bg-white/[0.06] mx-3.5" />;
+  const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2';
+  const linkRow = `w-full flex items-center gap-3 px-3.5 py-3 text-left text-[13px] text-[#E5E7EB] rounded-[10px] hover:bg-white/[0.04] transition-colors ${focusRing}`;
+
   return (
     <>
-    <Modal isOpen={isOpen} onClose={onClose} title={t('settings.title')}>
-      <div className="flex flex-col">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('settings.title')} maxWidth="max-w-[440px]">
+      <div className="flex flex-col gap-5">
 
-        {/* Appearance Section */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
-            {t('settings.appearance')}
-          </h3>
-          <div className="border-t border-gray-700 mb-3"></div>
-          <div className="bg-gray-800 rounded-md p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="text-white font-medium mb-1">
-                  {t('settings.alwaysOnTop')}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {t('settings.alwaysOnTopDescription')}
-                </div>
-              </div>
-              <button
-                onClick={handleAlwaysOnTopToggle}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                  alwaysOnTop ? 'bg-orange-600' : 'bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    alwaysOnTop ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-            
+        {/* Account */}
+        <section>
+          <h3 className={sectionLabel}>{t('settings.account')}</h3>
+          <div className="flex items-center gap-3 px-3.5 py-3 rounded-[10px] bg-white/[0.04]">
+            <span className="flex-1 min-w-0 truncate text-[13px] text-[#D1D5DB]" title={email || undefined}>
+              <span className="sr-only">{t('settings.email')}: </span>
+              {loading ? t('common.loading') : email || '-'}
+            </span>
             <button
-              onClick={() => setShowLanguageModal(true)}
-              className="w-full flex items-center justify-between gap-4 pt-4 border-t border-gray-700 text-left group"
+              type="button"
+              onClick={onLogout}
+              className={`h-8 px-3 shrink-0 rounded-lg border border-white/[0.14] bg-transparent text-xs text-[#E5E7EB] hover:bg-white/[0.06] transition-colors ${focusRing}`}
             >
-              <div className="min-w-0">
-                <div className="text-white font-medium mb-1">
-                  {t('settings.language')}
-                </div>
-                <div className="text-sm text-gray-400 truncate">
-                  {languageSummary}
-                </div>
-              </div>
-              <svg
-                className="w-5 h-5 shrink-0 text-gray-500 group-hover:text-white transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {t('settings.logout')}
             </button>
           </div>
-        </div>
+        </section>
 
-        {/* Community Section */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
-            {t('settings.community')}
-          </h3>
-          <div className="border-t border-gray-700 mb-3"></div>
-          <div className="space-y-2">
-            <button
-              onClick={handleGithubClick}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors"
-            >
-              <span>{t('settings.githubRepo')}</span>
-              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </button>
-
-            <button
-              onClick={handleDiscordClick}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors"
-            >
-              <span>{t('settings.discordCommunity')}</span>
-              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Developer Section */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
-            {t('settings.developer', 'Developer')}
-          </h3>
-          <div className="border-t border-gray-700 mb-3"></div>
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowLogsModal(true)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors"
-            >
-              <span>{t('settings.viewLogs', 'View Session Logs')}</span>
-              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Account Section */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
-            {t('settings.account')}
-          </h3>
-          <div className="border-t border-gray-700 mb-3"></div>
-          
-          {/* Account Info */}
-          <div className="bg-gray-800 rounded-md p-4 mb-3">
-            <div className="flex flex-col">
-              <span className="text-sm text-gray-400 mb-1">{t('settings.email')}</span>
-              <span className="text-white font-medium">
-                {loading ? t('common.loading') : email || '-'}
+        {/* Appearance */}
+        <section>
+          <h3 className={sectionLabel}>{t('settings.appearance')}</h3>
+          <div className={group}>
+            <label className="flex items-center gap-3 px-3.5 py-3 cursor-pointer">
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] text-white">{t('settings.alwaysOnTop')}</span>
+                <span className="block mt-0.5 text-xs text-[#9CA3AF]">{t('settings.alwaysOnTopDescription')}</span>
               </span>
-            </div>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={alwaysOnTop}
+                onChange={handleAlwaysOnTopToggle}
+                className={`w-[18px] h-[18px] shrink-0 accent-[#FF5100] cursor-pointer ${focusRing}`}
+              />
+            </label>
+            {divider}
+            <button
+              type="button"
+              onClick={() => setShowLanguageModal(true)}
+              className={linkRow}
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block text-white">{t('settings.language')}</span>
+                <span className="block mt-0.5 text-xs text-[#9CA3AF] truncate">{languageSummary}</span>
+              </span>
+              <span aria-hidden="true" className="text-[#9CA3AF]">›</span>
+            </button>
           </div>
+        </section>
 
-          <button
-            onClick={onLogout}
-            className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-          >
-            {t('settings.logout')}
-          </button>
-        </div>
+        {/* Community */}
+        <section>
+          <h3 className={sectionLabel}>{t('settings.community')}</h3>
+          <div className={group}>
+            <button type="button" onClick={handleGithubClick} className={linkRow}>
+              <span className="flex-1">{t('settings.githubRepo')}</span>
+              <span aria-hidden="true" className="text-[#9CA3AF]">↗</span>
+            </button>
+            {divider}
+            <button type="button" onClick={handleDiscordClick} className={linkRow}>
+              <span className="flex-1">{t('settings.discordCommunity')}</span>
+              <span aria-hidden="true" className="text-[#9CA3AF]">↗</span>
+            </button>
+          </div>
+        </section>
+
+        {/* Developer */}
+        <section>
+          <h3 className={sectionLabel}>{t('settings.developer', 'Developer')}</h3>
+          <div className={group}>
+            <button type="button" onClick={() => setShowLogsModal(true)} className={linkRow}>
+              <span className="flex-1">{t('settings.viewLogs', 'View Session Logs')}</span>
+              <span aria-hidden="true" className="text-[#9CA3AF]">›</span>
+            </button>
+          </div>
+        </section>
       </div>
     </Modal>
-      
+
     <LogsModal
       isOpen={showLogsModal}
       onClose={() => setShowLogsModal(false)}

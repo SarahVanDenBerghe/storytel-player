@@ -33,70 +33,54 @@ function GotoModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('gotoModal.title')}>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
+        <p className="text-[13px] text-[#9CA3AF]">
+          {t('gotoModal.description', { speed: playbackRate })}
+        </p>
 
-        <div className="mb-6">
-          <p className="text-sm text-gray-400 mb-4">
-            {t('gotoModal.description', { speed: playbackRate })}
-          </p>
-
-          <div className="flex items-center space-x-4 justify-center">
-            {/* Hours */}
-            <div className="text-center">
-              <label className="block text-sm text-gray-300 mb-2">{t('gotoModal.hours')}</label>
+        <div className="flex items-end justify-center gap-3">
+            <label className="flex flex-col items-center gap-1.5 text-xs text-[#D1D5DB]">
+              {t('gotoModal.hours')}
               <input
                 type="number"
                 min="0"
                 max="23"
                 value={gotoHours}
                 onChange={(e) => onHoursChange(parseInt(e.target.value) || 0)}
-                className="w-16 px-2 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-center focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-16 h-11 px-2 rounded-[10px] border border-white/[0.14] bg-[#121214] text-white text-center text-sm tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
               />
-            </div>
-
-            <span className="text-white text-xl mt-6">:</span>
-
-            {/* Minutes */}
-            <div className="text-center">
-              <label className="block text-sm text-gray-300 mb-2">{t('gotoModal.minutes')}</label>
+            </label>
+            <span aria-hidden="true" className="text-[#9CA3AF] text-lg pb-2.5">:</span>
+            <label className="flex flex-col items-center gap-1.5 text-xs text-[#D1D5DB]">
+              {t('gotoModal.minutes')}
               <input
                 type="number"
                 min="0"
                 max="59"
                 value={gotoMinutes}
                 onChange={(e) => onMinutesChange(parseInt(e.target.value) || 0)}
-                className="w-16 px-2 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-center focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-16 h-11 px-2 rounded-[10px] border border-white/[0.14] bg-[#121214] text-white text-center text-sm tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
               />
-            </div>
-
-            <span className="text-white text-xl mt-6">:</span>
-
-            {/* Seconds */}
-            <div className="text-center">
-              <label className="block text-sm text-gray-300 mb-2">{t('gotoModal.seconds')}</label>
+            </label>
+            <span aria-hidden="true" className="text-[#9CA3AF] text-lg pb-2.5">:</span>
+            <label className="flex flex-col items-center gap-1.5 text-xs text-[#D1D5DB]">
+              {t('gotoModal.seconds')}
               <input
                 type="number"
                 min="0"
                 max="59"
                 value={gotoSeconds}
                 onChange={(e) => onSecondsChange(parseInt(e.target.value) || 0)}
-                className="w-16 px-2 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-center focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-16 h-11 px-2 rounded-[10px] border border-white/[0.14] bg-[#121214] text-white text-center text-sm tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
               />
-            </div>
-          </div>
+            </label>
         </div>
 
-        <div className="flex space-x-3 mt-4">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-800 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
-          >
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 h-11 px-4 rounded-[10px] bg-white/[0.06] text-[#D1D5DB] text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2">
             {t('gotoModal.cancel')}
           </button>
-          <button
-            onClick={onGoto}
-            className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
-          >
+          <button type="button" onClick={onGoto} className="flex-1 h-11 px-4 rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FF6A26] transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2">
             {t('gotoModal.go')}
           </button>
         </div>

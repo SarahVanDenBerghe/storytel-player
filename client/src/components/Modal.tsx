@@ -11,11 +11,11 @@ export interface ModalProps {
   zIndex?: number;
 }
 
-const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
+const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  children,
   headerActions,
   maxWidth = 'max-w-md',
   zIndex = 50
@@ -25,49 +25,49 @@ const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
+  const hasHeader = Boolean(title || onClose || headerActions);
+
   return (
-    <div 
-      className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center`}
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4"
       style={{ zIndex }}
       onClick={onClose}
     >
-      <div 
-        className={`bg-gray-900 rounded-xl p-0 w-full ${maxWidth} mx-4 border border-gray-700 max-h-[90vh] flex flex-col shadow-2xl overflow-hidden`} 
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={`bg-[#17171A] text-white rounded-[14px] w-full ${maxWidth} border border-white/10 max-h-[90vh] flex flex-col shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        {(title || onClose || headerActions) && (
-          <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/95 sticky top-0 flex flex-col gap-4 shrink-0">
-            <div className="flex justify-between items-center gap-4">
-              {title && (
-                <h2 className="text-xl font-bold text-white flex-1 min-w-0">
-                  {title}
-                </h2>
-              )}
-              <div className="flex gap-2 items-center shrink-0">
-                {headerActions}
-                
-                {onClose && (
-                  <>
-                    {headerActions && <div className="w-px h-6 bg-gray-700 my-auto mx-1"></div>}
-                    <button 
-                      onClick={onClose} 
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
-                      title={t('common.close', 'Close')}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+        {hasHeader && (
+          <div className="flex items-center gap-2 py-2 pr-2 pl-5 shrink-0">
+            {title ? (
+              <h2 className="text-[15px] font-semibold text-white flex-1 min-w-0">
+                {title}
+              </h2>
+            ) : (
+              <div className="flex-1" />
+            )}
+            {headerActions}
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t('common.close', 'Close')}
+                title={t('common.close', 'Close')}
+                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
+              >
+                <svg aria-hidden="true" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+        <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-5 ${hasHeader ? '' : 'pt-5'}`}>
           {children}
         </div>
       </div>
