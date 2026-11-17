@@ -133,7 +133,9 @@ function AuthenticatedLayout({
       <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative flex flex-col">
         {children}
       </main>
-      {!isPlayerView && <PlayerBar />}
+      {/* One footer for both modes, so switching never moves its tools; listen mode
+          (the full player) shows only the tools, as the page has its own transport. */}
+      <PlayerBar variant={isPlayerView ? 'tools' : 'full'} />
     </div>
   );
 }

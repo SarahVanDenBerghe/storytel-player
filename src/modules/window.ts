@@ -41,7 +41,7 @@ export class WindowManager {
             // macOS: no title bar; the window buttons sit in the app's own top-left
             // corner, level with its back button (the renderer leaves room: .mac-titlebar).
             ...(process.platform === 'darwin'
-                ? {titleBarStyle: 'hidden' as const, trafficLightPosition: {x: 18, y: 24}}
+                ? {titleBarStyle: 'hidden' as const, trafficLightPosition: {x: 18, y: 20}}
                 : {}),
             webPreferences: {
                 nodeIntegration: true,

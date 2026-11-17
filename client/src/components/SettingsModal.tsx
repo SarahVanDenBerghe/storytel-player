@@ -31,10 +31,7 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
     }
   }, [isOpen]);
 
-  const changeDownloadFolder = async () => {
-    const folder = await window.electronDownloads?.chooseFolder().catch(() => null);
-    if (folder) setDownloadFolder(folder);
-  };
+
 
   // Also refresh after the picker closes, so the summary line stays accurate.
   useEffect(() => {
@@ -94,14 +91,6 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
     }
   };
   
-  const handleGithubClick = () => {
-    window.open('https://github.com/debba/storytel-player', '_blank', 'noopener,noreferrer');
-  };
-
-  const handleDiscordClick = () => {
-    window.open('https://discord.gg/YrZPHAwMSG', '_blank', 'noopener,noreferrer');
-  };
-
   if (!isOpen) return null;
 
   const sectionLabel = 'mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]';
@@ -165,33 +154,26 @@ function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
             {window.electronDownloads && (
               <>
                 {divider}
-                <button type="button" onClick={changeDownloadFolder} className={linkRow}>
+                {/* The folder as plain text (picked once, on the first download), with a way to open it. */}
+                <div className="flex items-center gap-3 px-3.5 py-3 text-[13px]">
                   <span className="flex-1 min-w-0">
                     <span className="block text-white">{t('settings.downloadFolder')}</span>
                     <span className="block mt-0.5 text-xs text-[#9CA3AF] truncate" title={downloadFolder ?? undefined}>
                       {downloadFolder ?? t('settings.downloadFolderNone')}
                     </span>
                   </span>
-                  <span aria-hidden="true" className="text-[#9CA3AF]">›</span>
-                </button>
+                  {downloadFolder && (
+                    <button
+                      type="button"
+                      onClick={() => window.electronDownloads?.showFolder().catch(() => undefined)}
+                      className={`h-8 px-3 shrink-0 rounded-[8px] bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white text-[12px] font-medium transition-colors ${focusRing}`}
+                    >
+                      {t('settings.showInFinder')}
+                    </button>
+                  )}
+                </div>
               </>
             )}
-          </div>
-        </section>
-
-        {/* Community */}
-        <section>
-          <h3 className={sectionLabel}>{t('settings.community')}</h3>
-          <div className={group}>
-            <button type="button" onClick={handleGithubClick} className={linkRow}>
-              <span className="flex-1">{t('settings.githubRepo')}</span>
-              <span aria-hidden="true" className="text-[#9CA3AF]">↗</span>
-            </button>
-            {divider}
-            <button type="button" onClick={handleDiscordClick} className={linkRow}>
-              <span className="flex-1">{t('settings.discordCommunity')}</span>
-              <span aria-hidden="true" className="text-[#9CA3AF]">↗</span>
-            </button>
           </div>
         </section>
 

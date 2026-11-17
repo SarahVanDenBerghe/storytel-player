@@ -6,7 +6,7 @@ import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} 
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 // The reading view's corner icon buttons.
-const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+const iconBtn = `w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 const smallBtn = `h-8 px-3 rounded-[8px] text-[12px] font-semibold transition-colors ${focusRing}`;
 
 /**
@@ -147,7 +147,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                                 setMenu('closed');
                                 void prepareAndSync();
                             }}
-                            className={`self-start mt-1 ${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-[#0A0A0A]`}
+                            className={`self-start mt-1 ${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-white`}
                         >
                             {t('bookView.prepareAudio')}
                         </button>
@@ -174,7 +174,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                                 <button
                                     type="button"
                                     onClick={chooseEpub}
-                                    className={`${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-[#0A0A0A]`}
+                                    className={`${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-white`}
                                 >
                                     {t('bookView.chooseNewFile')}
                                 </button>

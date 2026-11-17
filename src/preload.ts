@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld('electronAuth', {
 // Download folder API (see setupDownloadFolderHandlers in src/modules/ipc.ts).
 contextBridge.exposeInMainWorld('electronDownloads', {
   getFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:get-folder'),
+  showFolder: (): Promise<void> => ipcRenderer.invoke('downloads:show-folder'),
   chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:choose-folder'),
   ensureFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:ensure-folder'),
 });

@@ -2,12 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAudioContext } from '../contexts/AudioContext';
-import { buildCoverUrl, formatTime } from '../utils/helpers';
+import { buildCoverUrl, cleanBookTitle, formatTime } from '../utils/helpers';
 import { SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS } from '../config/player';
 import SkipIcon from './SkipIcon';
 import PlayerTools from './PlayerTools';
 
-export function PlayerBar() {
+/**
+ * The footer, mounted once for every page. "full": cover, transport and tools.
+ * "tools" (the full player, which has its own transport): only the tools, in
+ * the same place, on a transparent bar.
+ */
+export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
@@ -28,7 +33,15 @@ export function PlayerBar() {
     return null;
   }
 
-  const bookTitle = activeBook?.book?.name || `Storytel ${t('search.audiobook')}`;
+  const toolsOnly = variant === 'tools';
+  // Hidden parts stay in the layout, so the tools keep their place between modes.
+  const fadeOut = `transition-[opacity,visibility] duration-150 ${toolsOnly ? 'opacity-0 invisible' : 'opacity-100 visible'}`;
+
+  const fullTitle = activeBook?.book?.name || `Storytel ${t('search.audiobook')}`;
+  // Short title, as in the library ("Golden Son"); the part goes on the second line.
+  const { title: shortTitle, part } = cleanBookTitle(fullTitle);
+  const bookTitle = shortTitle || fullTitle;
+  const partLabel = part ? t('bookCard.part', { n: part.n, total: part.total }) : '';
   const authorName = activeBook?.book?.authorsAsString || activeBook?.abook?.narratorAsString || '';
   const coverUrl = activeBook?.book?.largeCover || activeBook?.book?.largeCoverE || '';
   const progressPercent = duration > 0 ? Math.min(Math.max((currentTime / duration) * 100, 0), 100) : 0;
@@ -49,14 +62,16 @@ export function PlayerBar() {
   const skipClass = `h-8 w-9 flex items-center justify-center rounded-[8px] bg-transparent text-[#D1D5DB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 
   return (
-    <div className="h-[76px] px-5 gap-5 bg-[#121214] border-t border-white/[0.08] flex items-center z-40 select-none flex-shrink-0 relative">
+    <div className={`h-[76px] px-5 gap-5 border-t flex items-center z-40 select-none flex-shrink-0 relative transition-colors duration-150 ${
+      toolsOnly ? 'bg-transparent border-transparent' : 'bg-[#121214] border-white/[0.08]'
+    }`}>
       {/* 1. Left: cover, title, author · chapter */}
-      <div className="flex-[0_1_260px] min-w-0 flex items-center gap-3">
+      <div aria-hidden={toolsOnly || undefined} className={`flex-[0_1_260px] min-w-0 flex items-center gap-3 ${fadeOut}`}>
         <button
           type="button"
           onClick={handleOpenFullPlayer}
           aria-label={t('player.expand', 'Open full player')}
-          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
+          className={`w-[52px] h-[52px] rounded-[10px] bg-[#141416] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
             <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />
@@ -73,24 +88,24 @@ export function PlayerBar() {
           <button
             type="button"
             onClick={handleOpenFullPlayer}
-            title={bookTitle}
+            title={fullTitle}
             className={`block max-w-full text-left text-[14px] font-semibold text-white truncate hover:text-[#FF7A3D] transition-colors rounded ${focusRing}`}
           >
             {bookTitle}
           </button>
-          {(authorName || currentChapter) && (
+          {(authorName || partLabel || currentChapter) && (
             <div
               className="text-[12px] text-[#9CA3AF] truncate mt-0.5"
-              title={[authorName, currentChapter?.title].filter(Boolean).join(' · ')}
+              title={[authorName, partLabel, currentChapter?.title].filter(Boolean).join(' · ')}
             >
-              {[authorName, currentChapter?.title].filter(Boolean).join(' · ')}
+              {[authorName, partLabel, currentChapter?.title].filter(Boolean).join(' · ')}
             </div>
           )}
         </div>
       </div>
 
       {/* 2. Centre: transport row + scrubber */}
-      <div className="flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-1">
+      <div aria-hidden={toolsOnly || undefined} className={`flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-1 ${fadeOut}`}>
         <div className="flex items-center gap-[14px]">
           <button
             type="button"
@@ -162,7 +177,7 @@ export function PlayerBar() {
 
       {/* 3. Right: speed, chapters, volume, Read along (same tools as the full player) */}
       <div className="flex-[0_1_260px] min-w-0">
-        <PlayerTools showReadAlong />
+        <PlayerTools showModeToggle />
       </div>
     </div>
   );

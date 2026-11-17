@@ -258,7 +258,7 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
           type="button"
           onClick={() => navigate('/')}
           aria-label={t('common.back', 'Back')}
-          className={`w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
+          className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
         >
           <svg aria-hidden="true" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />

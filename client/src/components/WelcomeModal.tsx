@@ -54,7 +54,7 @@ function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
         <button
           type="button"
           onClick={handleGetStarted}
-          className="w-full h-11 px-4 rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FF6A26] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
+          className="w-full h-11 px-4 rounded-[10px] bg-[#FF5100] text-white text-sm font-semibold hover:bg-[#FF6A26] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
         >
           {t('welcome.getStarted')}
         </button>

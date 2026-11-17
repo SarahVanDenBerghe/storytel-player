@@ -67,7 +67,7 @@ function PlaybackSpeedModal({ isOpen, playbackRate, onClose, onRateChange }: Pla
           <div className="text-center mt-2 text-sm font-semibold text-[#FF7A3D] tabular-nums">{playbackRate}x</div>
         </section>
 
-        <button type="button" onClick={onClose} className="w-full h-11 px-4 rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FF6A26] transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2">
+        <button type="button" onClick={onClose} className="w-full h-11 px-4 rounded-[10px] bg-[#FF5100] text-white text-sm font-semibold hover:bg-[#FF6A26] transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2">
           {t('playbackSpeed.confirm')}
         </button>
       </div>

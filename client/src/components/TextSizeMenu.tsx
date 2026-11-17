@@ -4,7 +4,7 @@ import {useTranslation} from 'react-i18next';
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
-        selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+        selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
     }`;
 const SERIF_STACK = "Charter, 'Iowan Old Style', Georgia, serif";
 

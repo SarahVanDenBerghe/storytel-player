@@ -82,7 +82,7 @@ export function SearchPreviewPane({
         <button
           type="button"
           onClick={() => onPlay(book.id)}
-          className={`h-9 px-3.5 rounded-[10px] bg-[#FF5100] hover:brightness-110 text-[#0A0A0A] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${focusRing}`}
+          className={`h-9 px-3.5 rounded-[10px] bg-[#FF5100] hover:brightness-110 text-white text-[13px] font-semibold flex items-center gap-1.5 transition-all ${focusRing}`}
         >
           <svg aria-hidden="true" className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z" />

@@ -70,6 +70,10 @@ export class IpcManager {
     };
 
     ipcMain.handle('downloads:get-folder', () => stored());
+    ipcMain.handle('downloads:show-folder', async () => {
+      const folder = stored();
+      if (folder) await shell.openPath(folder);
+    });
     ipcMain.handle('downloads:choose-folder', (event: IpcMainInvokeEvent) => choose(event));
     // Before a download: the stored folder, or ask for one (null when cancelled).
     ipcMain.handle('downloads:ensure-folder', (event: IpcMainInvokeEvent) => stored() ?? choose(event));

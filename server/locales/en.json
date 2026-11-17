@@ -47,6 +47,8 @@
     "bookmarks": "Bookmarks",
     "addBookmark": "Add bookmark",
     "speed": "Speed",
+    "mode": "Mode",
+    "listenMode": "Listen",
     "skipBackward": "-{{seconds}} seconds",
     "skipForward": "+{{seconds}} seconds",
     "goTo": "Go to",
@@ -256,6 +258,7 @@
     "language": "Language",
     "downloadFolder": "Download folder",
     "downloadFolderNone": "Not chosen yet: asked on the first download",
+    "showInFinder": "Show in Finder",
     "languageAuto": "Auto"
   },
   "language": {

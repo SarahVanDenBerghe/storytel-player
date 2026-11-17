@@ -4,7 +4,6 @@ import {useTranslation} from 'react-i18next';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import Navbar from './Navbar';
-import PlayerTools from "./PlayerTools";
 import ChaptersModal from "./ChaptersModal";
 import PlayerControls from "./PlayerControls";
 import BookInfo from "./BookInfo";
@@ -296,36 +295,33 @@ function PlayerView() {
     }
 
     const chapterList = chapters.chapters.length > 0 ? chapters.chapters : audio.chapters;
+    const downloadLabel = isDownloading
+        ? t('player.downloading', 'Downloading…')
+        : isDownloaded
+            ? t('player.downloaded', 'Downloaded')
+            : t('player.download');
 
     return (
         <div className="flex-1 flex flex-col relative bg-[#0A0A0A] text-white">
             <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate('/')}>
-                {/* Download (offline listening) lives here: Read along has no page of its own for it. */}
+                {/* Download (offline listening): a quiet icon. An arrow, or arrow with a check
+                    once downloaded; clicking a downloaded book offers to delete the file. */}
                 <button
                     id="download-btn"
                     type="button"
                     onClick={handleDownloadClick}
-                    className={`h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100] ${
-                        isDownloaded || isDownloading
-                            ? 'bg-[#FF5100]/[0.15] text-[#FF7A3D] hover:bg-[#FF5100]/[0.22]'
-                            : 'bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white'
-                    }`}
+                    aria-label={downloadLabel}
+                    title={downloadLabel}
+                    className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
                 >
                     {isDownloading ? (
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                        </svg>
+                        <span aria-hidden="true" className="w-4 h-4 rounded-full border-2 border-white/15 border-t-[#9CA3AF] animate-spin"/>
                     ) : (
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d={isDownloaded ? 'M5 13l4 4L19 7' : 'M12 4v11M7 10l5 5 5-5M5 20h14'}/>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M5 20h14"/>
+                            <path d={isDownloaded ? 'M7 11l3.5 3.5L17 7' : 'M12 4v11M7 10l5 5 5-5'}/>
                         </svg>
                     )}
-                    {isDownloading
-                        ? t('player.downloading', 'Downloading…')
-                        : isDownloaded
-                            ? t('player.downloaded', 'Downloaded')
-                            : t('player.download')}
                 </button>
             </Navbar>
 
@@ -387,10 +383,6 @@ function PlayerView() {
                 </div>
             </div>
 
-            {/* Tools, as in the footer: speed, chapters, bookmarks, volume, Read along */}
-            <div className="absolute right-5 bottom-5 z-20">
-                <PlayerTools popoverOffset="bottom-full mb-2" showReadAlong/>
-            </div>
 
             {/* Modals */}
 

@@ -23,7 +23,7 @@ function ErrorState({ error, onRetry, onLogout }: ErrorStateProps) {
           <button
             type="button"
             onClick={onRetry}
-            className="mt-5 h-11 px-5 rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FF6A26] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
+            className="mt-5 h-11 px-5 rounded-[10px] bg-[#FF5100] text-white text-sm font-semibold hover:bg-[#FF6A26] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
           >
             {t('errorState.tryAgain')}
           </button>

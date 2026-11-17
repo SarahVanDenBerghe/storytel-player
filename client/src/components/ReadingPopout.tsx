@@ -24,7 +24,7 @@ const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-r
 const popoverHeader = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
-        selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+        selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
     }`;
 const CheckIcon = () => (
     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -194,7 +194,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         onClick={() => control({type: 'toggle'})}
                         aria-label={isPlaying ? t('tray.pause') : t('tray.play')}
                         title={isPlaying ? t('tray.pause') : t('tray.play')}
-                        className={`${controlBtn} w-8 bg-[#FF5100] text-[#0A0A0A] hover:bg-[#FF6A26]`}
+                        className={`${controlBtn} w-8 bg-[#FF5100] text-white hover:bg-[#FF6A26]`}
                     >
                         <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                             {isPlaying

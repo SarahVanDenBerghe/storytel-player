@@ -91,6 +91,8 @@ declare global {
     electronDownloads?: {
       /** The picked folder, or null when none is picked yet. */
       getFolder: () => Promise<string | null>;
+      /** Opens the picked folder in Finder. */
+      showFolder: () => Promise<void>;
       /** Opens a folder dialog; resolves with null when cancelled. */
       chooseFolder: () => Promise<string | null>;
       /** The picked folder, or asks for one; null when the user cancels. */

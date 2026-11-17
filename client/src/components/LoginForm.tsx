@@ -95,7 +95,7 @@ function LoginForm({ onLogin, sessionExpired }: LoginFormProps) {
       <form className="w-full max-w-[340px] flex flex-col gap-3" onSubmit={handleSubmit}>
         <div
           aria-hidden="true"
-          className="w-10 h-10 mb-2 rounded-[12px] bg-[#FF5100] text-[#0A0A0A] flex items-center justify-center"
+          className="w-10 h-10 mb-2 rounded-[12px] bg-[#FF5100] text-white flex items-center justify-center"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 15v-3a8 8 0 0116 0v3" />
@@ -198,7 +198,7 @@ function LoginForm({ onLogin, sessionExpired }: LoginFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="mt-1 h-11 w-full flex items-center justify-center gap-2 rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-sm font-semibold hover:bg-[#FF6A26] transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
+          className="mt-1 h-11 w-full flex items-center justify-center gap-2 rounded-[10px] bg-[#FF5100] text-white text-sm font-semibold hover:bg-[#FF6A26] transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2"
         >
           {isLoading && (
             <svg aria-hidden="true" className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

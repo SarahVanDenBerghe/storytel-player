@@ -13,7 +13,7 @@ const iconBtn = `w-9 h-9 flex-shrink-0 rounded-[10px] flex items-center justify-
 const popoverBase = 'absolute right-0 animate-pop-in origin-bottom-right bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
-        selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+        selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
     }`;
 const header = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
 
@@ -24,10 +24,10 @@ type Menu = 'speed' | 'chapters' | 'volume' | null;
  * player's bottom-right corner: speed, chapters, bookmarks and volume, and the
  * Read along toggle (the way into Read along, also for a book without EPUB).
  */
-function PlayerTools({popoverOffset = 'bottom-[88px]', showReadAlong = false}: {
+function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: {
     /** Where menus open, measured from the bottom of their button. */
     popoverOffset?: string;
-    showReadAlong?: boolean;
+    showModeToggle?: boolean;
 }) {
     const {t} = useTranslation();
     const navigate = useNavigate();
@@ -60,6 +60,7 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showReadAlong = false}: {
     const toggle = (next: Menu) => setMenu(menu === next ? null : next);
     const isSilent = isMuted || volume === 0;
     const isReading = location.pathname.startsWith('/read/');
+    const isListening = location.pathname.startsWith('/player/');
 
     return (
         <div ref={rootRef} className="flex items-center justify-end gap-2 min-w-0">
@@ -189,23 +190,37 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showReadAlong = false}: {
                 )}
             </div>
 
-            {showReadAlong && (
-                <>
-                    <div className="w-px h-6 bg-white/[0.08] mx-0.5" aria-hidden="true"/>
-                    {/* Opens Read along, or closes it when it is the current page. */}
-                    <button
-                        type="button"
-                        onClick={() => activeBookId && navigate(isReading ? `/player/${activeBookId}` : `/read/${activeBookId}`)}
-                        aria-label={t('readAlong.open')}
-                        aria-pressed={isReading}
-                        title={t('readAlong.open')}
-                        className={`${iconBtn} ${isReading ? pillActive : pillIdle}`}
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {/* Mode: listen (full player) or read along, two views of the same book. */}
+            {showModeToggle && activeBookId && (
+                <div role="group" aria-label={t('player.mode')} className="flex flex-shrink-0 p-0.5 rounded-[10px] bg-white/[0.06]">
+                    {([
+                        {route: 'player', active: isListening, label: t('player.listenMode'), icon: (
+                            <>
+                                <path d="M3 18v-6a9 9 0 0118 0v6"/>
+                                <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>
+                            </>
+                        )},
+                        {route: 'read', active: isReading, label: t('readAlong.open'), icon: (
                             <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
-                        </svg>
-                    </button>
-                </>
+                        )},
+                    ] as const).map(({route, active, label, icon}) => (
+                        <button
+                            key={route}
+                            type="button"
+                            onClick={() => !active && navigate(`/${route}/${activeBookId}`)}
+                            aria-label={label}
+                            aria-pressed={active}
+                            title={label}
+                            className={`w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors ${focusRing} ${
+                                active ? 'bg-white/[0.12] text-white' : 'text-[#9CA3AF] hover:text-white'
+                            }`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                {icon}
+                            </svg>
+                        </button>
+                    ))}
+                </div>
             )}
 
             <BookmarkModals

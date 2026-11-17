@@ -26,7 +26,7 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
                 type="button"
                 onClick={onBackClick}
                 aria-label={t('common.back', 'Back')}
-                className="pointer-events-auto w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
+                className="pointer-events-auto w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
             >
                 <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -34,7 +34,7 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
                 </svg>
             </button>
             {children && (
-                <div className="pointer-events-auto min-w-0 h-11 flex items-center gap-1 text-[13px] text-[#9CA3AF]">
+                <div className="pointer-events-auto min-w-0 h-9 flex items-center gap-1 text-[13px] text-[#9CA3AF]">
                     {children}
                 </div>
             )}

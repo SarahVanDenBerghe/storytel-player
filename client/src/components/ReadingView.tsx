@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
@@ -33,10 +33,23 @@ const FOLLOW_FADE = `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc($
 const POPOUT_TEXT_SHRINK = 2;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
-const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-[14px] font-semibold hover:bg-[#FF6A26] transition-colors ${focusRing}`;
+const iconBtn = `w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-white text-[14px] font-semibold hover:bg-[#FF6A26] transition-colors ${focusRing}`;
 
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
+// Parsed EPUB text per book for the app's lifetime: switching between listening
+// and Read along must not re-read and re-parse the EPUB (a loading flash).
+const parsedBooks: Record<string, EpubParagraph[]> = {};
+// The reader's text size, known before the view mounts (read at startup), so the
+// text is never laid out at the default size first and then jumps.
+let knownTextSize: number | null = null;
+const clampTextSize = (value: unknown): number | null => {
+    const size = Number(value);
+    return Number.isFinite(size) && size > 0 ? Math.min(Math.max(Math.round(size), MIN_TEXT_SIZE), MAX_TEXT_SIZE) : null;
+};
+storage.get(TEXT_SIZE_KEY).then((value: unknown) => {
+    knownTextSize = clampTextSize(value) ?? knownTextSize;
+}).catch(() => undefined);
 /** The part of the player the reading view needs; the pop-out window feeds it over IPC. */
 export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'> & {
     /** Title of the playing book; "(2 of 2)" in it places a part within the whole ebook. */
@@ -120,10 +133,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         request.catch((err) => console.error('Read along: cannot open or close the pop-out', err));
     };
 
-    // Parsed paragraphs per book, kept for as long as the view is mounted.
-    const [booksText, setBooksText] = useState<Record<string, EpubParagraph[]>>({});
-    const [status, setStatus] = useState<LoadStatus>('loading');
-    const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
+    // Parsed paragraphs per book; starts from the app-wide cache (parsedBooks).
+    const [booksText, setBooksText] = useState<Record<string, EpubParagraph[]>>(() => ({...parsedBooks}));
+    const [status, setStatus] = useState<LoadStatus>(() => (bookId && parsedBooks[bookId] ? 'ready' : 'loading'));
+    const [textSize, setTextSize] = useState(() => knownTextSize ?? DEFAULT_TEXT_SIZE);
     const [following, setFollowing] = useState(true);
     const [sync, setSync] = useState<SyncData | null>(null);
     const requestRef = useRef(0);
@@ -160,6 +173,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             }
             const parsed = parseEpub(result.entries).paragraphs;
             if (parsed.length === 0) throw new Error('EPUB contains no readable text');
+            parsedBooks[id] = parsed;
             setBooksText((prev) => ({...prev, [id]: parsed}));
             setStatus('ready');
         } catch (err) {
@@ -183,9 +197,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
 
     useEffect(() => {
         const apply = (value: unknown) => {
-            const size = Number(value);
-            if (Number.isFinite(size) && size > 0) {
-                setTextSize(Math.min(Math.max(Math.round(size), MIN_TEXT_SIZE), MAX_TEXT_SIZE));
+            const size = clampTextSize(value);
+            if (size !== null) {
+                knownTextSize = size;
+                setTextSize(size);
             }
         };
         storage.get(TEXT_SIZE_KEY).then(apply).catch(() => undefined);
@@ -194,6 +209,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     }, []);
 
     const changeTextSize = (next: number) => {
+        knownTextSize = next;
         setTextSize(next);
         // Electron: stored and sent to the other window (pop-out or reading view).
         (window.electronEpub ? window.electronEpub.setTextSize(next) : storage.set(TEXT_SIZE_KEY, next)).catch(() => undefined);
@@ -328,6 +344,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         ? 'synced'
         : preparingPercent !== null ? 'preparing'
         : syncProgress?.state === 'running' ? 'finding' : 'estimated';
+    // Until the first sync anchors exist, a centred status covers the text.
+    const findingPlace = (chip === 'preparing' || chip === 'finding') && anchors.length === 0;
     let chipDetail: string | undefined;
     if (chip === 'preparing') {
         chipDetail = t('readAlong.preparingDetail', {percent: preparingPercent});
@@ -408,6 +426,13 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         frame = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(frame);
     }, [animate, scrollToPlace]);
+
+    // Before the first paint, and after a text-size change: put the place on the
+    // reading line, so the view never shows the top of the book and then jumps.
+    useLayoutEffect(() => {
+        if (view !== 'ready' || !followingRef.current) return;
+        scrollToPlace(currentTimeRef.current);
+    }, [view, textSize, scrollToPlace]);
 
     // Paused (or reduced motion): position once, again after a seek, a new
     // paragraph (reduced motion), new anchors or another text size.
@@ -496,6 +521,17 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         ))}
                     </article>
                 </div>
+                {findingPlace && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0A0A0A]/70 animate-fade-in pointer-events-none">
+                        <div role="status" className="flex flex-col items-center gap-3 text-center">
+                            <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-white/10 border-t-[#FF5100] animate-spin"/>
+                            <span className="text-[14px] font-medium text-[#E5E7EB]">
+                                {chip === 'preparing' ? t('readAlong.preparing') : t('readAlong.finding')}
+                            </span>
+                            {chipDetail && <span className="text-[12px] text-[#9CA3AF] tabular-nums">{chipDetail}</span>}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     } else if (view === 'empty') {
@@ -547,24 +583,14 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             >
                 {view === 'ready' && (
                     <>
-                        {/* Shown while preparing or syncing, or when only estimating; not once synced. */}
-                        {currentIndex >= 0 && chip !== 'synced' && (
+                        {/* Only when the place is estimated (no sync); preparing and syncing show centred. */}
+                        {currentIndex >= 0 && chip === 'estimated' && (
                             <span
                                 title={chipDetail}
                                 className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[12px] font-medium whitespace-nowrap text-[#9CA3AF]"
                             >
-                                {/* A spinner while preparing or syncing; a plain ring when only estimating. */}
-                                <span
-                                    aria-hidden="true"
-                                    className={chip === 'estimated'
-                                        ? 'w-2 h-2 rounded-full border-2 border-[#9CA3AF]'
-                                        : 'w-3 h-3 rounded-full border-2 border-white/15 border-t-[#FF5100] animate-spin'}
-                                />
-                                {chip === 'finding' && <span>{t('readAlong.finding')}</span>}
-                                {chip === 'preparing' && <span>{t('readAlong.preparing')}</span>}
-                                {chip === 'estimated' && (
-                                    <span><span aria-hidden="true">≈ </span>{t('readAlong.estimated')}</span>
-                                )}
+                                <span aria-hidden="true" className="w-2 h-2 rounded-full border-2 border-[#9CA3AF]"/>
+                                <span><span aria-hidden="true">≈ </span>{t('readAlong.estimated')}</span>
                                 {chipDetail && <span className="sr-only">{chipDetail}</span>}
                             </span>
                         )}
