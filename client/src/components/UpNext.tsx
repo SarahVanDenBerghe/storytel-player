@@ -9,6 +9,8 @@ import Modal from './Modal';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const heading = 'text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]';
+// Covers in the block answer the pointer: a small lift, a touch brighter, a deeper shadow.
+const coverHover = 'transition-[transform,filter,box-shadow] duration-200 ease-out group-hover/cover:-translate-y-0.5 group-hover/cover:brightness-110 group-hover/cover:shadow-[0_18px_40px_rgba(0,0,0,0.6)]';
 // Shown in the Next column; more would not fit beside the current book.
 const MAX_QUEUE_COVERS = 3;
 
@@ -104,7 +106,7 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
         <section aria-label={t('upNext.title')}>
             <h2 className={`${heading} mb-4`}>{t('upNext.title')}</h2>
 
-            <div className="group/unb relative overflow-hidden rounded-[12px] bg-[#131315] border border-white/[0.025] animate-fade-in">
+            <div className="group/unb relative overflow-hidden rounded-[12px] bg-[#131315] animate-fade-in">
                 {/* Backdrop: a soft gradient from the current cover's main colour, faded in once known */}
                 <div
                     aria-hidden="true"
@@ -114,16 +116,10 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                         background: tint ? `linear-gradient(115deg, ${tint} 0%, ${tint}b3 40%, ${tint}33 75%, transparent 100%)` : undefined,
                     }}
                 />
-                {/* Only one book: its artwork fills the right side and fades into the block */}
-                {queue.length === 0 && (
-                    <img src={current.cover} alt="" aria-hidden="true"
-                         className="absolute right-0 top-1/2 -translate-y-1/2 w-[60%] aspect-square object-cover opacity-50 pointer-events-none [mask-image:linear-gradient(to_right,transparent,#000_75%)]"/>
-                )}
-
                 <div className="relative flex gap-7 p-6">
-                    <button type="button" onClick={() => open(current)} className={`flex-shrink-0 rounded-[6px] ${focusRing}`}
+                    <button type="button" onClick={() => open(current)} className={`group/cover flex-shrink-0 rounded-[6px] ${focusRing}`}
                             aria-label={current.title}>
-                        <img src={current.cover} alt="" className="w-[184px] h-[184px] rounded-[6px] object-cover shadow-[0_14px_36px_rgba(0,0,0,0.55)]"/>
+                        <img src={current.cover} alt="" className={`w-[184px] h-[184px] rounded-[6px] object-cover shadow-[0_14px_36px_rgba(0,0,0,0.55)] ${coverHover}`}/>
                     </button>
 
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
@@ -175,8 +171,8 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                                 </div>
                             </div>
                             {queue.length === 1 ? (
-                                <button type="button" onClick={() => open(queue[0])} className={`flex items-center gap-3.5 w-[300px] text-left rounded-[5px] ${focusRing}`}>
-                                    <img src={queue[0].cover} alt="" className="w-[92px] h-[92px] flex-shrink-0 rounded-[5px] object-cover shadow-[0_6px_18px_rgba(0,0,0,0.4)]"/>
+                                <button type="button" onClick={() => open(queue[0])} className={`group/cover flex items-center gap-3.5 w-[300px] text-left rounded-[5px] ${focusRing}`}>
+                                    <img src={queue[0].cover} alt="" className={`w-[92px] h-[92px] flex-shrink-0 rounded-[5px] object-cover shadow-[0_6px_18px_rgba(0,0,0,0.4)] ${coverHover}`}/>
                                     <span className="min-w-0 flex flex-col gap-0.5">
                                         <span className="text-[13px] font-semibold leading-[1.3] line-clamp-2" title={queue[0].entry.book?.name}>{queue[0].title}</span>
                                         <span className="text-[12px] text-white/65">{meta(queue[0])}</span>
@@ -186,10 +182,10 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                                 <div className="flex gap-3.5">
                                     {queue.slice(0, MAX_QUEUE_COVERS).map((item) => (
                                         <button key={item.id} type="button" onClick={() => open(item)} title={item.entry.book?.name}
-                                                className={`w-[92px] flex flex-col gap-1.5 text-left rounded-[5px] ${focusRing}`}>
-                                            <img src={item.cover} alt="" className="w-[92px] h-[92px] rounded-[5px] object-cover shadow-[0_6px_18px_rgba(0,0,0,0.4)]"/>
+                                                className={`group/cover w-[92px] flex flex-col gap-1.5 text-left rounded-[5px] ${focusRing}`}>
+                                            <img src={item.cover} alt="" className={`w-[92px] h-[92px] rounded-[5px] object-cover shadow-[0_6px_18px_rgba(0,0,0,0.4)] ${coverHover}`}/>
                                             <span className="block w-full">
-                                                <span className="block text-[11px] font-medium leading-[1.3] text-white/80 truncate">{item.title}</span>
+                                                <span className="block text-[11px] font-medium leading-[1.3] text-white/80 group-hover/cover:text-white transition-colors truncate">{item.title}</span>
                                                 <span className="block mt-px text-[11px] leading-[1.3] text-white/50">{item.partLabel}</span>
                                             </span>
                                         </button>
