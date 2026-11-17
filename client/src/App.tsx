@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Routes,
   Route,
@@ -49,6 +49,28 @@ async function isLastBookFinished(session: any): Promise<boolean> {
 const useMemoryRouter =
   import.meta.env.VITE_REACT_APP_USE_MEMORY_ROUTER === "true";
 const Router = useMemoryRouter ? MemoryRouter : BrowserRouter;
+
+// Page changes fade in with a slight rise; switching one book between the
+// player and Read along is a plain crossfade (two modes of the same book).
+function PageTransition({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const lastPathRef = useRef(location.pathname);
+  const animation = useMemo(() => {
+    const mode = /^\/(player|read)\/([^/]+)$/;
+    const from = lastPathRef.current.match(mode);
+    const to = location.pathname.match(mode);
+    const sameBookOtherMode = !!from && !!to && from[2] === to[2] && from[1] !== to[1];
+    return sameBookOtherMode ? "animate-fade-in" : "animate-page-in";
+  }, [location.pathname]);
+  useEffect(() => {
+    lastPathRef.current = location.pathname;
+  }, [location.pathname]);
+  return (
+    <div key={location.pathname} className={`flex-1 min-h-0 flex flex-col ${animation}`}>
+      {children}
+    </div>
+  );
+}
 
 function BookToPlayer() {
   const { bookId } = useParams();
@@ -265,6 +287,7 @@ function App() {
       <AudioProvider>
         {isAuthenticated ? (
           <AuthenticatedLayout>
+            <PageTransition>
             <Routes>
               <Route
                 path="/"
@@ -284,6 +307,7 @@ function App() {
               <Route path="/read/:bookId" element={<ReadingView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </PageTransition>
 
             {/* Modals */}
             <SettingsModal

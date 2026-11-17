@@ -10,7 +10,7 @@ const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outlin
 const pillIdle = 'bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white';
 const pillActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D]';
 const iconBtn = `w-9 h-9 flex-shrink-0 rounded-[10px] flex items-center justify-center transition-colors ${focusRing}`;
-const popoverBase = 'absolute right-0 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+const popoverBase = 'absolute right-0 animate-pop-in origin-bottom-right bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
         selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'

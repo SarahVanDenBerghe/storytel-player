@@ -11,7 +11,7 @@ import TextSizeMenu from './TextSizeMenu';
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold text-[#E5E7EB] hover:bg-white/[0.08] transition-colors ${focusRing}`;
 // Shown while the pointer is over the window or a control has keyboard focus.
-const onHover = 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity';
+const onHover = 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-[opacity,transform] duration-200 ease-out';
 // The window has no frame: this strip is where it can be dragged.
 const dragRegion = {WebkitAppRegion: 'drag'} as React.CSSProperties;
 const noDragRegion = {WebkitAppRegion: 'no-drag'} as React.CSSProperties;
@@ -20,7 +20,7 @@ const control = (c: ReadAlongPopoutControl) => window.electronEpub?.popoutContro
 
 // Speed and text-size menus: the same look as the player bar's speed and Chapters menus.
 const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[#D1D5DB] bg-white/[0.06] hover:bg-white/[0.10] hover:text-white transition-colors ${focusRing}`;
-const popoverClass = 'absolute top-full right-0 mt-1 w-32 max-h-[calc(100vh-44px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-44px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverHeader = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
@@ -116,7 +116,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             {/* Top strip: drag the window here. Close dot left (as on macOS), menus right. */}
             <div
                 style={dragRegion}
-                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu || textSizeMenuOpen ? 'opacity-100' : onHover}`}
+                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu || textSizeMenuOpen ? 'opacity-100' : `${onHover} -translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}`}
             >
                 <button
                     type="button"
@@ -179,7 +179,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             </div>
 
             {playback?.bookId && (
-                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[#1A1A1A]/95 border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${onHover}`}>
+                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[#1A1A1A]/95 border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
                     <button
                         type="button"
                         onClick={() => control({type: 'skip', seconds: -SKIP_BACKWARD_SECONDS})}

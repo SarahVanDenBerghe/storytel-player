@@ -542,7 +542,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             {/* The pop-out shows only the text; ReadingPopout adds its own hover controls. */}
             {!isPopout && <Navbar
                 barTitle={t('readAlong.open')}
-                onBackClick={() => navigate(`/player/${bookId}`)}
+                onBackClick={() => navigate('/')}
                 className="max-[1100px]:static max-[1100px]:flex-shrink-0"
             >
                 {view === 'ready' && (

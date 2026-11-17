@@ -136,7 +136,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                 </svg>
             </button>
             {epubName && menu !== 'closed' && (
-                <div className="absolute top-full right-0 mt-1.5 w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2 text-left">
+                <div className="absolute top-full right-0 mt-1.5 animate-pop-in origin-top-right w-72 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-3 z-50 flex flex-col gap-2 text-left">
                     <div className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">{t('bookView.epubTitle')}</div>
                     <div className="text-[13px] text-[#E5E7EB] break-words">{epubName}</div>
                     {status && <div className="text-[12px] text-[#9CA3AF] tabular-nums">{status}</div>}

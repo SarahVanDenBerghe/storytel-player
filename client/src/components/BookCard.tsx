@@ -58,7 +58,7 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         <div
           role="img"
           aria-label={coverLabel}
-          className="relative aspect-square w-full overflow-hidden rounded-[10px] bg-[#121214] cover-border flex items-center justify-center"
+          className="relative aspect-square w-full overflow-hidden rounded-[10px] bg-[#121214] cover-border flex items-center justify-center transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_10px_28px_rgba(0,0,0,0.5)]"
         >
           {coverUrl ? (
             <img
@@ -104,7 +104,7 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
             onClick={(e) => onQuickPlay(e, book)}
             aria-label={t('search.play', 'Play')}
             title={t('search.play', 'Play')}
-            className={`pointer-events-auto w-10 h-10 rounded-full bg-[#FF5100] text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity ${focusRing}`}
+            className={`pointer-events-auto w-10 h-10 rounded-full bg-[#FF5100] text-white flex items-center justify-center shadow-lg opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 focus-visible:opacity-100 focus-visible:scale-100 transition-[opacity,transform] duration-200 ease-out ${focusRing}`}
           >
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z" />

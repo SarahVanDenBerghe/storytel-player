@@ -31,6 +31,25 @@
   padding-left: 84px !important;
 }
 
+/* Press feedback: buttons dip slightly while pressed (`scale` composes with transforms). */
+button:not(:disabled):active {
+  scale: 0.97;
+}
+
+/* Reduce motion: no animations or transitions (loading spinners keep turning). */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  button:not(:disabled):active {
+    scale: none;
+  }
+}
+
 /* The one cover border: library cards, book page, footer and full player. */
 @layer components {
   .cover-border {

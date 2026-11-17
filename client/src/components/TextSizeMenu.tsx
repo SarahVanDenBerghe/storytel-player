@@ -57,7 +57,7 @@ function TextSizeMenu({value, sizes, onChange, buttonClassName, onOpenChange}: {
                 Aa
             </button>
             {open && (
-                <div className="absolute top-full right-0 mt-1 w-32 max-h-[calc(100vh-56px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none">
+                <div className="absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-56px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none">
                     <div className="text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider">{t('readAlong.textSizeMenu')}</div>
                     {sizes.map((size) => (
                         <button

@@ -142,7 +142,7 @@ export function PlayerBar() {
 
           <div className="flex-1 relative flex items-center py-1 rounded [&:has(:focus-visible)]:outline [&:has(:focus-visible)]:outline-2 [&:has(:focus-visible)]:outline-offset-2 [&:has(:focus-visible)]:outline-[#FF5100]">
             <div className="w-full h-1 bg-white/[0.12] rounded-full overflow-hidden">
-              <div className="h-full bg-[#FF5100] rounded-full" style={{ width: `${progressPercent}%` }} />
+              <div className="h-full bg-[#FF5100] rounded-full transition-[width] duration-300 ease-linear" style={{ width: `${progressPercent}%` }} />
             </div>
             <input
               type="range"
