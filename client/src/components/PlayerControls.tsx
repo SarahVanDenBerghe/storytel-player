@@ -20,7 +20,6 @@ interface PlayerControlsProps {
     onToggleMute: () => void;
     onSkipForward: () => void;
     onSkipBackward: () => void;
-    onShowGotoModal: () => void;
     onShowPlaybackSpeedModal: () => void;
     onShowChaptersModal: () => void;
     onShowBookmarksModal: () => void;
@@ -66,7 +65,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     onToggleMute,
     onSkipForward,
     onSkipBackward,
-    onShowGotoModal,
     onShowPlaybackSpeedModal,
     onShowChaptersModal,
     onShowBookmarksModal,
@@ -175,10 +173,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     className={`${actionBtn} font-semibold tabular-nums ${playbackRate !== 1 ? actionActive : actionIdle}`}
                 >
                     {playbackRate.toFixed(Number.isInteger(playbackRate * 10) ? 1 : 2)}×
-                </button>
-
-                <button type="button" onClick={onShowGotoModal} className={`${actionBtn} ${actionIdle}`}>
-                    {t('gotoModal.title')}
                 </button>
 
                 <button

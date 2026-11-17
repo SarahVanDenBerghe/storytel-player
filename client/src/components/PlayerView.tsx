@@ -6,7 +6,6 @@ import ErrorState from './ErrorState';
 import Navbar from './Navbar';
 import BookmarkModals from "./BookmarkModals";
 import PlaybackSpeedModal from "./PlaybackSpeedModal";
-import GotoModal from "./GotoModal";
 import ChaptersModal from "./ChaptersModal";
 import PlayerControls from "./PlayerControls";
 import BookInfo from "./BookInfo";
@@ -15,7 +14,6 @@ import {BookShelfEntity} from "../interfaces/books";
 import {useAudioContext} from "../contexts/AudioContext";
 import {useBookmarks} from "../hooks/useBookmarks";
 import {useChapters} from "../hooks/useChapters";
-import {useGotoModal} from "../hooks/useGotoModal";
 import {truncateTitle} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 import "../types/window.d.ts";
@@ -153,14 +151,6 @@ function PlayerView() {
         consumableId: activeConsumableId,
         currentTime: audio.currentTime,
         onError: setError,
-    });
-
-    // Goto modal hook
-    const gotoModal = useGotoModal({
-        onSeek: audio.seek,
-        duration: audio.duration,
-        playbackRate: audio.playbackRate,
-        currentTime: audio.currentTime,
     });
 
     // Load book data (chapters and bookmarks)
@@ -388,7 +378,6 @@ function PlayerView() {
                         onToggleMute={audio.toggleMute}
                         onSkipForward={() => audio.skipForward(SKIP_FORWARD_SECONDS)}
                         onSkipBackward={() => audio.skipBackward(SKIP_BACKWARD_SECONDS)}
-                        onShowGotoModal={gotoModal.openModal}
                         onShowPlaybackSpeedModal={() => setShowPlaybackSpeedModal(true)}
                         onShowChaptersModal={() => chapters.setShowChaptersModal(true)}
                         onShowBookmarksModal={() => bookmarks.setShowBookmarksModal(true)}
@@ -406,18 +395,6 @@ function PlayerView() {
                 onRateChange={handlePlaybackRateChange}
             />
 
-            <GotoModal
-                isOpen={gotoModal.showGotoModal}
-                playbackRate={audio.playbackRate}
-                gotoHours={gotoModal.gotoHours}
-                gotoMinutes={gotoModal.gotoMinutes}
-                gotoSeconds={gotoModal.gotoSeconds}
-                onClose={() => gotoModal.setShowGotoModal(false)}
-                onHoursChange={gotoModal.setGotoHours}
-                onMinutesChange={gotoModal.setGotoMinutes}
-                onSecondsChange={gotoModal.setGotoSeconds}
-                onGoto={gotoModal.handleGotoTime}
-            />
 
             <ChaptersModal
                 isOpen={chapters.showChaptersModal}

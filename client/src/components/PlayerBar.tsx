@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAudioContext } from '../contexts/AudioContext';
 import { buildCoverUrl, formatTime } from '../utils/helpers';
@@ -10,6 +10,7 @@ import ChaptersPopover from './ChaptersPopover';
 export function PlayerBar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     activeBook,
     activeBookId,
@@ -111,7 +112,7 @@ export function PlayerBar() {
           type="button"
           onClick={handleOpenFullPlayer}
           aria-label={t('player.expand', 'Open full player')}
-          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] overflow-hidden flex-shrink-0 ${focusRing}`}
+          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] border border-white/[0.08] overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
             <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />
@@ -372,15 +373,18 @@ export function PlayerBar() {
 
         <div className="w-px h-6 bg-white/[0.08] mx-0.5" aria-hidden="true" />
 
+        {/* Read along (the full player's expand button is gone; the cover and title still open it) */}
         <button
           type="button"
-          onClick={handleOpenFullPlayer}
-          aria-label={t('player.expand', 'Open full player')}
-          title={t('player.expand', 'Open full player')}
-          className={`w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${pillIdle}`}
+          onClick={() => activeBookId && navigate(`/read/${activeBookId}`)}
+          aria-label={t('readAlong.open')}
+          title={t('readAlong.open')}
+          className={`w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${
+            location.pathname.startsWith('/read/') ? pillActive : pillIdle
+          }`}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z" />
           </svg>
         </button>
       </div>
