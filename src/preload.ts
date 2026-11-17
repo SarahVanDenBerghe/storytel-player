@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent, webUtils } from 'electron';
 import type { LanguageState } from './i18n';
+import type { ManualAnchor, SyncProgress, SyncSnapshot } from './modules/readAlongSync';
 
 // Store API
 contextBridge.exposeInMainWorld('electronStore', {
@@ -102,4 +103,16 @@ contextBridge.exposeInMainWorld('electronEpub', {
     ipcRenderer.invoke('epub:load', bookId),
   // Absolute path of a dropped File (File.path no longer exists in Electron).
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
+  // Whisper transcription of the downloaded audio (see src/modules/readAlongSync.ts).
+  syncStart: (bookId: string, startAtSec: number): Promise<SyncProgress> =>
+    ipcRenderer.invoke('readAlong:sync-start', bookId, startAtSec),
+  syncGet: (bookId: string): Promise<SyncSnapshot> =>
+    ipcRenderer.invoke('readAlong:sync-get', bookId),
+  setManualAnchor: (bookId: string, timeSec: number, paragraphIndex: number): Promise<ManualAnchor[]> =>
+    ipcRenderer.invoke('readAlong:set-manual-anchor', bookId, timeSec, paragraphIndex),
+  onSyncProgress: (callback: (progress: SyncProgress) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, progress: SyncProgress) => callback(progress);
+    ipcRenderer.on('readAlong:sync-progress', listener);
+    return () => { ipcRenderer.removeListener('readAlong:sync-progress', listener); };
+  },
 });

@@ -1,7 +1,8 @@
-import { BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { readZipTextEntries } from './epubZip';
+import { createReadAlongSync, isValidBookId } from './readAlongSync';
 import { storeManager } from './store';
 import { ServerManager } from './server';
 import { TrayManager } from './tray';
@@ -37,6 +38,7 @@ export class IpcManager {
     this.setupLogsHandlers();
     this.setupAuthHandlers();
     this.setupEpubHandlers();
+    this.setupReadAlongSyncHandlers();
   }
 
   private setupStoreHandlers(): void {
@@ -242,5 +244,52 @@ export class IpcManager {
       }
       return { name: path.basename(filePath), entries: readZipTextEntries(buf) };
     });
+  }
+
+  // Read along: Whisper transcription of the downloaded audio, one book at a time.
+  private setupReadAlongSyncHandlers(): void {
+    const sync = createReadAlongSync({
+      userDataDir: app.getPath('userData'),
+      downloadsDir: app.getPath('downloads'),
+      onProgress: (progress) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          if (!win.isDestroyed()) win.webContents.send('readAlong:sync-progress', progress);
+        }
+      },
+    });
+    // Never leave ffmpeg or whisper-cli running after the app is gone.
+    app.on('will-quit', () => sync.cancel());
+    process.on('exit', () => sync.cancel());
+
+    const checkBookId = (bookId: unknown): string => {
+      if (!isValidBookId(bookId)) throw new Error('Invalid book id');
+      return bookId;
+    };
+    const checkSeconds = (value: unknown): number => {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        throw new Error('Invalid time');
+      }
+      return value;
+    };
+
+    ipcMain.handle(
+      'readAlong:sync-start',
+      (_event: IpcMainInvokeEvent, bookId: unknown, startAtSec: unknown) =>
+        sync.start(checkBookId(bookId), checkSeconds(startAtSec))
+    );
+
+    ipcMain.handle('readAlong:sync-get', (_event: IpcMainInvokeEvent, bookId: unknown) =>
+      sync.get(checkBookId(bookId))
+    );
+
+    ipcMain.handle(
+      'readAlong:set-manual-anchor',
+      (_event: IpcMainInvokeEvent, bookId: unknown, timeSec: unknown, paragraphIndex: unknown) => {
+        if (typeof paragraphIndex !== 'number' || !Number.isInteger(paragraphIndex) || paragraphIndex < 0) {
+          throw new Error('Invalid paragraph index');
+        }
+        return sync.setManualAnchor(checkBookId(bookId), checkSeconds(timeSec), paragraphIndex);
+      }
+    );
   }
 }

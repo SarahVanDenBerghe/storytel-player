@@ -16,6 +16,28 @@ declare global {
     region: string | null;
   }
 
+  /** Mirrors `SyncProgress` in src/modules/readAlongSync.ts. */
+  interface ReadAlongSyncProgress {
+    bookId: string;
+    state: 'idle' | 'running' | 'done' | 'error' | 'unavailable';
+    chunksDone: number;
+    chunksTotal: number;
+    /** Why the sync is unavailable or failed (English, from the main process). */
+    message?: string;
+  }
+
+  /** A Whisper segment; times in seconds from the start of the audiobook, sorted by start. */
+  interface ReadAlongSegment {
+    start: number;
+    end: number;
+    text: string;
+  }
+
+  interface ReadAlongManualAnchor {
+    timeSec: number;
+    paragraphIndex: number;
+  }
+
   interface Window {
     // TODO: Define proper types for tray control methods based on actual Electron IPC
     trayControls?: {
@@ -52,6 +74,18 @@ declare global {
       /** Text entries of the stored EPUB, or null when none is stored or the file is gone. */
       load: (bookId: string) => Promise<{ name: string; entries: Record<string, string> } | null>;
       pathForFile: (file: File) => string;
+      /** Starts or continues the Whisper transcription; same book while running is a no-op. */
+      syncStart: (bookId: string, startAtSec: number) => Promise<ReadAlongSyncProgress>;
+      /** Progress, the transcript so far (null before any), and manual anchors. */
+      syncGet: (bookId: string) => Promise<{
+        progress: ReadAlongSyncProgress;
+        transcript: { durationSec: number; segments: ReadAlongSegment[] } | null;
+        manualAnchors: ReadAlongManualAnchor[];
+      }>;
+      /** Replaces any manual anchor within 60 s of timeSec; resolves with the full list. */
+      setManualAnchor: (bookId: string, timeSec: number, paragraphIndex: number) => Promise<ReadAlongManualAnchor[]>;
+      /** Returns an unsubscribe function. */
+      onSyncProgress: (callback: (progress: ReadAlongSyncProgress) => void) => () => void;
     };
     electronAuth?: {
       openSsoWindow: (provider?: 'google' | 'apple') => Promise<{
