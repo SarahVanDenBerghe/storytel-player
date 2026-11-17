@@ -38,6 +38,15 @@ declare global {
     paragraphIndex: number;
   }
 
+  /** What the main window's player tells the read-along pop-out. */
+  interface ReadAlongPlayback {
+    bookId: string | null;
+    currentTime: number;
+    duration: number;
+    isPlaying: boolean;
+    playbackRate: number;
+  }
+
   interface Window {
     // TODO: Define proper types for tray control methods based on actual Electron IPC
     trayControls?: {
@@ -86,6 +95,21 @@ declare global {
       setManualAnchor: (bookId: string, timeSec: number, paragraphIndex: number) => Promise<ReadAlongManualAnchor[]>;
       /** Returns an unsubscribe function. */
       onSyncProgress: (callback: (progress: ReadAlongSyncProgress) => void) => () => void;
+      /** Opens the always-on-top pop-out reading window, or focuses it when open. */
+      openPopout: (bookId: string) => Promise<void>;
+      closePopout: () => Promise<void>;
+      isPopoutOpen: () => Promise<boolean>;
+      /** Main window: the pop-out opened or closed. Returns an unsubscribe function. */
+      onPopoutOpenChange: (callback: (open: boolean) => void) => () => void;
+      /** Main window: report the playback state; main relays it to the pop-out. */
+      sendPlayback: (playback: ReadAlongPlayback) => void;
+      /** Pop-out: the last reported state, or null before any. */
+      getPlayback: () => Promise<ReadAlongPlayback | null>;
+      onPlayback: (callback: (playback: ReadAlongPlayback) => void) => () => void;
+      /** Pop-out: ask the main window to move the audio. */
+      seekFromPopout: (timeSec: number) => void;
+      /** Main window: a seek asked for by the pop-out. */
+      onPopoutSeek: (callback: (timeSec: number) => void) => () => void;
     };
     electronAuth?: {
       openSsoWindow: (provider?: 'google' | 'apple') => Promise<{

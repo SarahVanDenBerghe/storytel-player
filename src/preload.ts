@@ -115,4 +115,28 @@ contextBridge.exposeInMainWorld('electronEpub', {
     ipcRenderer.on('readAlong:sync-progress', listener);
     return () => { ipcRenderer.removeListener('readAlong:sync-progress', listener); };
   },
+  // Pop-out reading window (see setupReadAlongPopoutHandlers in src/modules/ipc.ts).
+  openPopout: (bookId: string): Promise<void> => ipcRenderer.invoke('readAlong:popout-open', bookId),
+  closePopout: (): Promise<void> => ipcRenderer.invoke('readAlong:popout-close'),
+  isPopoutOpen: (): Promise<boolean> => ipcRenderer.invoke('readAlong:popout-is-open'),
+  onPopoutOpenChange: (callback: (open: boolean) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, open: boolean) => callback(open);
+    ipcRenderer.on('readAlong:popout-open-change', listener);
+    return () => { ipcRenderer.removeListener('readAlong:popout-open-change', listener); };
+  },
+  // Main window -> pop-out.
+  sendPlayback: (playback: unknown): void => ipcRenderer.send('readAlong:playback', playback),
+  getPlayback: (): Promise<unknown> => ipcRenderer.invoke('readAlong:playback-get'),
+  onPlayback: (callback: (playback: unknown) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, playback: unknown) => callback(playback);
+    ipcRenderer.on('readAlong:playback', listener);
+    return () => { ipcRenderer.removeListener('readAlong:playback', listener); };
+  },
+  // Pop-out -> main window.
+  seekFromPopout: (timeSec: number): void => ipcRenderer.send('readAlong:popout-seek', timeSec),
+  onPopoutSeek: (callback: (timeSec: number) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, timeSec: number) => callback(timeSec);
+    ipcRenderer.on('readAlong:popout-seek', listener);
+    return () => { ipcRenderer.removeListener('readAlong:popout-seek', listener); };
+  },
 });

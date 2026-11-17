@@ -39,6 +39,7 @@ export class IpcManager {
     this.setupAuthHandlers();
     this.setupEpubHandlers();
     this.setupReadAlongSyncHandlers();
+    this.setupReadAlongPopoutHandlers();
   }
 
   private setupStoreHandlers(): void {
@@ -291,5 +292,37 @@ export class IpcManager {
         return sync.setManualAnchor(checkBookId(bookId), checkSeconds(timeSec), paragraphIndex);
       }
     );
+  }
+
+  // Read along pop-out: the main window plays the audio and reports its
+  // playback state; the pop-out shows the text and can ask the main window to seek.
+  private setupReadAlongPopoutHandlers(): void {
+    const mainContents = () => {
+      const win = this.windowManager.getWindow();
+      return win && !win.isDestroyed() ? win.webContents : null;
+    };
+    const notifyOpen = (open: boolean) => mainContents()?.send('readAlong:popout-open-change', open);
+    // The last state the main window reported, so a new pop-out starts in place.
+    let lastPlayback: unknown = null;
+
+    ipcMain.handle('readAlong:popout-open', (_event: IpcMainInvokeEvent, bookId: unknown) => {
+      if (!isValidBookId(bookId)) throw new Error('Invalid book id');
+      this.windowManager.openReadAlongPopout(bookId, notifyOpen);
+    });
+    ipcMain.handle('readAlong:popout-close', () => this.windowManager.closeReadAlongPopout());
+    ipcMain.handle('readAlong:popout-is-open', () => this.windowManager.getReadAlongPopout() !== null);
+
+    ipcMain.on('readAlong:playback', (event, playback: unknown) => {
+      if (event.sender !== mainContents()) return;
+      lastPlayback = playback;
+      this.windowManager.getReadAlongPopout()?.webContents.send('readAlong:playback', playback);
+    });
+    ipcMain.handle('readAlong:playback-get', () => lastPlayback);
+
+    ipcMain.on('readAlong:popout-seek', (event, timeSec: unknown) => {
+      if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
+      if (typeof timeSec !== 'number' || !Number.isFinite(timeSec) || timeSec < 0) return;
+      mainContents()?.send('readAlong:popout-seek', timeSec);
+    });
   }
 }

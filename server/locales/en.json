@@ -331,6 +331,8 @@
     "emptyTitle": "Read along with this book",
     "emptyBody": "Drop its EPUB here, or choose the file. It stays on this computer.",
     "chooseEpub": "Choose EPUB",
-    "errorTitle": "This EPUB can't be read"
+    "errorTitle": "This EPUB can't be read",
+    "openPopout": "Open reading window",
+    "closePopout": "Close reading window"
   }
 }

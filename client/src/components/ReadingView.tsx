@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import Navbar from './Navbar';
-import {useAudioContext} from '../contexts/AudioContext';
+import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, estimateParagraph, parseEpub} from '../utils/epub';
 import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph, wordPositionAt} from '../utils/readAlongSync';
 import storage from '../utils/storage';
@@ -29,6 +29,8 @@ const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounde
 const primaryBtn = `min-h-[40px] px-[18px] rounded-[10px] bg-[#FF5100] text-[#0A0A0A] text-[14px] font-semibold hover:bg-[#FF6A26] transition-colors ${focusRing}`;
 
 type LoadStatus = 'loading' | 'empty' | 'error' | 'ready';
+/** The part of the player the reading view needs; the pop-out window feeds it over IPC. */
+export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'>;
 type ParagraphPosition = 'before' | 'current' | 'after';
 
 // Where the narration is: a paragraph and how far through its words (0–1).
@@ -101,12 +103,36 @@ const Paragraph = React.memo(function Paragraph({index, text, heading, position,
     );
 });
 
-function ReadingView() {
+/** `popoutAudio` is set in the pop-out reading window, which has no player of its own. */
+function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const {t} = useTranslation();
     const {bookId} = useParams();
     const navigate = useNavigate();
-    const audio = useAudioContext();
+    const sharedAudio = useOptionalAudioContext();
+    const audio = popoutAudio ?? sharedAudio;
+    if (!audio) throw new Error('ReadingView needs an AudioProvider or popoutAudio');
+    const isPopout = !!popoutAudio;
     const epubApi = window.electronEpub;
+    // Main window only: whether the pop-out reading window is open.
+    const [popoutOpen, setPopoutOpen] = useState(false);
+
+    useEffect(() => {
+        const api = window.electronEpub;
+        if (isPopout || !api) return;
+        let alive = true;
+        api.isPopoutOpen().then((open) => alive && setPopoutOpen(open)).catch(() => undefined);
+        const unsubscribe = api.onPopoutOpenChange(setPopoutOpen);
+        return () => {
+            alive = false;
+            unsubscribe();
+        };
+    }, [isPopout]);
+
+    const togglePopout = () => {
+        if (!bookId || !epubApi) return;
+        const request = popoutOpen ? epubApi.closePopout() : epubApi.openPopout(bookId);
+        request.catch((err) => console.error('Read along: cannot open or close the pop-out', err));
+    };
 
     // Parsed paragraphs per book, kept for as long as the view is mounted.
     const [booksText, setBooksText] = useState<Record<string, EpubParagraph[]>>({});
@@ -512,7 +538,7 @@ function ReadingView() {
         >
             <Navbar
                 barTitle={t('readAlong.open')}
-                onBackClick={() => navigate(`/player/${bookId}`)}
+                onBackClick={isPopout ? undefined : () => navigate(`/player/${bookId}`)}
                 className="max-[1100px]:static max-[1100px]:flex-shrink-0"
             >
                 {view === 'ready' && (
@@ -548,6 +574,22 @@ function ReadingView() {
                         >
                             Aa
                         </button>
+                        {!isPopout && epubApi && (
+                            <button
+                                type="button"
+                                onClick={togglePopout}
+                                aria-pressed={popoutOpen}
+                                aria-label={t(popoutOpen ? 'readAlong.closePopout' : 'readAlong.openPopout')}
+                                title={t(popoutOpen ? 'readAlong.closePopout' : 'readAlong.openPopout')}
+                                className={`${iconBtn} ${popoutOpen ? 'text-[#FF5100] hover:text-[#FF6A26]' : ''}`}
+                            >
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
+                                    <rect x="12" y="11" width="6" height="5" rx="1"/>
+                                </svg>
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={chooseEpub}
