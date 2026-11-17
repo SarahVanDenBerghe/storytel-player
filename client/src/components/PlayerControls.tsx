@@ -1,6 +1,6 @@
 import React from 'react';
+import {useTranslation} from 'react-i18next';
 import {formatTime} from '../utils/helpers';
-import {t} from "i18next";
 
 interface PlayerControlsProps {
     isPlaying: boolean;
@@ -9,6 +9,9 @@ interface PlayerControlsProps {
     volume: number;
     isMuted: boolean;
     playbackRate: number;
+    hasChapters: boolean;
+    isDownloaded: boolean;
+    isDownloading: boolean;
     onPlayPause: () => void;
     onSeek: (time: number) => void;
     onVolumeChange: (volume: number) => void;
@@ -17,7 +20,32 @@ interface PlayerControlsProps {
     onSkipBackward: () => void;
     onShowGotoModal: () => void;
     onShowPlaybackSpeedModal: () => void;
+    onShowChaptersModal: () => void;
+    onShowBookmarksModal: () => void;
+    onDownloadClick: () => void;
 }
+
+const SKIP_SECONDS = 15;
+
+const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
+// Small secondary action button; every entry of the action row uses it, so new
+// actions (e.g. "Read along") can simply be appended to the row.
+const actionBtn = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors ${focusRing}`;
+const actionIdle = 'bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white';
+const actionActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D] hover:bg-[#FF5100]/[0.22]';
+const skipBtn = `h-11 min-w-[56px] px-2.5 rounded-[10px] bg-transparent text-[15px] font-semibold tabular-nums text-[#E5E7EB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+
+const iconProps = {
+    width: 15,
+    height: 15,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+};
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
     isPlaying,
@@ -26,6 +54,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     volume,
     isMuted,
     playbackRate,
+    hasChapters,
+    isDownloaded,
+    isDownloading,
     onPlayPause,
     onSeek,
     onVolumeChange,
@@ -34,133 +65,174 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     onSkipBackward,
     onShowGotoModal,
     onShowPlaybackSpeedModal,
+    onShowChaptersModal,
+    onShowBookmarksModal,
+    onDownloadClick,
 }) => {
-    const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onSeek(parseFloat(e.target.value));
-    };
+    const {t} = useTranslation();
 
-    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onVolumeChange(parseFloat(e.target.value));
-    };
+    const progressPercent = duration > 0 ? Math.min(Math.max((currentTime / duration) * 100, 0), 100) : 0;
+    // Times on this page are shown in "listening time", i.e. adjusted for playback speed.
+    const elapsed = currentTime / playbackRate;
+    const remaining = Math.max(0, duration - currentTime) / playbackRate;
+    const isSilent = isMuted || volume === 0;
 
     return (
-        <div className="p-6">
-            {/* Progress Bar */}
-            <div className="mb-6 relative">
-                <input
-                    type="range"
-                    min="0"
-                    max={duration || 0}
-                    value={currentTime}
-                    onChange={handleSeekChange}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-                    style={{
-                        background: `linear-gradient(to right, #ea580c 0%, #ea580c ${((currentTime / (duration || 1)) * 100)}%, #374151 ${((currentTime / (duration || 1)) * 100)}%, #374151 100%)`
-                    }}
-                />
-                <div className="flex justify-between items-center text-sm text-gray-400 mt-2">
-                    <span>{formatTime(currentTime / playbackRate)}</span>
-
-                    {/* Goto - Center */}
-                    <div className="absolute left-1/2 transform -translate-x-1/2">
-                        <button
-                            onClick={onShowGotoModal}
-                            className="px-3 py-1 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors text-xs"
-                        >
-                            {t("gotoModal.go")}
-                        </button>
+        <div className="w-full flex flex-col items-center">
+            {/* Progress */}
+            <div className="w-full max-w-[480px] mt-7">
+                <div className="relative flex items-center py-2 rounded [&:has(:focus-visible)]:outline [&:has(:focus-visible)]:outline-2 [&:has(:focus-visible)]:outline-offset-2 [&:has(:focus-visible)]:outline-[#FF5100]">
+                    <div className="w-full h-1 bg-white/[0.12] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#FF5100] rounded-full" style={{width: `${progressPercent}%`}}/>
                     </div>
-
-                    <span>{formatTime(duration / playbackRate)}</span>
+                    <input
+                        type="range"
+                        min={0}
+                        max={duration || 0}
+                        step="any"
+                        value={currentTime}
+                        onChange={(e) => onSeek(parseFloat(e.target.value))}
+                        aria-label={t('player.seekPosition', 'Playback position')}
+                        aria-valuetext={formatTime(elapsed)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                </div>
+                <div className="flex justify-between text-[12px] text-[#9CA3AF] tabular-nums">
+                    <span>{formatTime(elapsed)}</span>
+                    <span>−{formatTime(remaining)}</span>
                 </div>
             </div>
 
-            {/* Control Buttons */}
-            <div className="flex items-center justify-between mb-6 w-full">
-                {/* Left side - Playback speed */}
-                <div className="flex-1 flex justify-start">
-                    <button
-                        onClick={onShowPlaybackSpeedModal}
-                        className="px-3 py-1 text-white rounded-md hover:bg-gray-700 transition-colors text-xs"
-                    >
-                        {playbackRate}x
-                    </button>
-                </div>
+            {/* Transport */}
+            <div className="mt-4 flex items-center gap-7">
+                <button
+                    type="button"
+                    onClick={onSkipBackward}
+                    aria-label={t('player.skipBackward', {seconds: SKIP_SECONDS})}
+                    title={t('player.skipBackward', {seconds: SKIP_SECONDS})}
+                    className={skipBtn}
+                >
+                    −{SKIP_SECONDS}s
+                </button>
 
-                {/* Center controls */}
-                <div className="flex items-center justify-center gap-4">
-                    <button
-                        onClick={onSkipBackward}
-                        className="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors text-white"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8L12.066 11.2zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8L4.066 11.2z"/>
+                <button
+                    type="button"
+                    onClick={onPlayPause}
+                    aria-label={isPlaying ? t('tray.pause', 'Pause') : t('tray.play', 'Play')}
+                    className={`w-[60px] h-[60px] rounded-full bg-[#FF5100] hover:bg-[#ff641a] text-white flex items-center justify-center shadow-[0_6px_20px_rgba(255,81,0,0.3)] transition-colors ${focusRing}`}
+                >
+                    {isPlaying ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <rect x="6.5" y="5" width="3.5" height="14" rx="1.25"/>
+                            <rect x="14" y="5" width="3.5" height="14" rx="1.25"/>
                         </svg>
-                    </button>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/>
+                        </svg>
+                    )}
+                </button>
 
+                <button
+                    type="button"
+                    onClick={onSkipForward}
+                    aria-label={t('player.skipForward', {seconds: SKIP_SECONDS})}
+                    title={t('player.skipForward', {seconds: SKIP_SECONDS})}
+                    className={skipBtn}
+                >
+                    +{SKIP_SECONDS}s
+                </button>
+            </div>
+
+            {/* Secondary actions */}
+            <div className="mt-7 flex flex-wrap justify-center gap-2">
+                {hasChapters && (
+                    <button type="button" onClick={onShowChaptersModal} className={`${actionBtn} ${actionIdle}`}>
+                        <svg {...iconProps}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                        {t('player.chapters')}
+                    </button>
+                )}
+
+                <button
+                    id="bookmark-btn"
+                    type="button"
+                    onClick={onShowBookmarksModal}
+                    className={`${actionBtn} ${actionIdle}`}
+                >
+                    <svg {...iconProps}><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+                    {t('player.bookmarks')}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={onShowPlaybackSpeedModal}
+                    aria-label={`${t('player.speed')} ${playbackRate}×`}
+                    title={t('player.speed')}
+                    className={`${actionBtn} font-semibold tabular-nums ${playbackRate !== 1 ? actionActive : actionIdle}`}
+                >
+                    {playbackRate.toFixed(Number.isInteger(playbackRate * 10) ? 1 : 2)}×
+                </button>
+
+                <button type="button" onClick={onShowGotoModal} className={`${actionBtn} ${actionIdle}`}>
+                    {t('gotoModal.title')}
+                </button>
+
+                <button
+                    id="download-btn"
+                    type="button"
+                    onClick={onDownloadClick}
+                    className={`${actionBtn} ${isDownloaded || isDownloading ? actionActive : actionIdle}`}
+                >
+                    {isDownloading ? (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                        </svg>
+                    ) : isDownloaded ? (
+                        <svg {...iconProps}><path d="M5 13l4 4L19 7"/></svg>
+                    ) : (
+                        <svg {...iconProps}><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+                    )}
+                    {isDownloading
+                        ? t('player.downloading', 'Downloading…')
+                        : isDownloaded
+                            ? t('player.downloaded', 'Downloaded')
+                            : t('updater.available.download')}
+                </button>
+
+                {/* Volume: click toggles mute; hovering or focusing reveals the slider */}
+                <div className="relative group">
                     <button
-                        onClick={onPlayPause}
-                        className="p-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors"
+                        type="button"
+                        onClick={onToggleMute}
+                        aria-pressed={isMuted}
+                        className={`${actionBtn} ${isSilent ? actionActive : actionIdle}`}
                     >
-                        {isPlaying ? (
-                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        {isSilent ? (
+                            <svg {...iconProps}>
+                                <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                                <path d="M17 10l4 4m0-4l-4 4"/>
                             </svg>
                         ) : (
-                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z"/>
+                            <svg {...iconProps}>
+                                <path d="M11 5L6 9H3v6h3l5 4V5z"/>
+                                <path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/>
                             </svg>
                         )}
+                        {t('player.volume')}
                     </button>
-
-                    <button
-                        onClick={onSkipForward}
-                        className="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors text-white"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z"/>
-                        </svg>
-                    </button>
-                </div>
-
-                {/* Right side - Volume */}
-                <div className="flex-1 flex justify-end">
-                    <div className="relative group">
-                        <button
-                            onClick={onToggleMute}
-                            className="p-1 rounded hover:bg-gray-800 transition-colors"
-                        >
-                            {isMuted || volume === 0 ? (
-                                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-                                </svg>
-                            ) : (
-                                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                                </svg>
-                            )}
-                        </button>
-                        {/* Vertical volume slider on hover */}
-                        <div
-                            className="absolute bottom-full left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto pb-2">
-                            <div className="bg-gray-800 rounded-lg p-2 shadow-lg">
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.01"
-                                    value={volume}
-                                    onChange={handleVolumeChange}
-                                    className="h-24 w-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                    style={{
-                                        WebkitAppearance: 'slider-vertical'
-                                    } as React.CSSProperties}
-                                />
-                            </div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 z-20 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+                        <div className="bg-[#17171A] border border-white/[0.10] rounded-[10px] px-3 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.5)] flex">
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                value={volume}
+                                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                                aria-label={t('player.volume')}
+                                className={`w-28 h-1 bg-white/[0.12] rounded-full appearance-none cursor-pointer accent-[#FF5100] ${focusRing}`}
+                            />
                         </div>
                     </div>
                 </div>
