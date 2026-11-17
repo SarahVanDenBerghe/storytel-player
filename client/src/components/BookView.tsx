@@ -157,6 +157,38 @@ function BookView() {
         }
     };
 
+    // Read along: attach an EPUB without starting playback. The main process
+    // stores it per book (as ReadingView does) and, when the audiobook is
+    // downloaded, starts the Whisper sync from the beginning.
+    const epubApi = window.electronEpub;
+    const [epubName, setEpubName] = useState<string | null>(null);
+    const [epubSyncing, setEpubSyncing] = useState(false);
+    useEffect(() => {
+        if (!bookId || !window.electronEpub) return;
+        let alive = true;
+        setEpubName(null);
+        setEpubSyncing(false);
+        window.electronEpub.name(bookId)
+            .then((name) => alive && setEpubName(name))
+            .catch(() => undefined);
+        return () => {
+            alive = false;
+        };
+    }, [bookId]);
+
+    const chooseEpub = async () => {
+        if (!bookId || !epubApi) return;
+        try {
+            const chosen = await epubApi.choose(bookId);
+            if (!chosen) return;
+            setEpubName(chosen.name);
+            const progress = await epubApi.syncStart(bookId, 0);
+            setEpubSyncing(progress.state === 'running');
+        } catch (err) {
+            console.error('Read along: cannot attach the EPUB', err);
+        }
+    };
+
     const handlePlayBook = () => {
         navigate(`/player/${bookId}`, {state: {book, autoPlay: true}});
     };
@@ -342,7 +374,27 @@ function BookView() {
                                 <span className="hidden group-hover/save:inline">{t('bookshelf.remove')}</span>
                             )}
                         </button>
+
+                        {epubApi && (
+                            <button
+                                type="button"
+                                onClick={chooseEpub}
+                                className={`h-10 px-3.5 rounded-[10px] border border-white/[0.14] bg-transparent text-[#D1D5DB] text-[13px] flex items-center gap-2 transition-colors hover:bg-white/[0.06] hover:text-white ${focusRing}`}
+                            >
+                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
+                                </svg>
+                                {epubName ? t('bookView.changeEpub') : t('bookView.chooseEpub')}
+                            </button>
+                        )}
                     </div>
+                    {epubName && (
+                        <p className="-mt-2 text-[12px] text-[#9CA3AF] break-words">
+                            {t('bookView.epubAttached', {name: epubName})}
+                            {epubSyncing && <> · {t('bookView.epubSyncing')}</>}
+                        </p>
+                    )}
 
                     {/* Description */}
                     <div>

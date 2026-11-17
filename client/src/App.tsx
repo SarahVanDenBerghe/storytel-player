@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Routes,
   Route,
@@ -22,7 +22,29 @@ import ConfirmLogoutModal from "./components/ConfirmLogoutModal";
 import PlayerBar from "./components/PlayerBar";
 import SearchView from "./components/SearchView";
 import ReadingView from "./components/ReadingView";
-import { AudioProvider } from "./contexts/AudioContext";
+import { AudioProvider, readLocalPosition } from "./contexts/AudioContext";
+
+/**
+ * Where the developer was, so launch can reopen it: the last book page visited
+ * (player or read-along view). Stored as JSON: { bookId: string, view: 'player' | 'read' }.
+ */
+const LAST_BOOK_VIEW_KEY = "lastBookView";
+
+const parseStored = (raw: unknown): any => {
+  try {
+    return typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+};
+
+/** Same rule as the library's finished badge (BookCard). */
+async function isLastBookFinished(session: any): Promise<boolean> {
+  if (session?.book?.status === 3) return true;
+  const durationSec = session?.book?.abook?.time ? session.book.abook.time / 1000000 : 0;
+  const local = await readLocalPosition(session.consumableId || session.bookId);
+  return durationSec > 0 && !!local && local.position / 1000 >= durationSec * 0.98;
+}
 
 const useMemoryRouter =
   import.meta.env.VITE_REACT_APP_USE_MEMORY_ROUTER === "true";
@@ -37,6 +59,34 @@ function AuthenticatedLayout({
   const navigate = useNavigate();
   const isPlayerView = location.pathname.startsWith('/player/');
   const isSearchPage = location.pathname === '/search';
+
+  // Remember the last book page visited.
+  useEffect(() => {
+    const match = location.pathname.match(/^\/(player|read)\/([^/]+)$/);
+    if (match) {
+      storage.set(LAST_BOOK_VIEW_KEY, JSON.stringify({ view: match[1], bookId: match[2] })).catch(() => undefined);
+    }
+  }, [location.pathname]);
+
+  // On launch: reopen the last played book, unless it is finished, in the view
+  // it was left in (read along or player). Opening it never starts playback.
+  const restoredRef = useRef(false);
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    (async () => {
+      const session = parseStored(await storage.get("last_played_session"));
+      if (!session?.bookId || (await isLastBookFinished(session))) return;
+      const last = parseStored(await storage.get(LAST_BOOK_VIEW_KEY));
+      const view = last?.bookId === String(session.bookId) && last.view === "read" ? "read" : "player";
+      // Only if the developer hasn't navigated away from the library meanwhile.
+      if (pathnameRef.current === "/") {
+        navigate(`/${view}/${session.bookId}`, { state: { book: session.book } });
+      }
+    })().catch((err) => console.warn("Could not reopen the last book:", err));
+  }, [navigate]);
 
   // Global Cmd+K / Ctrl+K shortcut: open the catalog search from any page.
   useEffect(() => {

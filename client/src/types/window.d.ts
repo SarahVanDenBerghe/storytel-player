@@ -89,6 +89,8 @@ declare global {
       choose: (bookId: string) => Promise<{ name: string } | null>;
       /** Stores a dropped file's path; rejects when it is not an .epub. */
       setPath: (bookId: string, path: string) => Promise<{ name: string }>;
+      /** File name of the stored EPUB, or null when none is stored or the file is gone. */
+      name: (bookId: string) => Promise<string | null>;
       /** Text entries of the stored EPUB, or null when none is stored or the file is gone. */
       load: (bookId: string) => Promise<{ name: string; entries: Record<string, string> } | null>;
       pathForFile: (file: File) => string;

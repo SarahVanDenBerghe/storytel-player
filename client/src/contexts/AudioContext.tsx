@@ -26,7 +26,7 @@ interface LocalPosition {
 
 const positionStorageKey = (consumableId: string) => `pos:${consumableId}`;
 
-const readLocalPosition = async (consumableId: string): Promise<LocalPosition | null> => {
+export const readLocalPosition = async (consumableId: string): Promise<LocalPosition | null> => {
   try {
     const raw = await storage.get(positionStorageKey(consumableId));
     if (!raw) return null;

@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('electronEpub', {
     ipcRenderer.invoke('epub:choose', bookId),
   setPath: (bookId: string, filePath: string): Promise<{ name: string }> =>
     ipcRenderer.invoke('epub:set-path', bookId, filePath),
+  name: (bookId: string): Promise<string | null> => ipcRenderer.invoke('epub:name', bookId),
   load: (bookId: string): Promise<{ name: string; entries: Record<string, string> } | null> =>
     ipcRenderer.invoke('epub:load', bookId),
   // Absolute path of a dropped File (File.path no longer exists in Electron).

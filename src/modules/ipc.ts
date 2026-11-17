@@ -234,6 +234,12 @@ export class IpcManager {
       (_event: IpcMainInvokeEvent, bookId: string, filePath: string) => storePath(bookId, filePath)
     );
 
+    // File name of the stored EPUB, or null when none is stored or the file is gone.
+    ipcMain.handle('epub:name', (_event: IpcMainInvokeEvent, bookId: string) => {
+      const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;
+      return filePath && fs.existsSync(filePath) ? path.basename(filePath) : null;
+    });
+
     ipcMain.handle('epub:load', async (_event: IpcMainInvokeEvent, bookId: string) => {
       const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;
       if (!filePath || !fs.existsSync(filePath)) return null;

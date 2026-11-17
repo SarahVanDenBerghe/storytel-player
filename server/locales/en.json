@@ -150,7 +150,11 @@
     "showLess": "show less",
     "details": "Book Details:",
     "loadError": "Failed to load book details",
-    "continueWithProgress": "Continue · {{percent}}%"
+    "continueWithProgress": "Continue · {{percent}}%",
+    "chooseEpub": "Choose EPUB",
+    "changeEpub": "Change EPUB",
+    "epubAttached": "Read-along EPUB: {{name}}",
+    "epubSyncing": "Syncing with the audio in the background"
   },
   "chapters": {
     "title": "Audio Tracks & Chapters",
