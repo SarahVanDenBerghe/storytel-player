@@ -39,6 +39,8 @@ function AuthenticatedLayout({
 }) {
   const location = useLocation();
   const isPlayerView = location.pathname.startsWith('/player/');
+  // The global top bar belongs to the library and search screens only.
+  const showTopBar = location.pathname === '/' || location.pathname === '/search';
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
 
@@ -50,7 +52,7 @@ function AuthenticatedLayout({
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#0A0A0A] text-white select-none">
-      {!isPlayerView && (
+      {showTopBar && (
         <TopBar
           onOpenSettings={onOpenSettings}
           searchQuery={searchQuery}

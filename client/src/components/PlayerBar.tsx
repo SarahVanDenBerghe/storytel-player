@@ -90,125 +90,113 @@ export function PlayerBar() {
     { label: t('player.endOfChapter', 'End of chapter'), value: 'chapter' },
   ];
 
+  // Shared look for the small right-side tool buttons (36 px pill).
+  const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
+  const pillIdle = 'bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white';
+  const pillActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D]';
+  const popoverClass = 'absolute bottom-[88px] right-0 bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+  const popoverItem = (selected: boolean) =>
+    `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
+      selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+    }`;
+  const skipClass = `h-8 min-w-[44px] px-2 rounded-[8px] bg-transparent text-[13px] font-semibold tabular-nums text-[#D1D5DB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+
   return (
-    <div className="h-[76px] px-5 gap-5 bg-[#121214]/90 backdrop-blur-[24px] border-t border-white/[0.08] shadow-[0_-8px_30px_rgba(0,0,0,0.5)] flex items-center justify-between z-40 select-none flex-shrink-0 relative">
-      {/* 1. Left (290px fixed) */}
-      <div className="w-[290px] flex items-center gap-3 min-w-0 flex-shrink-0">
-        <div
+    <div className="h-[76px] px-5 gap-5 bg-[#121214] border-t border-white/[0.08] flex items-center z-40 select-none flex-shrink-0 relative">
+      {/* 1. Left: cover, title, author · chapter */}
+      <div className="flex-[0_1_260px] min-w-0 flex items-center gap-3">
+        <button
+          type="button"
           onClick={handleOpenFullPlayer}
-          className="w-[52px] h-[52px] rounded-[10px] bg-gray-900 overflow-hidden flex-shrink-0 cursor-pointer group relative shadow-md"
+          aria-label={t('player.expand', 'Open full player')}
+          className={`w-[52px] h-[52px] rounded-[10px] bg-[#1F2937] overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
-            <img
-              src={buildCoverUrl(coverUrl)}
-              alt={bookTitle}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
+            <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="w-full h-full flex items-center justify-center text-[#9CA3AF]">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-            </div>
+            </span>
           )}
-          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
-          </div>
-        </div>
+        </button>
 
-        <div className="flex-1 min-w-0">
-          <h4
+        <div className="min-w-0">
+          <button
+            type="button"
             onClick={handleOpenFullPlayer}
-            className="text-[14px] font-semibold text-white truncate cursor-pointer hover:text-[#FF5100] transition-colors"
             title={bookTitle}
+            className={`block max-w-full text-left text-[14px] font-semibold text-white truncate hover:text-[#FF7A3D] transition-colors rounded ${focusRing}`}
           >
             {bookTitle}
-          </h4>
-          <div className="text-[12px] text-[#9ca3af] truncate flex items-center gap-1.5 mt-0.5">
-            {authorName && <span className="truncate max-w-[130px]">{authorName}</span>}
-            {currentChapter && (
-              <>
-                <span className="text-gray-600">•</span>
-                <span className="text-[#9ca3af] truncate font-medium" title={currentChapter.title}>
-                  {currentChapter.title}
-                </span>
-              </>
-            )}
-          </div>
+          </button>
+          {(authorName || currentChapter) && (
+            <div
+              className="text-[12px] text-[#9CA3AF] truncate mt-0.5"
+              title={[authorName, currentChapter?.title].filter(Boolean).join(' · ')}
+            >
+              {[authorName, currentChapter?.title].filter(Boolean).join(' · ')}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 2. Centre (flex-grow, stacked rows) */}
-      <div className="flex-1 max-w-xl mx-2 flex flex-col items-center justify-center gap-1">
-        {/* Transport Row (gap 18px) */}
-        <div className="flex items-center gap-[18px]">
-          {/* Skip -15s */}
+      {/* 2. Centre: transport row + scrubber */}
+      <div className="flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-1">
+        <div className="flex items-center gap-[14px]">
           <button
             type="button"
             onClick={() => skipBackward(15)}
+            aria-label={t('player.skipBackward', { seconds: 15 })}
             title={t('player.skipBackward', { seconds: 15 })}
-            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center relative"
+            className={skipClass}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
-            </svg>
-            <span className="text-[9px] font-bold absolute -bottom-1">15</span>
+            −15s
           </button>
 
-          {/* Play/Pause 40px Accent Circle */}
           <button
             type="button"
             onClick={togglePlayPause}
             disabled={isLoading}
-            className="w-10 h-10 rounded-full bg-[#FF5100] hover:bg-[#ff641a] text-white flex items-center justify-center shadow-[0_4px_16px_rgba(255,81,0,0.35)] transition-transform active:scale-95 hover:scale-105"
+            aria-label={isPlaying ? t('tray.pause', 'Pause') : t('tray.play', 'Play')}
+            className={`w-10 h-10 rounded-full bg-[#FF5100] hover:bg-[#ff641a] text-white flex items-center justify-center transition-colors disabled:cursor-wait ${focusRing}`}
           >
             {isLoading ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             ) : isPlaying ? (
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="6.5" y="5" width="3.5" height="14" rx="1.25" />
+                <rect x="14" y="5" width="3.5" height="14" rx="1.25" />
               </svg>
             ) : (
-              <svg className="w-5 h-5 fill-current ml-0.5" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z" />
               </svg>
             )}
           </button>
 
-          {/* Skip +30s */}
           <button
             type="button"
-            onClick={() => skipForward(30)}
-            title={t('player.skipForward', { seconds: 30 })}
-            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center relative"
+            onClick={() => skipForward(15)}
+            aria-label={t('player.skipForward', { seconds: 15 })}
+            title={t('player.skipForward', { seconds: 15 })}
+            className={skipClass}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
-            </svg>
-            <span className="text-[9px] font-bold absolute -bottom-1">30</span>
+            +15s
           </button>
         </div>
 
-        {/* Scrubber Row */}
-        <div className="w-full flex items-center gap-2.5">
-          <span className="w-[46px] text-right font-mono text-[11px] text-gray-400 tabular-nums">
-            {formatTime(currentTime)}
-          </span>
+        <div className="w-full flex items-center gap-2.5 text-[11px] text-[#9CA3AF] tabular-nums">
+          <span className="min-w-[46px] text-right">{formatTime(currentTime)}</span>
 
-          <div className="flex-1 relative flex items-center group py-1">
-            {/* Background 4px Track */}
-            <div className="w-full h-1 group-hover:h-1.5 bg-white/[0.12] rounded-full overflow-hidden transition-all">
-              <div
-                className="h-full bg-[#FF5100] transition-all rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
+          <div className="flex-1 relative flex items-center py-1 rounded [&:has(:focus-visible)]:outline [&:has(:focus-visible)]:outline-2 [&:has(:focus-visible)]:outline-offset-2 [&:has(:focus-visible)]:outline-[#FF5100]">
+            <div className="w-full h-1 bg-white/[0.12] rounded-full overflow-hidden">
+              <div className="h-full bg-[#FF5100] rounded-full" style={{ width: `${progressPercent}%` }} />
             </div>
-            {/* Native Slider input */}
             <input
               type="range"
               min={0}
@@ -216,36 +204,34 @@ export function PlayerBar() {
               step={0.5}
               value={currentTime}
               onChange={handleScrubberChange}
+              aria-label={t('player.seekPosition', 'Playback position')}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
 
-          <span className="w-[52px] text-left font-mono text-[11px] text-gray-400 tabular-nums">
-            −{formatTime(remainingSeconds)}
-          </span>
+          <span className="min-w-[52px] text-left">−{formatTime(remainingSeconds)}</span>
         </div>
       </div>
 
-      {/* 3. Right (auto width, tool buttons) */}
-      <div className="flex items-center justify-end gap-2 flex-shrink-0">
-        {/* Speed Popover Trigger */}
+      {/* 3. Right: speed, chapters, sleep timer, volume, expand */}
+      <div className="flex-[0_1_260px] flex items-center justify-end gap-2 min-w-0">
         <div className="relative" ref={speedRef}>
           <button
             type="button"
             onClick={() => setShowSpeedPopover((prev) => !prev)}
+            aria-label={t('player.speed', 'Speed')}
+            aria-expanded={showSpeedPopover}
             title={t('player.speed', 'Speed')}
-            className={`h-9 px-2.5 rounded-[10px] text-xs font-bold transition-all flex items-center justify-center ${
-              playbackRate !== 1.0
-                ? 'bg-[#FF5100]/20 text-[#FF5100] border border-[#FF5100]/40'
-                : 'bg-white/[0.05] hover:bg-white/[0.10] text-gray-300 hover:text-white border border-white/[0.10]'
+            className={`h-9 px-2.5 rounded-[10px] text-[12px] font-bold tabular-nums transition-colors flex items-center justify-center ${focusRing} ${
+              playbackRate !== 1.0 ? pillActive : pillIdle
             }`}
           >
-            {playbackRate}×
+            {playbackRate.toFixed(Number.isInteger(playbackRate * 10) ? 1 : 2)}×
           </button>
 
           {showSpeedPopover && (
-            <div className="absolute bottom-[88px] right-0 w-36 bg-[#17171A] border border-white/[0.12] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100 select-none">
-              <div className="text-[11px] font-bold text-[#6b7280] px-2 py-1 uppercase tracking-wider">
+            <div className={`${popoverClass} w-36`}>
+              <div className="text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider">
                 {t('player.speed', 'Speed')}
               </div>
               {speeds.map((rate) => (
@@ -256,15 +242,11 @@ export function PlayerBar() {
                     setRate(rate);
                     setShowSpeedPopover(false);
                   }}
-                  className={`w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${
-                    playbackRate === rate
-                      ? 'bg-[#FF5100] text-white'
-                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                  }`}
+                  className={popoverItem(playbackRate === rate)}
                 >
                   <span>{rate}×</span>
                   {playbackRate === rate && (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
@@ -274,22 +256,21 @@ export function PlayerBar() {
           )}
         </div>
 
-        {/* Chapters Popover Trigger */}
         <div className="relative" ref={chapterRef}>
           <button
             type="button"
             onClick={() => setShowChapterPopover((prev) => !prev)}
+            aria-label={t('player.chapters', 'Chapters')}
+            aria-expanded={showChapterPopover}
             title={t('player.chapters', 'Chapters')}
-            className={`h-9 px-2.5 rounded-[10px] transition-colors flex items-center gap-1.5 text-xs font-medium ${
-              showChapterPopover
-                ? 'bg-white/[0.15] text-white border border-white/20'
-                : 'bg-white/[0.05] hover:bg-white/[0.10] text-gray-300 hover:text-white border border-white/[0.10]'
+            className={`h-9 px-2.5 rounded-[10px] transition-colors flex items-center gap-1.5 text-[12px] font-semibold ${focusRing} ${
+              showChapterPopover ? 'bg-white/[0.12] text-white' : pillIdle
             }`}
           >
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
-            <span className="hidden sm:inline">{t('player.chapters', 'Chapters')}</span>
+            <span className="hidden lg:inline">{t('player.chapters', 'Chapters')}</span>
           </button>
 
           {showChapterPopover && (
@@ -302,31 +283,30 @@ export function PlayerBar() {
           )}
         </div>
 
-        {/* Sleep Timer Popover Trigger */}
         <div className="relative" ref={sleepRef}>
           <button
             type="button"
             onClick={() => setShowSleepPopover((prev) => !prev)}
+            aria-label={t('player.sleepTimer', 'Sleep Timer')}
+            aria-expanded={showSleepPopover}
             title={t('player.sleepTimer', 'Sleep Timer')}
-            className={`w-9 h-9 rounded-[10px] transition-colors flex items-center justify-center relative ${
-              sleepTimerMode !== null
-                ? 'bg-[#FF5100]/20 text-[#FF5100] border border-[#FF5100]/40'
-                : 'bg-white/[0.05] hover:bg-white/[0.10] text-gray-300 hover:text-white border border-white/[0.10]'
+            className={`w-9 h-9 rounded-[10px] transition-colors flex items-center justify-center relative ${focusRing} ${
+              sleepTimerMode !== null ? pillActive : pillIdle
             }`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
             {sleepTimerRemaining !== null && (
-              <span className="absolute -top-1 -right-1.5 px-1 py-0.2 rounded-full bg-[#FF5100] text-white text-[8px] font-bold">
+              <span className="absolute -top-1 -right-1.5 px-1 rounded-full bg-[#FF5100] text-[#0A0A0A] text-[9px] font-bold tabular-nums">
                 {Math.ceil(sleepTimerRemaining / 60)}m
               </span>
             )}
           </button>
 
           {showSleepPopover && (
-            <div className="absolute bottom-[88px] right-0 w-48 bg-[#17171A] border border-white/[0.12] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100 select-none">
-              <div className="text-[11px] font-bold text-[#6b7280] px-2.5 py-1 uppercase tracking-wider">
+            <div className={`${popoverClass} w-48`}>
+              <div className="text-[11px] font-bold text-[#9CA3AF] px-2.5 py-1 uppercase tracking-wider">
                 {t('player.sleepTimer', 'Sleep Timer')}
               </div>
               {sleepOptions.map((opt, idx) => {
@@ -339,15 +319,11 @@ export function PlayerBar() {
                       setSleepTimer(opt.value);
                       setShowSleepPopover(false);
                     }}
-                    className={`w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-medium flex items-center justify-between transition-colors ${
-                      isSelected
-                        ? 'bg-[#FF5100] text-white font-bold'
-                        : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                    }`}
+                    className={popoverItem(isSelected)}
                   >
                     <span>{opt.label}</span>
                     {isSelected && (
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -358,25 +334,24 @@ export function PlayerBar() {
           )}
         </div>
 
-        {/* Volume Slider */}
         <div className="hidden md:flex items-center gap-2">
           <button
             type="button"
             onClick={toggleMute}
+            aria-label={t('player.volume', 'Volume')}
+            aria-pressed={isMuted}
             title={t('player.volume', 'Volume')}
-            className="text-gray-400 hover:text-white p-1 rounded transition-colors"
+            className={`w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${
+              isMuted || volume === 0 ? pillActive : pillIdle
+            }`}
           >
             {isMuted || volume === 0 ? (
-              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
               </svg>
-            ) : volume < 0.5 ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-              </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
               </svg>
             )}
@@ -388,21 +363,21 @@ export function PlayerBar() {
             step={0.05}
             value={isMuted ? 0 : volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="w-16 sm:w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#FF5100]"
+            aria-label={t('player.volume', 'Volume')}
+            className={`w-16 lg:w-20 h-1 bg-white/[0.12] rounded-full appearance-none cursor-pointer accent-[#FF5100] ${focusRing}`}
           />
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-white/[0.10] mx-0.5" />
+        <div className="w-px h-6 bg-white/[0.08] mx-0.5" aria-hidden="true" />
 
-        {/* Expand Arrow: Open Full Player View */}
         <button
           type="button"
           onClick={handleOpenFullPlayer}
+          aria-label={t('player.expand', 'Open full player')}
           title={t('player.expand', 'Open full player')}
-          className="w-9 h-9 rounded-[10px] bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.10] text-gray-300 hover:text-white flex items-center justify-center transition-colors"
+          className={`w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors ${focusRing} ${pillIdle}`}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
           </svg>
         </button>
