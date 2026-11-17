@@ -3,6 +3,7 @@ import {MemoryRouter, Route, Routes} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import ReadingView, {ReadingAudio} from './ReadingView';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
+import SkipIcon from './SkipIcon';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold text-[#E5E7EB] hover:bg-white/[0.08] transition-colors ${focusRing}`;
@@ -88,7 +89,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                         className={controlBtn}
                     >
-                        −{SKIP_BACKWARD_SECONDS}s
+                        <SkipIcon direction="backward" size={16}/>
                     </button>
                     <button
                         type="button"
@@ -110,7 +111,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                         className={controlBtn}
                     >
-                        +{SKIP_FORWARD_SECONDS}s
+                        <SkipIcon direction="forward" size={16}/>
                     </button>
                     <button
                         type="button"

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAudioContext } from '../contexts/AudioContext';
 import { buildCoverUrl, formatTime } from '../utils/helpers';
 import { SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS } from '../config/player';
+import SkipIcon from './SkipIcon';
 import ChaptersPopover from './ChaptersPopover';
 
 export function PlayerBar() {
@@ -100,7 +101,7 @@ export function PlayerBar() {
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
       selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
     }`;
-  const skipClass = `h-8 min-w-[44px] px-2 rounded-[8px] bg-transparent text-[13px] font-semibold tabular-nums text-[#D1D5DB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+  const skipClass = `h-8 w-9 flex items-center justify-center rounded-[8px] bg-transparent text-[#D1D5DB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 
   return (
     <div className="h-[76px] px-5 gap-5 bg-[#121214] border-t border-white/[0.08] flex items-center z-40 select-none flex-shrink-0 relative">
@@ -153,7 +154,7 @@ export function PlayerBar() {
             title={t('player.skipBackward', { seconds: SKIP_BACKWARD_SECONDS })}
             className={skipClass}
           >
-            −{SKIP_BACKWARD_SECONDS}s
+            <SkipIcon direction="backward" size={20} />
           </button>
 
           <button
@@ -187,7 +188,7 @@ export function PlayerBar() {
             title={t('player.skipForward', { seconds: SKIP_FORWARD_SECONDS })}
             className={skipClass}
           >
-            +{SKIP_FORWARD_SECONDS}s
+            <SkipIcon direction="forward" size={20} />
           </button>
         </div>
 

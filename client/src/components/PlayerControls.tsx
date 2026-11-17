@@ -2,6 +2,7 @@ import React from 'react';
 import {useTranslation} from 'react-i18next';
 import {formatTime} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
+import SkipIcon from './SkipIcon';
 
 interface PlayerControlsProps {
     isPlaying: boolean;
@@ -35,7 +36,7 @@ const actionBtn = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 t
 const actionIdle = 'bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white';
 const actionSoft = 'bg-[#FF5100]/[0.14] text-[#FFB38F] hover:bg-[#FF5100]/[0.22]';
 const actionActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D] hover:bg-[#FF5100]/[0.22]';
-const skipBtn = `h-11 min-w-[56px] px-2.5 rounded-[10px] bg-transparent text-[15px] font-semibold tabular-nums text-[#E5E7EB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+const skipBtn = `h-11 w-12 flex items-center justify-center rounded-[10px] bg-transparent text-[#E5E7EB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 
 const iconProps = {
     width: 15,
@@ -115,7 +116,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                     className={skipBtn}
                 >
-                    −{SKIP_BACKWARD_SECONDS}s
+                    <SkipIcon direction="backward" size={26}/>
                 </button>
 
                 <button
@@ -143,7 +144,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                     className={skipBtn}
                 >
-                    +{SKIP_FORWARD_SECONDS}s
+                    <SkipIcon direction="forward" size={26}/>
                 </button>
             </div>
 

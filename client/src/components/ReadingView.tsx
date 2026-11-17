@@ -21,12 +21,10 @@ const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home
 const READING_LINE = 0.4;
 // Between two reports of the audio time, predict at most this far ahead (audio seconds).
 const MAX_PREDICTION_SEC = 1;
-// The follow dot's left edge sits this far left of the text column (6 px dot, centred 27 px out).
-const DOT_OFFSET = 30;
 // While following, text above the reading line fades out towards the top of the
 // scroller; the spoken line and everything below it stay fully visible.
 const FOLLOW_FADE = `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc(${READING_LINE * 100}% - 2em))`;
-// The pop-out window is small: smaller text and line height than the main window's, and no dot.
+// The pop-out window is small: smaller text and line height than the main window's.
 const POPOUT_TEXT_SHRINK = 2;
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
@@ -157,7 +155,6 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const reportRef = useRef({time: 0, at: 0, rate: 1});
     const placeAtRef = useRef<(timeSec: number) => ReadingPlace | null>(() => null);
     const [reducedMotion, setReducedMotion] = useState(false);
-    const [dotLeft, setDotLeft] = useState<number | null>(null);
 
     const paragraphs = bookId ? booksText[bookId] : undefined;
     const view: LoadStatus = status === 'ready' && !paragraphs ? 'loading' : status;
@@ -409,14 +406,11 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         scrollToPlace(currentTimeRef.current);
     }, [following, animate, showPosition, staticKey, anchors, textSize, scrollToPlace]);
 
-    // A resize reflows the text: keep the place, and keep the follow dot just
-    // left of the text column (inside the scroller's padding on narrow windows).
+    // A resize reflows the text: keep the place.
     useEffect(() => {
         const scroller = scrollerRef.current;
-        const article = articleRef.current;
-        if (view !== 'ready' || !scroller || !article) return;
+        if (view !== 'ready' || !scroller) return;
         const observer = new ResizeObserver(() => {
-            setDotLeft(Math.max(article.offsetLeft - DOT_OFFSET, 0));
             if (followingRef.current) scrollToPlace(currentTimeRef.current);
         });
         observer.observe(scroller);
@@ -491,13 +485,6 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         ))}
                     </article>
                 </div>
-                {!isPopout && following && currentIndex >= 0 && dotLeft !== null && (
-                <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute w-1.5 h-1.5 -translate-y-1/2 rounded-full bg-[#FF5100]"
-                    style={{top: `${READING_LINE * 100}%`, left: dotLeft}}
-                />
-            )}
             </div>
         );
     } else if (view === 'empty') {
