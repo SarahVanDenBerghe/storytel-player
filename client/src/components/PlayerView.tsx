@@ -4,16 +4,13 @@ import {useTranslation} from 'react-i18next';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import Navbar from './Navbar';
-import BookmarkModals from "./BookmarkModals";
 import PlayerTools from "./PlayerTools";
 import ChaptersModal from "./ChaptersModal";
-import EpubButton from './EpubButton';
 import PlayerControls from "./PlayerControls";
 import BookInfo from "./BookInfo";
 import DownloadCancelModal from "./DownloadCancelModal";
 import {BookShelfEntity} from "../interfaces/books";
 import {useAudioContext} from "../contexts/AudioContext";
-import {useBookmarks} from "../hooks/useBookmarks";
 import {useChapters} from "../hooks/useChapters";
 import {truncateTitle} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
@@ -140,12 +137,6 @@ function PlayerView() {
         }
     }, [bookId, book, autoPlayRequested, audio.loadBook]);
 
-    // Bookmarks hook
-    const bookmarks = useBookmarks({
-        consumableId: activeConsumableId,
-        onError: setError,
-    });
-
     // Chapters hook
     const chapters = useChapters({
         consumableId: activeConsumableId,
@@ -153,16 +144,13 @@ function PlayerView() {
         onError: setError,
     });
 
-    // Load book data (chapters and bookmarks)
+    // Load book data (chapters; bookmarks load in PlayerTools when opened)
     useEffect(() => {
         const loadBookData = async () => {
             if (activeConsumableId) {
                 setIsLoadingBookData(true);
                 try {
-                    await Promise.all([
-                        chapters.loadChapters(),
-                        bookmarks.loadBookmarks(),
-                    ]);
+                    await chapters.loadChapters();
                 } finally {
                     setIsLoadingBookData(false);
                 }
@@ -395,15 +383,13 @@ function PlayerView() {
                         onSeek={audio.seek}
                         onSkipForward={() => audio.skipForward(SKIP_FORWARD_SECONDS)}
                         onSkipBackward={() => audio.skipBackward(SKIP_BACKWARD_SECONDS)}
-                    >
-                        {bookId && <EpubButton mode="player" bookId={bookId} book={book} consumableId={activeConsumableId}/>}
-                    </PlayerControls>
+                    />
                 </div>
             </div>
 
-            {/* Tools, as in the footer: speed, chapters, bookmarks, volume */}
+            {/* Tools, as in the footer: speed, chapters, bookmarks, volume, Read along */}
             <div className="absolute right-5 bottom-5 z-20">
-                <PlayerTools popoverOffset="bottom-full mb-2" onShowBookmarks={() => bookmarks.setShowBookmarksModal(true)}/>
+                <PlayerTools popoverOffset="bottom-full mb-2" showReadAlong/>
             </div>
 
             {/* Modals */}
@@ -421,32 +407,6 @@ function PlayerView() {
                 }}
             />
 
-            <BookmarkModals
-                showBookmarksModal={bookmarks.showBookmarksModal}
-                bookmarks={bookmarks.bookmarks}
-                onCloseBookmarksModal={() => bookmarks.setShowBookmarksModal(false)}
-                onShowCreateBookmarkModal={bookmarks.handleShowCreateBookmarkModal}
-                onGoToBookmark={(position) => bookmarks.goToBookmark(position, audio.audioRef)}
-                onShowEditBookmarkModal={bookmarks.handleShowEditBookmarkModal}
-                onShowDeleteConfirmModal={bookmarks.handleShowDeleteConfirmModal}
-                showCreateBookmarkModal={bookmarks.showCreateBookmarkModal}
-                newBookmarkNote={bookmarks.newBookmarkNote}
-                currentTime={audio.currentTime}
-                playbackRate={audio.playbackRate}
-                onCloseCreateBookmarkModal={bookmarks.handleCloseCreateBookmarkModal}
-                onNewBookmarkNoteChange={bookmarks.setNewBookmarkNote}
-                onCreateBookmark={() => bookmarks.createBookmark(audio.currentTime)}
-                showEditBookmarkModal={bookmarks.showEditBookmarkModal}
-                bookmarkToEdit={bookmarks.bookmarkToEdit}
-                editBookmarkNote={bookmarks.editBookmarkNote}
-                onCloseEditBookmarkModal={bookmarks.handleCloseEditBookmarkModal}
-                onEditBookmarkNoteChange={bookmarks.setEditBookmarkNote}
-                onEditBookmark={bookmarks.editBookmark}
-                showDeleteConfirmModal={bookmarks.showDeleteConfirmModal}
-                bookmarkToDelete={bookmarks.bookmarkToDelete}
-                onCloseDeleteConfirmModal={bookmarks.handleCloseDeleteConfirmModal}
-                onDeleteBookmark={bookmarks.deleteBookmark}
-            />
 
             {/* Download Cancel/Delete Modal */}
             <DownloadCancelModal

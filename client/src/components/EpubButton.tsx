@@ -1,36 +1,21 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {BookShelfEntity} from '../interfaces/books';
 import api from '../utils/api';
-import {otherBookParts} from '../utils/helpers';
-import {ensureAudioDownloaded} from '../utils/readAlongAudio';
+import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} from '../utils/readAlongAudio';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-// Same look as the full player's other action buttons (PlayerControls).
-const actionBtn = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors bg-white/[0.06] text-[#D1D5DB] hover:bg-white/[0.10] hover:text-white ${focusRing}`;
-const actionSoft = `h-9 px-3 rounded-[10px] text-[13px] flex items-center gap-2 transition-colors bg-[#FF5100]/[0.14] text-[#FFB38F] hover:bg-[#FF5100]/[0.22] ${focusRing}`;
 // The reading view's corner icon buttons.
 const iconBtn = `w-11 h-11 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
 const smallBtn = `h-8 px-3 rounded-[8px] text-[12px] font-semibold transition-colors ${focusRing}`;
-const BookIcon = () => (
-    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
-    </svg>
-);
 
 /**
- * Read along's EPUB for one book. Choosing one downloads the audio if needed and
- * starts the Whisper sync ("Preparing audio… n%", then "Syncing x of y"); the
- * other parts of a multi-part book share it.
- * - mode "player" (full player): the one main button, "Choose EPUB" until one is
- *   attached, then "Read along".
- * - mode "reading" (Read along view): a corner button whose menu shows the file
- *   and replaces it, with a confirmation so a stray click never drops it.
+ * The Read along view's EPUB corner button: its menu shows the file, prepares
+ * the audio when it isn't downloaded, and replaces the file with a confirmation
+ * so a stray click never drops it. A new file downloads the audio if needed and
+ * starts the Whisper sync; the other parts of a split audiobook share it.
  */
-function EpubButton({mode, bookId, book, consumableId, onChanged}: {
-    mode: 'player' | 'reading';
+function EpubButton({bookId, book, consumableId, onChanged}: {
     bookId: string;
     book: BookShelfEntity | null;
     consumableId?: string | null;
@@ -38,7 +23,6 @@ function EpubButton({mode, bookId, book, consumableId, onChanged}: {
     onChanged?: () => void;
 }) {
     const {t} = useTranslation();
-    const navigate = useNavigate();
     const epubApi = window.electronEpub;
     // undefined while still looking it up, null when the book has none.
     const [epubName, setEpubName] = useState<string | null | undefined>(undefined);
@@ -47,7 +31,6 @@ function EpubButton({mode, bookId, book, consumableId, onChanged}: {
     const [audioOnDisk, setAudioOnDisk] = useState<boolean | null>(null);
     const [menu, setMenu] = useState<'closed' | 'open' | 'confirmReplace'>('closed');
     const menuRef = useRef<HTMLDivElement>(null);
-    const bookName = book?.book?.name;
 
     // Sync progress and whether the audio is on disk.
     useEffect(() => {
@@ -72,25 +55,13 @@ function EpubButton({mode, bookId, book, consumableId, onChanged}: {
         setEpubName(undefined);
         (async () => {
             let name = await epub.name(bookId);
-            if (!name && book) {
-                const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
-                for (const part of otherBookParts(book, shelf)) {
-                    const partId = String(part.abook?.id || part.id);
-                    if (await epub.name(partId)) {
-                        await epub.link(partId, [bookId]);
-                        name = await epub.name(bookId);
-                        break;
-                    }
-                }
-            }
+            if (!name && await takeEpubFromOtherParts(bookId)) name = await epub.name(bookId);
             if (alive) setEpubName(name);
         })().catch(() => undefined);
         return () => {
             alive = false;
         };
-        // Re-run per book, not per render of the same book entity.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [bookId, bookName]);
+    }, [bookId]);
 
     useEffect(() => {
         if (menu === 'closed') return;
@@ -126,15 +97,13 @@ function EpubButton({mode, bookId, book, consumableId, onChanged}: {
     // Cancelling the file dialog keeps the current EPUB.
     const chooseEpub = async () => {
         setMenu('closed');
-        if (!epubApi || !book) return;
+        if (!epubApi) return;
         try {
             const chosen = await epubApi.choose(bookId);
             if (!chosen) return;
             setEpubName(chosen.name);
             onChanged?.();
-            const shelf = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
-            const parts = otherBookParts(book, shelf).map((part: BookShelfEntity) => String(part.abook?.id || part.id));
-            if (parts.length > 0) await epubApi.link(bookId, parts);
+            await shareEpubWithOtherParts(bookId);
             await prepareAndSync();
         } catch (err) {
             console.error('Read along: cannot attach the EPUB', err);
@@ -149,23 +118,6 @@ function EpubButton({mode, bookId, book, consumableId, onChanged}: {
         : syncing && syncProgress && syncProgress.chunksTotal > 0
             ? t('bookView.syncingProgress', {done: syncProgress.chunksDone, total: syncProgress.chunksTotal})
             : null;
-
-    if (mode === 'player') {
-        // Before the EPUB is known: nothing, so the button doesn't flip between labels.
-        if (epubName === undefined) return null;
-        return epubName ? (
-            <button type="button" onClick={() => navigate(`/read/${bookId}`)} className={`${actionSoft} tabular-nums`}>
-                <BookIcon/>
-                {t('readAlong.open')}
-                {status && <span className="text-[#9CA3AF] font-normal">· {status}</span>}
-            </button>
-        ) : (
-            <button type="button" onClick={chooseEpub} className={`${actionBtn} tabular-nums`}>
-                <BookIcon/>
-                {status ?? t('bookView.chooseEpub')}
-            </button>
-        );
-    }
 
     return (
         <div className="relative" ref={menuRef}>

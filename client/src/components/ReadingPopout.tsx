@@ -6,6 +6,7 @@ import {PLAYBACK_RATES} from '../contexts/AudioContext';
 import storage from '../utils/storage';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 import SkipIcon from './SkipIcon';
+import TextSizeMenu from './TextSizeMenu';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold text-[#E5E7EB] hover:bg-white/[0.08] transition-colors ${focusRing}`;
@@ -84,7 +85,8 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
         return window.electronEpub?.onTextSizeChange(apply);
     }, []);
 
-    const [menu, setMenu] = useState<'speed' | 'textSize' | null>(null);
+    const [menu, setMenu] = useState<'speed' | null>(null);
+    const [textSizeMenuOpen, setTextSizeMenuOpen] = useState(false);
     const menusRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (!menu) return;
@@ -114,7 +116,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             {/* Top strip: drag the window here. Close dot left (as on macOS), menus right. */}
             <div
                 style={dragRegion}
-                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu ? 'opacity-100' : onHover}`}
+                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu || textSizeMenuOpen ? 'opacity-100' : onHover}`}
             >
                 <button
                     type="button"
@@ -163,39 +165,16 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                             )}
                         </div>
                     )}
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={() => setMenu(menu === 'textSize' ? null : 'textSize')}
-                            aria-label={t('readAlong.textSize', {size: textSize})}
-                            aria-expanded={menu === 'textSize'}
-                            title={t('readAlong.textSize', {size: textSize})}
-                            className={`${menuBtn} font-normal text-[14px]`}
-                            style={{fontFamily: "Charter, 'Iowan Old Style', Georgia, serif"}}
-                        >
-                            Aa
-                        </button>
-                        {menu === 'textSize' && (
-                            <div className={popoverClass}>
-                                <div className={popoverHeader}>{t('readAlong.textSizeMenu')}</div>
-                                {TEXT_SIZE_STEPS.map((size) => (
-                                    <button
-                                        key={size}
-                                        type="button"
-                                        onClick={() => {
-                                            setTextSize(size);
-                                            window.electronEpub?.setTextSize(size).catch(() => undefined);
-                                            setMenu(null);
-                                        }}
-                                        className={popoverItem(textSize === size)}
-                                    >
-                                        <span>{t('readAlong.textSizeOption', {size})}</span>
-                                        {textSize === size && <CheckIcon/>}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <TextSizeMenu
+                        value={textSize}
+                        sizes={TEXT_SIZE_STEPS}
+                        onChange={(size) => {
+                            setTextSize(size);
+                            window.electronEpub?.setTextSize(size).catch(() => undefined);
+                        }}
+                        buttonClassName={`${menuBtn} font-normal text-[14px]`}
+                        onOpenChange={setTextSizeMenuOpen}
+                    />
                 </div>
             </div>
 

@@ -3,6 +3,8 @@ import {useLocation, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {PLAYBACK_RATES, useAudioContext} from '../contexts/AudioContext';
 import ChaptersPopover from './ChaptersPopover';
+import BookmarkModals from './BookmarkModals';
+import {useBookmarks} from '../hooks/useBookmarks';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const pillIdle = 'bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white';
@@ -19,22 +21,23 @@ type Menu = 'speed' | 'chapters' | 'volume' | null;
 
 /**
  * The player's tool buttons, shared by the footer (PlayerBar) and the full
- * player's bottom-right corner: speed, chapters and volume menus, plus
- * bookmarks (full player) and the Read along toggle (footer).
+ * player's bottom-right corner: speed, chapters, bookmarks and volume, and the
+ * Read along toggle (the way into Read along, also for a book without EPUB).
  */
-function PlayerTools({popoverOffset = 'bottom-[88px]', onShowBookmarks, showReadAlong = false}: {
+function PlayerTools({popoverOffset = 'bottom-[88px]', showReadAlong = false}: {
     /** Where menus open, measured from the bottom of their button. */
     popoverOffset?: string;
-    onShowBookmarks?: () => void;
     showReadAlong?: boolean;
 }) {
     const {t} = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const {
-        activeBookId, playbackRate, setRate, volume, isMuted, setVolume, toggleMute,
-        chapters, currentChapter, jumpToChapter,
+        activeBookId, activeConsumableId, playbackRate, setRate, volume, isMuted, setVolume, toggleMute,
+        chapters, currentChapter, jumpToChapter, audioRef, currentTime,
     } = useAudioContext();
+    // Loaded when the list is opened; failures fall back to an empty list (useBookmarks).
+    const bookmarks = useBookmarks({consumableId: activeConsumableId ?? activeBookId ?? '', onError: () => undefined});
     const [menu, setMenu] = useState<Menu>(null);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -125,10 +128,13 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', onShowBookmarks, showRead
                 )}
             </div>
 
-            {onShowBookmarks && (
+            {activeBookId && (
                 <button
                     type="button"
-                    onClick={onShowBookmarks}
+                    onClick={() => {
+                        void bookmarks.loadBookmarks();
+                        bookmarks.setShowBookmarksModal(true);
+                    }}
                     aria-label={t('player.bookmarks', 'Bookmarks')}
                     title={t('player.bookmarks', 'Bookmarks')}
                     className={`${iconBtn} ${pillIdle}`}
@@ -201,6 +207,33 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', onShowBookmarks, showRead
                     </button>
                 </>
             )}
+
+            <BookmarkModals
+                showBookmarksModal={bookmarks.showBookmarksModal}
+                bookmarks={bookmarks.bookmarks}
+                onCloseBookmarksModal={() => bookmarks.setShowBookmarksModal(false)}
+                onShowCreateBookmarkModal={bookmarks.handleShowCreateBookmarkModal}
+                onGoToBookmark={(position) => bookmarks.goToBookmark(position, audioRef)}
+                onShowEditBookmarkModal={bookmarks.handleShowEditBookmarkModal}
+                onShowDeleteConfirmModal={bookmarks.handleShowDeleteConfirmModal}
+                showCreateBookmarkModal={bookmarks.showCreateBookmarkModal}
+                newBookmarkNote={bookmarks.newBookmarkNote}
+                currentTime={currentTime}
+                playbackRate={playbackRate}
+                onCloseCreateBookmarkModal={bookmarks.handleCloseCreateBookmarkModal}
+                onNewBookmarkNoteChange={bookmarks.setNewBookmarkNote}
+                onCreateBookmark={() => bookmarks.createBookmark(currentTime)}
+                showEditBookmarkModal={bookmarks.showEditBookmarkModal}
+                bookmarkToEdit={bookmarks.bookmarkToEdit}
+                editBookmarkNote={bookmarks.editBookmarkNote}
+                onCloseEditBookmarkModal={bookmarks.handleCloseEditBookmarkModal}
+                onEditBookmarkNoteChange={bookmarks.setEditBookmarkNote}
+                onEditBookmark={bookmarks.editBookmark}
+                showDeleteConfirmModal={bookmarks.showDeleteConfirmModal}
+                bookmarkToDelete={bookmarks.bookmarkToDelete}
+                onCloseDeleteConfirmModal={bookmarks.handleCloseDeleteConfirmModal}
+                onDeleteBookmark={bookmarks.deleteBookmark}
+            />
         </div>
     );
 }

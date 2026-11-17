@@ -7,7 +7,8 @@ import {EpubParagraph, parseEpub} from '../utils/epub';
 import {cleanBookTitle} from '../utils/helpers';
 import {buildBookIndex, matchTranscript, ReadingPlace, readingPlace, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
-import {ensureAudioDownloaded} from '../utils/readAlongAudio';
+import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} from '../utils/readAlongAudio';
+import TextSizeMenu from './TextSizeMenu';
 import EpubButton from './EpubButton';
 import apiClient from '../utils/api';
 
@@ -147,7 +148,11 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         setStatus('loading');
         setFollowing(true);
         try {
-            const result = window.electronEpub ? await window.electronEpub.load(id) : null;
+            let result = window.electronEpub ? await window.electronEpub.load(id) : null;
+            // A part of a split audiobook without an EPUB uses another part's.
+            if (!result && window.electronEpub && await takeEpubFromOtherParts(id)) {
+                result = await window.electronEpub.load(id);
+            }
             if (request !== requestRef.current) return;
             if (!result) {
                 setStatus('empty');
@@ -188,8 +193,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         return window.electronEpub?.onTextSizeChange(apply);
     }, []);
 
-    const cycleTextSize = () => {
-        const next = TEXT_SIZE_STEPS.find((size) => size > textSize) ?? TEXT_SIZE_STEPS[0];
+    const changeTextSize = (next: number) => {
         setTextSize(next);
         // Electron: stored and sent to the other window (pop-out or reading view).
         (window.electronEpub ? window.electronEpub.setTextSize(next) : storage.set(TEXT_SIZE_KEY, next)).catch(() => undefined);
@@ -199,7 +203,9 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         if (!bookId || !epubApi) return;
         try {
             const chosen = await epubApi.choose(bookId);
-            if (chosen) await load(bookId);
+            if (!chosen) return;
+            await shareEpubWithOtherParts(bookId);
+            await load(bookId);
         } catch (err) {
             console.error('Read along: cannot store the EPUB', err);
             setStatus('error');
@@ -219,6 +225,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         if (!file || !file.name.toLowerCase().endsWith('.epub')) return;
         try {
             await epubApi.setPath(bookId, epubApi.pathForFile(file));
+            await shareEpubWithOtherParts(bookId);
             await load(bookId);
         } catch (err) {
             console.error('Read along: cannot store the dropped EPUB', err);
@@ -540,20 +547,19 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             >
                 {view === 'ready' && (
                     <>
-                        {currentIndex >= 0 && (
+                        {/* Shown while preparing or syncing, or when only estimating; not once synced. */}
+                        {currentIndex >= 0 && chip !== 'synced' && (
                             <span
                                 title={chipDetail}
-                                className={`inline-flex items-center gap-1.5 h-7 px-2.5 text-[12px] font-medium whitespace-nowrap ${chip === 'synced' ? 'text-[#FFB38F]' : 'text-[#9CA3AF]'}`}
+                                className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[12px] font-medium whitespace-nowrap text-[#9CA3AF]"
                             >
+                                {/* A spinner while preparing or syncing; a plain ring when only estimating. */}
                                 <span
                                     aria-hidden="true"
-                                    className={`w-2 h-2 rounded-full border-2 ${
-                                        chip === 'synced'
-                                            ? 'bg-[#FF5100] border-[#FF5100]'
-                                            : chip === 'finding' || chip === 'preparing' ? 'border-dashed border-[#9CA3AF]' : 'border-[#9CA3AF]'
-                                    }`}
+                                    className={chip === 'estimated'
+                                        ? 'w-2 h-2 rounded-full border-2 border-[#9CA3AF]'
+                                        : 'w-3 h-3 rounded-full border-2 border-white/15 border-t-[#FF5100] animate-spin'}
                                 />
-                                {chip === 'synced' && <span>{t('readAlong.synced')}</span>}
                                 {chip === 'finding' && <span>{t('readAlong.finding')}</span>}
                                 {chip === 'preparing' && <span>{t('readAlong.preparing')}</span>}
                                 {chip === 'estimated' && (
@@ -562,16 +568,12 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                 {chipDetail && <span className="sr-only">{chipDetail}</span>}
                             </span>
                         )}
-                        <button
-                            type="button"
-                            onClick={cycleTextSize}
-                            aria-label={t('readAlong.textSize', {size: textSize})}
-                            title={t('readAlong.textSize', {size: textSize})}
-                            className={`${iconBtn} text-[16px]`}
-                            style={{fontFamily: SERIF_STACK}}
-                        >
-                            Aa
-                        </button>
+                        <TextSizeMenu
+                            value={textSize}
+                            sizes={TEXT_SIZE_STEPS}
+                            onChange={changeTextSize}
+                            buttonClassName={`${iconBtn} text-[16px]`}
+                        />
                         {epubApi && (
                             <button
                                 type="button"
@@ -590,7 +592,6 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         )}
                         {bookId && (
                             <EpubButton
-                                mode="reading"
                                 bookId={bookId}
                                 book={sharedAudio && String(sharedAudio.activeBookId) === String(bookId) ? sharedAudio.activeBook : null}
                                 consumableId={sharedAudio?.activeConsumableId}
@@ -607,7 +608,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 <button
                     type="button"
                     onClick={() => setFollowing(true)}
-                    className={`absolute left-1/2 -translate-x-1/2 ${isPopout ? 'bottom-16' : 'bottom-4'} z-20 min-h-[40px] px-[18px] rounded-full bg-[#FF5100] text-[#0A0A0A] text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
+                    className={`absolute left-1/2 -translate-x-1/2 ${isPopout ? 'bottom-16' : 'bottom-4'} z-20 h-8 px-3.5 rounded-full bg-[#FF5100] text-white text-[12px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
                 >
                     {t('readAlong.backToNow')}
                 </button>

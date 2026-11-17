@@ -34,7 +34,7 @@
 /* The one cover border: library cards, book page, footer and full player. */
 @layer components {
   .cover-border {
-    @apply border border-white/[0.03];
+    @apply border border-white/[0.02];
   }
 }
 

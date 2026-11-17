@@ -1,5 +1,6 @@
 import api from './api';
 import { BookShelfEntity } from '../interfaces/books';
+import { otherBookParts } from './helpers';
 
 const POLL_MS = 1000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,4 +48,36 @@ export async function ensureAudioDownloaded(
   } finally {
     clearInterval(timer);
   }
+}
+
+/**
+ * Route ids (as in /player/:id) of the other parts of a split audiobook
+ * ("Golden Son (1 of 2)" / "(2 of 2)"), found on the shelf: parts share one EPUB.
+ */
+async function otherPartIds(bookId: string): Promise<string[]> {
+  const shelf: BookShelfEntity[] = await api.get('/bookshelf').then((res) => res.data?.books || []).catch(() => []);
+  const routeId = (entry: BookShelfEntity) => String(entry.abook?.id || entry.id);
+  const own = shelf.find((entry) => routeId(entry) === bookId);
+  return own ? otherBookParts(own, shelf).map(routeId) : [];
+}
+
+/** After an EPUB is chosen for a book: give the same file to its other parts. */
+export async function shareEpubWithOtherParts(bookId: string): Promise<void> {
+  const epub = window.electronEpub;
+  if (!epub) return;
+  const parts = await otherPartIds(bookId);
+  if (parts.length > 0) await epub.link(bookId, parts);
+}
+
+/** A book without an EPUB takes another part's; resolves true when it now has one. */
+export async function takeEpubFromOtherParts(bookId: string): Promise<boolean> {
+  const epub = window.electronEpub;
+  if (!epub) return false;
+  for (const partId of await otherPartIds(bookId)) {
+    if (await epub.name(partId)) {
+      await epub.link(partId, [bookId]);
+      return true;
+    }
+  }
+  return false;
 }
