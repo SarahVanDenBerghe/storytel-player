@@ -5,7 +5,9 @@ import api from '../utils/api';
 import BookCard from './BookCard';
 import ConfirmRemoveBookModal from './ConfirmRemoveBookModal';
 import { BookShelfEntity, BookShelfResponse } from '../interfaces/books';
-import { removeFromBookshelfErrorKey } from '../utils/helpers';
+import { bookProgress, bookRouteId, removeFromBookshelfErrorKey } from '../utils/helpers';
+import UpNext from './UpNext';
+import { useUpNext } from '../hooks/useUpNext';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -24,6 +26,11 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<BookShelfEntity[]>(() => cachedBooks ?? []);
+  const starredIds = useUpNext();
+  const showUpNext = starredIds.some((id) => {
+    const entry = books.find((book) => bookRouteId(book) === id);
+    return !!entry && !bookProgress(entry).isFinished;
+  });
   const [isLoading, setIsLoading] = useState(cachedBooks === null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -222,8 +229,8 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
       </div>
     );
   } else {
-    body = (
-      <div className="max-w-[1000px] mx-auto grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-7 gap-y-8">
+    const grid = (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-7 gap-y-8">
         {filteredBooks
           .filter((book) => !!book?.abook || !!book?.book)
           .map((book) => (
@@ -236,6 +243,18 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
             />
           ))}
       </div>
+    );
+    // With starred books still to finish: "Up next" above, then a "Library" title.
+    body = showUpNext ? (
+      <div className="max-w-[1000px] mx-auto pt-3">
+        <UpNext books={books} />
+        <h2 className="mt-12 mb-4 text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]">
+          {t('upNext.library')}
+        </h2>
+        {grid}
+      </div>
+    ) : (
+      <div className="max-w-[1000px] mx-auto">{grid}</div>
     );
   }
 

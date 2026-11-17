@@ -169,6 +169,22 @@ export const truncateTitle = (title: string, maxLength: number = 30): string => 
 // Shorten a raw Storytel title for compact cards: drop a "[...]" edition tag and
 // everything after it, pull "(n of m)" out as a part number, and (only when there
 // was no tag) cut the subtitle after the first ": ".
+/** The id a book is routed by (/player/:id), and its stored per-book data keyed by. */
+export const bookRouteId = (book: BookShelfEntity): string => String(book.abook?.id || book.id);
+
+/** The book's best cover image URL (unbuilt), or '' when it has none. */
+export const bookCoverOf = (book: BookShelfEntity | null | undefined): string =>
+    book?.book?.largeCover || book?.book?.largeCoverE || book?.book?.cover || book?.book?.coverE || book?.book?.smallCover || '';
+
+/** Listening progress from the shelf entry (positions in microseconds), as on the library cards. */
+export const bookProgress = (book: BookShelfEntity): { percent: number; isFinished: boolean; isStarted: boolean } => {
+    const position = book.abookMark ? book.abookMark.pos : 0;
+    const total = book.abook?.time || 0;
+    const percent = total > 0 ? Math.min(Math.max((position / total) * 100, 0), 100) : 0;
+    const isFinished = book.status === 3 || (total > 0 && position >= total * 0.98);
+    return { percent, isFinished, isStarted: position > 0 && !isFinished };
+};
+
 /**
  * The other parts of a multi-part book ("Golden Son (1 of 2)" and "(2 of 2)") on
  * the shelf. Storytel's series data is empty for these, so parts are matched by

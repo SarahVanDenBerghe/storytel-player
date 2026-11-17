@@ -13,6 +13,7 @@ import {useAudioContext} from "../contexts/AudioContext";
 import {useChapters} from "../hooks/useChapters";
 import {truncateTitle} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
+import {upNext, useUpNext} from '../hooks/useUpNext';
 import "../types/window.d.ts";
 import api, { trackAction } from "../utils/api";
 
@@ -20,6 +21,7 @@ function PlayerView() {
     const {t} = useTranslation();
     const {bookId} = useParams();
     const location = useLocation();
+    const starredIds = useUpNext();
     const navigate = useNavigate();
     const audio = useAudioContext();
 
@@ -295,6 +297,7 @@ function PlayerView() {
     }
 
     const chapterList = chapters.chapters.length > 0 ? chapters.chapters : audio.chapters;
+    const isStarred = !!bookId && starredIds.includes(bookId);
     const downloadLabel = isDownloading
         ? t('player.downloading', 'Downloading…')
         : isDownloaded
@@ -304,6 +307,23 @@ function PlayerView() {
     return (
         <div className="flex-1 flex flex-col relative bg-[#0A0A0A] text-white">
             <Navbar barTitle={t('player.nowPlaying')} onBackClick={() => navigate('/')}>
+                {/* Up next: the same star as on the library cards. */}
+                {bookId && (
+                    <button
+                        type="button"
+                        onClick={() => upNext.toggle(bookId)}
+                        aria-pressed={isStarred}
+                        aria-label={isStarred ? t('upNext.removeStar') : t('upNext.addStar')}
+                        title={isStarred ? t('upNext.removeStar') : t('upNext.addStar')}
+                        className={`w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100] ${
+                            isStarred ? 'text-[#FF7A3D]' : 'text-[#9CA3AF] hover:text-white'
+                        }`}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill={isStarred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/>
+                        </svg>
+                    </button>
+                )}
                 {/* Download (offline listening): a quiet icon. An arrow, or arrow with a check
                     once downloaded; clicking a downloaded book offers to delete the file. */}
                 <button

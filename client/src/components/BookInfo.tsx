@@ -65,7 +65,7 @@ const BookInfo: React.FC<BookInfoProps> = ({
             <img
                 src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
                 alt=""
-                className="w-[280px] max-w-[70vw] aspect-square object-cover rounded-[14px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
+                className="w-[280px] max-w-[70vw] aspect-square object-cover rounded-[6px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
             />
             <h1 className="mt-6 max-w-[480px] text-[17px] font-semibold text-white text-center break-words">
                 {book.book.name}

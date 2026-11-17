@@ -333,6 +333,24 @@
     "filters": "Filters",
     "preview": "Preview"
   },
+  "upNext": {
+    "title": "Up next",
+    "library": "Library",
+    "listeningNow": "Listening now",
+    "resume": "Resume",
+    "edit": "Edit Up next",
+    "next": "Next",
+    "moreToGo": "{{count}} more to go",
+    "done": "Done",
+    "editHint": "Drag to reorder. Star a book in the library to add it.",
+    "addStar": "Add to Up next",
+    "removeStar": "Remove from Up next",
+    "removeItem": "Remove {{title}} from Up next",
+    "statusFinished": "Finished",
+    "statusListening": "Listening · {{percent}}%",
+    "statusStarted": "{{percent}}% listened",
+    "statusNotStarted": "Not started"
+  },
   "readAlong": {
     "open": "Read along",
     "bookText": "Book text",

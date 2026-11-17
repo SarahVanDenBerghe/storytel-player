@@ -71,7 +71,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
           type="button"
           onClick={handleOpenFullPlayer}
           aria-label={t('player.expand', 'Open full player')}
-          className={`w-[52px] h-[52px] rounded-[10px] bg-[#141416] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
+          className={`w-[52px] h-[52px] rounded-[5px] bg-[#141416] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
             <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />
