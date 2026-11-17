@@ -14,7 +14,9 @@
       "required": "Por favor, introduce tanto el correo electrónico como la contraseña",
       "failed": "Error al iniciar sesión",
       "sessionExpired": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo."
-    }
+    },
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
   },
   "dashboard": {
     "title": "Mi Biblioteca",
@@ -35,8 +37,10 @@
       "all": "Todos",
       "notStarted": "No empezado",
       "started": "Empezado",
-      "concluded": "Terminado"
-    }
+      "concluded": "Terminado",
+      "label": "Filtrar por progreso"
+    },
+    "findBooks": "Buscar libros"
   },
   "player": {
     "chapters": "Capítulos",
@@ -66,7 +70,12 @@
       "hours": "h",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Posición de reproducción",
+    "chapterTimeLeft": "Quedan {{time}}",
+    "downloading": "Descargando…",
+    "downloaded": "Descargado",
+    "download": "Descargar"
   },
   "bookmarks": {
     "title": "Tus Marcadores",
@@ -101,13 +110,18 @@
     "save": "Guardar",
     "saving": "Guardando...",
     "delete": "Eliminar",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "back": "Atrás"
   },
   "bookCard": {
     "completed": "Completado",
     "remaining": "restante",
     "author": "Autor:",
-    "narrator": "Narrador:"
+    "narrator": "Narrador:",
+    "part": "Parte {{n}} de {{total}}",
+    "coverLabel": "Portada de {{title}}",
+    "coverLabelStarted": "Portada de {{title}}, {{percent}} % escuchado",
+    "coverLabelFinished": "Portada de {{title}}, terminado"
   },
   "bookshelf": {
     "remove": "Quitar de la biblioteca",
@@ -135,7 +149,8 @@
     "showMore": "mostrar más",
     "showLess": "mostrar menos",
     "details": "Detalles del libro:",
-    "loadError": "No se pudieron cargar los detalles del libro"
+    "loadError": "No se pudieron cargar los detalles del libro",
+    "continueWithProgress": "Continuar · {{percent}} %"
   },
   "chapters": {
     "title": "Pistas de audio y Capítulos",
@@ -250,7 +265,8 @@
     "typeHttp": "Tráfico HTTP",
     "typeAction": "Acciones del usuario",
     "confirmClear": "¿Estás seguro de que quieres borrar todos los registros? Esta acción no se puede deshacer.",
-    "details": "Detalles"
+    "details": "Detalles",
+    "clearSearch": "Borrar búsqueda"
   },
   "floatingMenu": {
     "library": "Biblioteca",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "No se pudo añadir el libro a la biblioteca. Es posible que no esté disponible en la región de su cuenta.",
       "addToBookshelfNotConfirmed": "Storytel aceptó la solicitud pero el libro no apareció en tu biblioteca. Es posible que no esté incluido en tu suscripción."
-    }
+    },
+    "filters": "Filtros",
+    "preview": "Vista previa"
   }
 }

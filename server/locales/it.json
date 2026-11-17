@@ -14,7 +14,9 @@
       "required": "Inserisci sia email che password",
       "failed": "Accesso fallito",
       "sessionExpired": "La tua sessione è scaduta. Effettua nuovamente il login."
-    }
+    },
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password"
   },
   "dashboard": {
     "title": "La mia libreria",
@@ -35,8 +37,10 @@
       "all": "Tutti",
       "notStarted": "Non iniziati",
       "started": "In corso",
-      "concluded": "Conclusi"
-    }
+      "concluded": "Finiti",
+      "label": "Filtra per avanzamento"
+    },
+    "findBooks": "Trova libri"
   },
   "player": {
     "chapters": "Capitoli",
@@ -66,7 +70,12 @@
       "hours": "h",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Posizione di riproduzione",
+    "chapterTimeLeft": "{{time}} rimanenti",
+    "downloading": "Download in corso…",
+    "downloaded": "Scaricato",
+    "download": "Scarica"
   },
   "bookmarks": {
     "title": "I tuoi Bookmarks",
@@ -101,13 +110,18 @@
     "save": "Salva",
     "saving": "Salvataggio...",
     "delete": "Elimina",
-    "close": "Chiudi"
+    "close": "Chiudi",
+    "back": "Indietro"
   },
   "bookCard": {
     "completed": "Completato",
     "remaining": "rimanenti",
     "author": "Autore:",
-    "narrator": "Narratore:"
+    "narrator": "Narratore:",
+    "part": "Parte {{n}} di {{total}}",
+    "coverLabel": "Copertina di {{title}}",
+    "coverLabelStarted": "Copertina di {{title}}, ascoltato al {{percent}}%",
+    "coverLabelFinished": "Copertina di {{title}}, finito"
   },
   "bookshelf": {
     "remove": "Rimuovi dalla libreria",
@@ -135,7 +149,8 @@
     "showMore": "mostra di più",
     "showLess": "mostra meno",
     "details": "Dettagli Libro:",
-    "loadError": "Impossibile caricare i dettagli del libro"
+    "loadError": "Impossibile caricare i dettagli del libro",
+    "continueWithProgress": "Continua · {{percent}}%"
   },
   "chapters": {
     "title": "Tracce audio e Capitoli",
@@ -250,7 +265,8 @@
     "typeHttp": "Traffico HTTP",
     "typeAction": "Azioni Utente",
     "confirmClear": "Sei sicuro di voler svuotare i log? L'operazione non può essere annullata.",
-    "details": "Dettagli"
+    "details": "Dettagli",
+    "clearSearch": "Cancella ricerca"
   },
   "floatingMenu": {
     "library": "Libreria",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Impossibile aggiungere il libro alla libreria. Potrebbe non essere disponibile nella regione del tuo account.",
       "addToBookshelfNotConfirmed": "Storytel ha accettato la richiesta ma il libro non è comparso nella tua libreria. Potrebbe non essere incluso nel tuo abbonamento."
-    }
+    },
+    "filters": "Filtri",
+    "preview": "Anteprima"
   }
 }

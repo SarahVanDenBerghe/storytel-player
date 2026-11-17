@@ -14,7 +14,9 @@
       "required": "Please enter both email and password",
       "failed": "Login failed",
       "sessionExpired": "Your session has expired. Please sign in again."
-    }
+    },
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "dashboard": {
     "title": "My Library",
@@ -35,8 +37,10 @@
       "all": "All",
       "notStarted": "Not started",
       "started": "Started",
-      "concluded": "Concluded"
-    }
+      "concluded": "Finished",
+      "label": "Filter by progress"
+    },
+    "findBooks": "Find books"
   },
   "player": {
     "chapters": "Chapters",
@@ -66,7 +70,12 @@
       "hours": "h",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Playback position",
+    "chapterTimeLeft": "{{time}} left",
+    "downloading": "Downloading…",
+    "downloaded": "Downloaded",
+    "download": "Download"
   },
   "bookmarks": {
     "title": "Your Bookmarks",
@@ -101,13 +110,18 @@
     "save": "Save",
     "saving": "Saving...",
     "delete": "Delete",
-    "close": "Close"
+    "close": "Close",
+    "back": "Back"
   },
   "bookCard": {
     "completed": "Completed",
     "remaining": "remaining",
     "author": "Author:",
-    "narrator": "Narrator:"
+    "narrator": "Narrator:",
+    "part": "Part {{n}} of {{total}}",
+    "coverLabel": "Cover of {{title}}",
+    "coverLabelStarted": "Cover of {{title}}, {{percent}}% listened",
+    "coverLabelFinished": "Cover of {{title}}, finished"
   },
   "bookshelf": {
     "remove": "Remove from library",
@@ -135,7 +149,8 @@
     "showMore": "show more",
     "showLess": "show less",
     "details": "Book Details:",
-    "loadError": "Failed to load book details"
+    "loadError": "Failed to load book details",
+    "continueWithProgress": "Continue · {{percent}}%"
   },
   "chapters": {
     "title": "Audio Tracks & Chapters",
@@ -250,7 +265,8 @@
     "typeHttp": "HTTP Traffic",
     "typeAction": "User Actions",
     "confirmClear": "Are you sure you want to clear all logs? This cannot be undone.",
-    "details": "Details"
+    "details": "Details",
+    "clearSearch": "Clear search"
   },
   "floatingMenu": {
     "library": "Library",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Could not add book to library. It may not be available in your account's region.",
       "addToBookshelfNotConfirmed": "Storytel accepted the request but the book did not appear in your library. It may not be included in your subscription."
-    }
+    },
+    "filters": "Filters",
+    "preview": "Preview"
   }
 }

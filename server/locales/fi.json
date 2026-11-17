@@ -14,7 +14,9 @@
       "required": "Anna sekä sähköpostiosoite että salasana",
       "failed": "Kirjautuminen epäonnistui",
       "sessionExpired": "Istuntosi on vanhentunut. Kirjaudu sisään uudelleen."
-    }
+    },
+    "showPassword": "Näytä salasana",
+    "hidePassword": "Piilota salasana"
   },
   "dashboard": {
     "title": "Kirjastoni",
@@ -35,8 +37,10 @@
       "all": "Kaikki",
       "notStarted": "Ei aloitettu",
       "started": "Aloitettu",
-      "concluded": "Kuunneltu"
-    }
+      "concluded": "Kuunneltu",
+      "label": "Suodata edistymisen mukaan"
+    },
+    "findBooks": "Etsi kirjoja"
   },
   "player": {
     "chapters": "Luvut",
@@ -66,7 +70,12 @@
       "hours": "t",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Toistokohta",
+    "chapterTimeLeft": "{{time}} jäljellä",
+    "downloading": "Ladataan…",
+    "downloaded": "Ladattu",
+    "download": "Lataa"
   },
   "bookmarks": {
     "title": "Kirjanmerkkisi",
@@ -101,13 +110,18 @@
     "save": "Tallenna",
     "saving": "Tallennetaan...",
     "delete": "Poista",
-    "close": "Sulje"
+    "close": "Sulje",
+    "back": "Takaisin"
   },
   "bookCard": {
     "completed": "Kuunneltu",
     "remaining": "jäljellä",
     "author": "Kirjailija:",
-    "narrator": "Lukija:"
+    "narrator": "Lukija:",
+    "part": "Osa {{n}}/{{total}}",
+    "coverLabel": "Kansikuva: {{title}}",
+    "coverLabelStarted": "Kansikuva: {{title}}, {{percent}} % kuunneltu",
+    "coverLabelFinished": "Kansikuva: {{title}}, kuunneltu"
   },
   "bookshelf": {
     "remove": "Poista kirjahyllystä",
@@ -135,7 +149,8 @@
     "showMore": "näytä enemmän",
     "showLess": "näytä vähemmän",
     "details": "Kirjan tiedot:",
-    "loadError": "Kirjan tietojen lataaminen epäonnistui"
+    "loadError": "Kirjan tietojen lataaminen epäonnistui",
+    "continueWithProgress": "Jatka · {{percent}} %"
   },
   "chapters": {
     "title": "Ääniraidat ja luvut",
@@ -250,7 +265,8 @@
     "typeHttp": "HTTP-liikenne",
     "typeAction": "Käyttäjän toiminnot",
     "confirmClear": "Haluatko varmasti tyhjentää kaikki lokit? Tätä toimintoa ei voi kumota.",
-    "details": "Tiedot"
+    "details": "Tiedot",
+    "clearSearch": "Tyhjennä haku"
   },
   "floatingMenu": {
     "library": "Kirjasto",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Kirjaa ei voitu lisätä kirjastoon. Se ei välttämättä ole saatavilla tilisi alueella.",
       "addToBookshelfNotConfirmed": "Storytel vastaanotti pyynnön, mutta kirja ei ilmestynyt kirjastoosi. Se ei välttämättä sisälly tilaukseesi."
-    }
+    },
+    "filters": "Suodattimet",
+    "preview": "Esikatselu"
   }
 }

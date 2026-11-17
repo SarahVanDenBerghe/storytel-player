@@ -14,7 +14,9 @@
       "required": "Veuillez entrer votre e-mail et votre mot de passe",
       "failed": "Échec de la connexion",
       "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
-    }
+    },
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe"
   },
   "dashboard": {
     "title": "Ma Bibliothèque",
@@ -35,8 +37,10 @@
       "all": "Tous",
       "notStarted": "Non commencé",
       "started": "Commencé",
-      "concluded": "Terminé"
-    }
+      "concluded": "Terminé",
+      "label": "Filtrer par progression"
+    },
+    "findBooks": "Trouver des livres"
   },
   "player": {
     "chapters": "Chapitres",
@@ -66,7 +70,12 @@
       "hours": "h",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Position de lecture",
+    "chapterTimeLeft": "{{time}} restant",
+    "downloading": "Téléchargement…",
+    "downloaded": "Téléchargé",
+    "download": "Télécharger"
   },
   "bookmarks": {
     "title": "Vos Marque-pages",
@@ -101,13 +110,18 @@
     "save": "Enregistrer",
     "saving": "Enregistrement...",
     "delete": "Supprimer",
-    "close": "Fermer"
+    "close": "Fermer",
+    "back": "Retour"
   },
   "bookCard": {
     "completed": "Terminé",
     "remaining": "restant",
     "author": "Auteur :",
-    "narrator": "Narrateur :"
+    "narrator": "Narrateur :",
+    "part": "Partie {{n}} sur {{total}}",
+    "coverLabel": "Couverture de {{title}}",
+    "coverLabelStarted": "Couverture de {{title}}, {{percent}} % écouté",
+    "coverLabelFinished": "Couverture de {{title}}, terminé"
   },
   "bookshelf": {
     "remove": "Retirer de la bibliothèque",
@@ -135,7 +149,8 @@
     "showMore": "afficher plus",
     "showLess": "afficher moins",
     "details": "Détails du livre :",
-    "loadError": "Impossible de charger les détails du livre"
+    "loadError": "Impossible de charger les détails du livre",
+    "continueWithProgress": "Reprendre · {{percent}} %"
   },
   "chapters": {
     "title": "Pistes audio & Chapitres",
@@ -250,7 +265,8 @@
     "typeHttp": "Trafic HTTP",
     "typeAction": "Actions de l'utilisateur",
     "confirmClear": "Êtes-vous sûr de vouloir effacer tous les journaux ? Cette action est irréversible.",
-    "details": "Détails"
+    "details": "Détails",
+    "clearSearch": "Effacer la recherche"
   },
   "floatingMenu": {
     "library": "Bibliothèque",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Impossible d'ajouter le livre à la bibliothèque. Il n'est peut-être pas disponible dans la région de votre compte.",
       "addToBookshelfNotConfirmed": "Storytel a accepté la demande mais le livre n'est pas apparu dans votre bibliothèque. Il n'est peut-être pas inclus dans votre abonnement."
-    }
+    },
+    "filters": "Filtres",
+    "preview": "Aperçu"
   }
 }

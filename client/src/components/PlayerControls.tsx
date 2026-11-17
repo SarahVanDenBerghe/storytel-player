@@ -197,7 +197,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                         ? t('player.downloading', 'Downloading…')
                         : isDownloaded
                             ? t('player.downloaded', 'Downloaded')
-                            : t('updater.available.download')}
+                            : t('player.download')}
                 </button>
 
                 {/* Volume: click toggles mute; hovering or focusing reveals the slider */}

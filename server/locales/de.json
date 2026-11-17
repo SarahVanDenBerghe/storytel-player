@@ -14,7 +14,9 @@
       "required": "Bitte geben Sie sowohl E-Mail als auch Passwort ein",
       "failed": "Anmeldung fehlgeschlagen",
       "sessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an."
-    }
+    },
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen"
   },
   "dashboard": {
     "title": "Meine Bibliothek",
@@ -35,8 +37,10 @@
       "all": "Alle",
       "notStarted": "Nicht begonnen",
       "started": "Begonnen",
-      "concluded": "Abgeschlossen"
-    }
+      "concluded": "Fertig gehört",
+      "label": "Nach Fortschritt filtern"
+    },
+    "findBooks": "Bücher finden"
   },
   "player": {
     "chapters": "Kapitel",
@@ -66,7 +70,12 @@
       "hours": "Std.",
       "minutes": "Min.",
       "seconds": "Sek."
-    }
+    },
+    "seekPosition": "Wiedergabeposition",
+    "chapterTimeLeft": "Noch {{time}}",
+    "downloading": "Wird heruntergeladen…",
+    "downloaded": "Heruntergeladen",
+    "download": "Herunterladen"
   },
   "bookmarks": {
     "title": "Ihre Lesezeichen",
@@ -101,13 +110,18 @@
     "save": "Speichern",
     "saving": "Wird gespeichert...",
     "delete": "Löschen",
-    "close": "Schließen"
+    "close": "Schließen",
+    "back": "Zurück"
   },
   "bookCard": {
     "completed": "Abgeschlossen",
     "remaining": "verbleibend",
     "author": "Autor:",
-    "narrator": "Sprecher:"
+    "narrator": "Sprecher:",
+    "part": "Teil {{n}} von {{total}}",
+    "coverLabel": "Cover von {{title}}",
+    "coverLabelStarted": "Cover von {{title}}, {{percent}} % gehört",
+    "coverLabelFinished": "Cover von {{title}}, fertig gehört"
   },
   "bookshelf": {
     "remove": "Aus der Bibliothek entfernen",
@@ -135,7 +149,8 @@
     "showMore": "mehr anzeigen",
     "showLess": "weniger anzeigen",
     "details": "Buchdetails:",
-    "loadError": "Buchdetails konnten nicht geladen werden"
+    "loadError": "Buchdetails konnten nicht geladen werden",
+    "continueWithProgress": "Fortsetzen · {{percent}} %"
   },
   "chapters": {
     "title": "Audiospuren & Kapitel",
@@ -250,7 +265,8 @@
     "typeHttp": "HTTP-Verkehr",
     "typeAction": "Benutzeraktionen",
     "confirmClear": "Möchten Sie wirklich alle Protokolle löschen? Dies kann nicht rückgängig gemacht werden.",
-    "details": "Details"
+    "details": "Details",
+    "clearSearch": "Suche löschen"
   },
   "floatingMenu": {
     "library": "Bibliothek",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Buch konnte nicht zur Bibliothek hinzugefügt werden. Es ist möglicherweise in der Region Ihres Kontos nicht verfügbar.",
       "addToBookshelfNotConfirmed": "Storytel hat die Anfrage angenommen, das Buch ist aber nicht in deiner Bibliothek erschienen. Es ist möglicherweise nicht in deinem Abonnement enthalten."
-    }
+    },
+    "filters": "Filter",
+    "preview": "Vorschau"
   }
 }

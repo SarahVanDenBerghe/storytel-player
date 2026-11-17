@@ -14,7 +14,9 @@
       "required": "Vänligen ange både e-post och lösenord",
       "failed": "Inloggningen misslyckades",
       "sessionExpired": "Din session har gått ut. Vänligen logga in igen."
-    }
+    },
+    "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord"
   },
   "dashboard": {
     "title": "Mitt bibliotek",
@@ -35,8 +37,10 @@
       "all": "Alla",
       "notStarted": "Ej påbörjad",
       "started": "Påbörjad",
-      "concluded": "Avslutad"
-    }
+      "concluded": "Färdiglyssnade",
+      "label": "Filtrera efter framsteg"
+    },
+    "findBooks": "Hitta böcker"
   },
   "player": {
     "chapters": "Ljudspår",
@@ -66,7 +70,12 @@
       "hours": "tim",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Uppspelningsposition",
+    "chapterTimeLeft": "{{time}} kvar",
+    "downloading": "Laddar ner…",
+    "downloaded": "Nedladdad",
+    "download": "Ladda ner"
   },
   "bookmarks": {
     "title": "Dina bokmärken",
@@ -101,13 +110,18 @@
     "save": "Spara",
     "saving": "Sparar...",
     "delete": "Ta bort",
-    "close": "Stäng"
+    "close": "Stäng",
+    "back": "Tillbaka"
   },
   "bookCard": {
     "completed": "Slutförd",
     "remaining": "kvar",
     "author": "Författare:",
-    "narrator": "Uppläsare:"
+    "narrator": "Uppläsare:",
+    "part": "Del {{n}} av {{total}}",
+    "coverLabel": "Omslag för {{title}}",
+    "coverLabelStarted": "Omslag för {{title}}, {{percent}} % lyssnat",
+    "coverLabelFinished": "Omslag för {{title}}, färdiglyssnad"
   },
   "bookshelf": {
     "remove": "Ta bort från bokhyllan",
@@ -135,7 +149,8 @@
     "showMore": "visa mer",
     "showLess": "visa mindre",
     "details": "Bokdetaljer:",
-    "loadError": "Kunde inte ladda bokinformationen"
+    "loadError": "Kunde inte ladda bokinformationen",
+    "continueWithProgress": "Fortsätt · {{percent}} %"
   },
   "chapters": {
     "title": "Ljudspår & Kapitel",
@@ -250,7 +265,8 @@
     "typeHttp": "HTTP-trafik",
     "typeAction": "Användaråtgärder",
     "confirmClear": "Är du säker på att du vill rensa alla loggar? Denna åtgärd kan inte ångras.",
-    "details": "Detaljer"
+    "details": "Detaljer",
+    "clearSearch": "Rensa sökning"
   },
   "floatingMenu": {
     "library": "Bokhylla",
@@ -295,6 +311,8 @@
     "errors": {
       "addToBookshelfFailed": "Kunde inte lägga till boken i bokhyllan. Den kanske inte ingår i ditt lands abonnemang.",
       "addToBookshelfNotConfirmed": "Storytel tog emot begäran men boken dök inte upp i din bokhylla. Den kanske inte ingår i ditt abonnemang."
-    }
+    },
+    "filters": "Filter",
+    "preview": "Förhandsvisning"
   }
 }

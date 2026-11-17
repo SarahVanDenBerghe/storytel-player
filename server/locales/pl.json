@@ -14,7 +14,9 @@
       "required": "Wprowadź adres e-mail i hasło",
       "failed": "Logowanie nie powiodło się",
       "sessionExpired": "Sesja wygasła. Zaloguj się ponownie."
-    }
+    },
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
   },
   "dashboard": {
     "title": "Moja biblioteka",
@@ -35,10 +37,12 @@
       "all": "Wszystkie",
       "notStarted": "Nierozpoczęte",
       "started": "Rozpoczęte",
-      "concluded": "Ukończone"
+      "concluded": "Ukończone",
+      "label": "Filtruj według postępu"
     },
     "bookCount_few": "{{count}} książki",
-    "bookCount_many": "{{count}} książek"
+    "bookCount_many": "{{count}} książek",
+    "findBooks": "Znajdź książki"
   },
   "player": {
     "chapters": "Rozdziały",
@@ -68,7 +72,12 @@
       "hours": "godz.",
       "minutes": "min",
       "seconds": "s"
-    }
+    },
+    "seekPosition": "Pozycja odtwarzania",
+    "chapterTimeLeft": "Zostało {{time}}",
+    "downloading": "Pobieranie…",
+    "downloaded": "Pobrano",
+    "download": "Pobierz"
   },
   "bookmarks": {
     "title": "Twoje zakładki",
@@ -103,13 +112,18 @@
     "save": "Zapisz",
     "saving": "Zapisywanie...",
     "delete": "Usuń",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "back": "Wstecz"
   },
   "bookCard": {
     "completed": "Ukończona",
     "remaining": "pozostało",
     "author": "Autor:",
-    "narrator": "Lektor:"
+    "narrator": "Lektor:",
+    "part": "Część {{n}} z {{total}}",
+    "coverLabel": "Okładka: {{title}}",
+    "coverLabelStarted": "Okładka: {{title}}, wysłuchano {{percent}}%",
+    "coverLabelFinished": "Okładka: {{title}}, ukończona"
   },
   "bookshelf": {
     "remove": "Usuń z biblioteki",
@@ -137,7 +151,8 @@
     "showMore": "pokaż więcej",
     "showLess": "pokaż mniej",
     "details": "Szczegóły książki:",
-    "loadError": "Nie udało się załadować szczegółów książki"
+    "loadError": "Nie udało się załadować szczegółów książki",
+    "continueWithProgress": "Kontynuuj · {{percent}}%"
   },
   "chapters": {
     "title": "Ścieżki audio i rozdziały",
@@ -252,7 +267,8 @@
     "typeHttp": "Ruch HTTP",
     "typeAction": "Działania użytkownika",
     "confirmClear": "Czy na pewno chcesz usunąć wszystkie wpisy z dziennika? Tej operacji nie można cofnąć.",
-    "details": "Szczegóły"
+    "details": "Szczegóły",
+    "clearSearch": "Wyczyść wyszukiwanie"
   },
   "floatingMenu": {
     "library": "Biblioteka",
@@ -299,6 +315,8 @@
       "addToBookshelfNotConfirmed": "Storytel przyjął żądanie, ale książka nie pojawiła się w bibliotece. Może nie być objęta Twoim abonamentem."
     },
     "hitCount_few": "{{count}} wyniki",
-    "hitCount_many": "{{count}} wyników"
+    "hitCount_many": "{{count}} wyników",
+    "filters": "Filtry",
+    "preview": "Podgląd"
   }
 }
