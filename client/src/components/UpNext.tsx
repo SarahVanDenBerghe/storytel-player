@@ -52,6 +52,13 @@ function useCoverColor(url: string): string | null {
     return color;
 }
 
+// Backdrop artwork, only for cleaned covers (served from disk, no title text). Black in the art
+// drops out (lighten), so it melts into the block. One book: the art fills the right side.
+// With a queue: it sits in the middle and fades on a slant, faint behind the Next column.
+const soloArtMask = 'linear-gradient(to right, transparent, #000 70%)';
+// Fully clear until 18%: on a slant the image's own left edge reaches that far, and would show as a cut.
+const queueArtMask = 'linear-gradient(105deg, transparent 18%, rgba(0,0,0,0.6) 30%, #000 40%, rgba(0,0,0,0.55) 54%, rgba(0,0,0,0.22) 72%, rgba(0,0,0,0.12) 100%)';
+
 /**
  * The home page's "Up next": the starred books in their saved order (useUpNext),
  * as one block tinted with the current cover's main colour. The current book is the first
@@ -92,6 +99,10 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
     if (currentIndex < 0) return null;
     const current = items[currentIndex];
     const queue = items.slice(currentIndex + 1);
+    const artwork = current.cover.startsWith('file:') ? current.cover : null;
+    const artMask = queue.length === 0 ? soloArtMask : queueArtMask;
+    // With art behind a queue the tint carries on to the right edge, so the Next side is not a dark slab.
+    const tintEnd = artwork && queue.length > 0 ? `${tint}80 75%, ${tint}5c 100%` : `${tint}33 75%, transparent 100%`;
     const meta = (item: Item) => [item.author, item.partLabel].filter(Boolean).join(' · ');
 
     const resume = () => navigate(`/player/${current.id}`, {state: {book: current.entry, autoPlay: true}});
@@ -113,9 +124,14 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                     className="absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out"
                     style={{
                         opacity: tint ? 1 : 0,
-                        background: tint ? `linear-gradient(115deg, ${tint} 0%, ${tint}b3 40%, ${tint}33 75%, transparent 100%)` : undefined,
+                        background: tint ? `linear-gradient(115deg, ${tint} 0%, ${tint}b3 40%, ${tintEnd})` : undefined,
                     }}
                 />
+                {artwork && (
+                    <img src={artwork} alt="" aria-hidden="true"
+                         className={`absolute right-0 top-1/2 -translate-y-1/2 aspect-square object-cover pointer-events-none mix-blend-lighten animate-fade-in ${queue.length === 0 ? 'w-[60%] opacity-60' : 'w-[62%] opacity-50'}`}
+                         style={{maskImage: artMask, WebkitMaskImage: artMask}}/>
+                )}
                 <div className="relative flex gap-7 p-6">
                     <button type="button" onClick={() => open(current)} className={`group/cover flex-shrink-0 rounded-[6px] ${focusRing}`}
                             aria-label={current.title}>
