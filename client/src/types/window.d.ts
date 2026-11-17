@@ -83,6 +83,9 @@ declare global {
     electronWindow?: {
       setAlwaysOnTop: (alwaysOnTop: boolean) => Promise<void>;
       isAlwaysOnTop: () => Promise<boolean>;
+      isFullScreen: () => Promise<boolean>;
+      /** Main window entered or left full screen. Returns an unsubscribe function. */
+      onFullScreenChange: (callback: (fullScreen: boolean) => void) => () => void;
     };
     /** Folder for downloaded audiobooks (Electron only). */
     electronDownloads?: {

@@ -20,7 +20,7 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
     return (
         <nav
             aria-label={barTitle}
-            className={`absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-3 py-2 pointer-events-none ${className}`}
+            className={`titlebar-inset absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-3 py-2 pointer-events-none ${className}`}
         >
             <button
                 type="button"

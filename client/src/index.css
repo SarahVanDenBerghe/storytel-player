@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * macOS main window: the title bar is hidden and the window buttons sit in the
+ * app's top-left corner (src/modules/window.ts). App.tsx sets .mac-titlebar on
+ * <html> except in full screen, where the buttons are gone.
+ */
+.titlebar-drag {
+  display: none;
+}
+.mac-titlebar .titlebar-drag {
+  display: block;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 52px;
+  z-index: 1;
+  -webkit-app-region: drag;
+}
+.mac-titlebar button,
+.mac-titlebar a,
+.mac-titlebar input,
+.mac-titlebar select,
+.mac-titlebar textarea,
+.mac-titlebar [role='button'] {
+  -webkit-app-region: no-drag;
+}
+.mac-titlebar .titlebar-inset {
+  padding-left: 84px !important;
+}
+
 /* The one cover border: library cards, book page, footer and full player. */
 @layer components {
   .cover-border {

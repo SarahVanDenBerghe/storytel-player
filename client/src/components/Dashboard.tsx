@@ -231,7 +231,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white">
       {/* Header row: title, count, progress filters, library filter, find books, settings */}
-      <header className="flex-shrink-0 flex flex-wrap items-center gap-3 px-6 pt-4 pb-3">
+      <header className="titlebar-inset flex-shrink-0 flex flex-wrap items-center gap-3 px-6 pt-4 pb-3">
         <h1 className="m-0 text-[15px] font-semibold">{t('dashboard.title', 'My Library')}</h1>
         {!isLoading && !error && (
           <span className="text-[13px] text-[#9CA3AF]">{t('dashboard.bookCount', { count: books.length })}</span>

@@ -38,6 +38,11 @@ export class WindowManager {
 
         this.mainWindow = new BrowserWindow({
             ...windowConfig,
+            // macOS: no title bar; the window buttons sit in the app's own top-left
+            // corner, level with its back button (the renderer leaves room: .mac-titlebar).
+            ...(process.platform === 'darwin'
+                ? {titleBarStyle: 'hidden' as const, trafficLightPosition: {x: 18, y: 24}}
+                : {}),
             webPreferences: {
                 nodeIntegration: true,
                 contextIsolation: true,
@@ -99,6 +104,10 @@ export class WindowManager {
                 this.mainWindow?.hide();
             }
         });
+
+        // The renderer drops the room it keeps for the window buttons in full screen.
+        this.mainWindow.on('enter-full-screen', () => this.mainWindow?.webContents.send('window:fullscreen', true));
+        this.mainWindow.on('leave-full-screen', () => this.mainWindow?.webContents.send('window:fullscreen', false));
 
         this.mainWindow.on('closed', () => {
             this.mainWindow = null;
@@ -173,6 +182,9 @@ export class WindowManager {
             fullscreenable: false,
             // No title bar: the pop-out draws its own close button and drag strip on hover.
             frame: false,
+            // macOS: a panel floats over other apps' full-screen spaces without turning
+            // the whole app into a Dock-less accessory (see setVisibleOnAllWorkspaces below).
+            ...(process.platform === 'darwin' ? {type: 'panel'} : {}),
             webPreferences: {
                 contextIsolation: true,
                 devTools: this.isDev || this.isDebug,
@@ -185,9 +197,11 @@ export class WindowManager {
         });
         this.readAlongPopout = popout;
         // 'floating' keeps it above normal windows; visibleOnFullScreen lets it
-        // show over another app's full-screen space on macOS.
+        // show over another app's full-screen space on macOS. Without
+        // skipTransformProcessType, Electron hides the app's Dock icon for good,
+        // which breaks the main window's full screen and minimize.
         popout.setAlwaysOnTop(true, 'floating');
-        popout.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true});
+        popout.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true, skipTransformProcessType: true});
         if (!this.isDev && !this.isDebug) popout.setMenu(null);
 
         popout.once('ready-to-show', () => popout.show());

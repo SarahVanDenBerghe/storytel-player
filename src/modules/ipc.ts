@@ -218,6 +218,8 @@ export class IpcManager {
     ipcMain.handle('window-is-always-on-top', () => {
       return this.windowManager.isAlwaysOnTop();
     });
+
+    ipcMain.handle('window-is-full-screen', () => this.windowManager.getWindow()?.isFullScreen() ?? false);
   }
 
   private setupAuthHandlers(): void {

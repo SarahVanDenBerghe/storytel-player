@@ -127,6 +127,17 @@ function App() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  // macOS: room for the window buttons in the top-left corner and a draggable top
+  // strip, except in full screen (see .mac-titlebar in index.css).
+  useEffect(() => {
+    const win = window.electronWindow;
+    if (!win || !navigator.userAgent.includes('Mac')) return;
+    const apply = (fullScreen: boolean) => document.documentElement.classList.toggle('mac-titlebar', !fullScreen);
+    apply(false);
+    win.isFullScreen().then(apply).catch(() => undefined);
+    return win.onFullScreenChange(apply);
+  }, []);
+
   useEffect(() => {
     checkAuthStatus();
 
@@ -248,6 +259,8 @@ function App() {
   }
 
   return (
+    <>
+    <div className="titlebar-drag" aria-hidden="true" />
     <Router>
       <AudioProvider>
         {isAuthenticated ? (
@@ -310,6 +323,7 @@ function App() {
         )}
       </AudioProvider>
     </Router>
+    </>
   );
 }
 

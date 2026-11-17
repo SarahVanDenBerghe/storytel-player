@@ -253,7 +253,7 @@ export function SearchView({ query: propQuery }: SearchViewProps) {
       )}
 
       {/* Header row: back button + centred search box */}
-      <div className="flex items-center gap-3 px-3 py-2 flex-shrink-0">
+      <div className="titlebar-inset flex items-center gap-3 px-3 py-2 flex-shrink-0">
         <button
           type="button"
           onClick={() => navigate('/')}

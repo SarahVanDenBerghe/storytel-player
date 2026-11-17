@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld('electronWindow', {
     ipcRenderer.invoke('window-set-always-on-top', alwaysOnTop),
   isAlwaysOnTop: (): Promise<boolean> =>
     ipcRenderer.invoke('window-is-always-on-top'),
+  isFullScreen: (): Promise<boolean> => ipcRenderer.invoke('window-is-full-screen'),
+  onFullScreenChange: (callback: (fullScreen: boolean) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, fullScreen: boolean) => callback(fullScreen);
+    ipcRenderer.on('window:fullscreen', listener);
+    return () => { ipcRenderer.removeListener('window:fullscreen', listener); };
+  },
 });
 
 // Tray Controls API
