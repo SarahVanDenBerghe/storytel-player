@@ -2,6 +2,9 @@ import {autoUpdater, UpdateDownloadedEvent, UpdateInfo} from 'electron-updater';
 import { BrowserWindow, dialog } from 'electron';
 import { i18n } from '../i18n';
 
+// Auto-updater disabled because this is a personal build; set to false to turn it back on.
+const UPDATER_DISABLED = true;
+
 export class UpdaterManager {
     private readonly mainWindow: BrowserWindow | null;
     private readonly isDev: boolean;
@@ -12,10 +15,12 @@ export class UpdaterManager {
 
         // Configure auto-updater
         autoUpdater.autoDownload = false;
-        autoUpdater.autoInstallOnAppQuit = true;
+        autoUpdater.autoInstallOnAppQuit = !UPDATER_DISABLED;
     }
 
     public initialize(): void {
+        if (UPDATER_DISABLED) return;
+
         if (this.isDev) {
             console.log('Auto-updater disabled in development mode');
             return;
@@ -63,6 +68,8 @@ export class UpdaterManager {
     }
 
     public checkForUpdates(): void {
+        if (UPDATER_DISABLED) return;
+
         if (!this.isDev) {
             autoUpdater.checkForUpdates().catch(err => {
                 console.error('Failed to check for updates:', err);
@@ -82,7 +89,7 @@ export class UpdaterManager {
             cancelId: 1
         });
 
-        if (result === 0) {
+        if (result === 0 && !UPDATER_DISABLED) {
             autoUpdater.downloadUpdate().catch(err => {
                 console.error('Failed to download update:', err);
             });
@@ -101,7 +108,7 @@ export class UpdaterManager {
             cancelId: 1
         });
 
-        if (result === 0) {
+        if (result === 0 && !UPDATER_DISABLED) {
             autoUpdater.quitAndInstall();
         }
     }
