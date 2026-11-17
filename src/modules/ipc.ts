@@ -311,6 +311,16 @@ export class IpcManager {
     // The last state the main window reported, so a new pop-out starts in place.
     let lastPlayback: unknown = null;
 
+    // Read-along text size (px), shared by the reading view and the pop-out:
+    // stored, then sent to every window so both follow a change made in either.
+    ipcMain.handle('readAlong:set-text-size', (_event: IpcMainInvokeEvent, size: unknown) => {
+      if (typeof size !== 'number' || !Number.isFinite(size) || size < 8 || size > 40) throw new Error('Invalid text size');
+      storeManager.set('readAlong.textSize', size);
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('readAlong:text-size', size);
+      }
+    });
+
     ipcMain.handle('readAlong:popout-open', (_event: IpcMainInvokeEvent, bookId: unknown) => {
       if (!isValidBookId(bookId)) throw new Error('Invalid book id');
       this.windowManager.openReadAlongPopout(bookId, notifyOpen);
@@ -326,11 +336,11 @@ export class IpcManager {
     ipcMain.handle('readAlong:playback-get', () => lastPlayback);
 
     const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-    ipcMain.on('readAlong:popout-control', (event, control: { type?: unknown; timeSec?: unknown; seconds?: unknown }) => {
+    ipcMain.on('readAlong:popout-control', (event, control: { type?: unknown; timeSec?: unknown; seconds?: unknown; rate?: unknown }) => {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
       const valid =
         control?.type === 'toggle' ||
-        control?.type === 'cycleSpeed' ||
+        (control?.type === 'setSpeed' && isNumber(control.rate) && control.rate > 0 && control.rate <= 4) ||
         (control?.type === 'seek' && isNumber(control.timeSec) && control.timeSec >= 0) ||
         (control?.type === 'skip' && isNumber(control.seconds));
       if (valid) mainContents()?.send('readAlong:popout-control', control);

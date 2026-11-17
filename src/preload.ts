@@ -116,6 +116,13 @@ contextBridge.exposeInMainWorld('electronEpub', {
     ipcRenderer.on('readAlong:sync-progress', listener);
     return () => { ipcRenderer.removeListener('readAlong:sync-progress', listener); };
   },
+  // Text size shared by the reading view and the pop-out.
+  setTextSize: (size: number): Promise<void> => ipcRenderer.invoke('readAlong:set-text-size', size),
+  onTextSizeChange: (callback: (size: number) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, size: number) => callback(size);
+    ipcRenderer.on('readAlong:text-size', listener);
+    return () => { ipcRenderer.removeListener('readAlong:text-size', listener); };
+  },
   // Pop-out reading window (see setupReadAlongPopoutHandlers in src/modules/ipc.ts).
   openPopout: (bookId: string): Promise<void> => ipcRenderer.invoke('readAlong:popout-open', bookId),
   closePopout: (): Promise<void> => ipcRenderer.invoke('readAlong:popout-close'),

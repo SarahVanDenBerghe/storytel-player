@@ -51,8 +51,7 @@ declare global {
   type ReadAlongPopoutControl =
     | { type: 'seek'; timeSec: number }
     | { type: 'toggle' }
-    /** Next playback speed, wrapping around (as the speed button in the main window). */
-    | { type: 'cycleSpeed' }
+    | { type: 'setSpeed'; rate: number }
     /** Negative seconds skip backward. */
     | { type: 'skip'; seconds: number };
 
@@ -106,6 +105,10 @@ declare global {
       setManualAnchor: (bookId: string, timeSec: number, paragraphIndex: number) => Promise<ReadAlongManualAnchor[]>;
       /** Returns an unsubscribe function. */
       onSyncProgress: (callback: (progress: ReadAlongSyncProgress) => void) => () => void;
+      /** Stores the read-along text size and sends it to every window. */
+      setTextSize: (size: number) => Promise<void>;
+      /** Returns an unsubscribe function. */
+      onTextSizeChange: (callback: (size: number) => void) => () => void;
       /** Opens the always-on-top pop-out reading window, or focuses it when open. */
       openPopout: (bookId: string) => Promise<void>;
       closePopout: () => Promise<void>;

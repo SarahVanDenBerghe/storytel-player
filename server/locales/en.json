@@ -337,6 +337,8 @@
     "chooseEpub": "Choose EPUB",
     "errorTitle": "This EPUB can't be read",
     "openPopout": "Open reading window",
-    "closePopout": "Close reading window"
+    "closePopout": "Close reading window",
+    "textSizeMenu": "Text size",
+    "textSizeOption": "{{size}} px"
   }
 }

@@ -94,7 +94,7 @@ export interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
-const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+export const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -643,10 +643,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => window.electronEpub?.onPopoutControl((control) => {
     if (control.type === 'seek') seek(control.timeSec);
     else if (control.type === 'toggle') togglePlayPause();
-    else if (control.type === 'cycleSpeed') cyclePlaybackRate();
+    else if (control.type === 'setSpeed') setRate(control.rate);
     else if (control.seconds >= 0) skipForward(control.seconds);
     else skipBackward(-control.seconds);
-  }), [seek, togglePlayPause, cyclePlaybackRate, skipForward, skipBackward]);
+  }), [seek, togglePlayPause, setRate, skipForward, skipBackward]);
 
   return (
     <AudioContext.Provider

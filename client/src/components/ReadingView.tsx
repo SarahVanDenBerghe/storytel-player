@@ -8,12 +8,12 @@ import {BookIndex, buildBookIndex, matchTranscript, SyncAnchor, timeAtParagraph,
 import storage from '../utils/storage';
 
 // Persisted reading text size (px), stored as a number.
-const TEXT_SIZE_KEY = 'readAlong.textSize';
-const DEFAULT_TEXT_SIZE = 17;
+export const TEXT_SIZE_KEY = 'readAlong.textSize';
+export const DEFAULT_TEXT_SIZE = 17;
 const MIN_TEXT_SIZE = 14;
 const MAX_TEXT_SIZE = 22;
 // The "Aa" button steps through these sizes and wraps around.
-const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
+export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
 const SERIF_STACK = "Charter, 'Iowan Old Style', Georgia, serif";
 // Keys that scroll a focused scroller: pressing one means the user took over.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
@@ -194,20 +194,22 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     }, [bookId, load]);
 
     useEffect(() => {
-        storage.get(TEXT_SIZE_KEY)
-            .then((value: unknown) => {
-                const size = Number(value);
-                if (Number.isFinite(size) && size > 0) {
-                    setTextSize(Math.min(Math.max(Math.round(size), MIN_TEXT_SIZE), MAX_TEXT_SIZE));
-                }
-            })
-            .catch(() => undefined);
+        const apply = (value: unknown) => {
+            const size = Number(value);
+            if (Number.isFinite(size) && size > 0) {
+                setTextSize(Math.min(Math.max(Math.round(size), MIN_TEXT_SIZE), MAX_TEXT_SIZE));
+            }
+        };
+        storage.get(TEXT_SIZE_KEY).then(apply).catch(() => undefined);
+        // A size picked in the other window (pop-out or reading view).
+        return window.electronEpub?.onTextSizeChange(apply);
     }, []);
 
     const cycleTextSize = () => {
         const next = TEXT_SIZE_STEPS.find((size) => size > textSize) ?? TEXT_SIZE_STEPS[0];
         setTextSize(next);
-        storage.set(TEXT_SIZE_KEY, next).catch(() => undefined);
+        // Electron: stored and sent to the other window (pop-out or reading view).
+        (window.electronEpub ? window.electronEpub.setTextSize(next) : storage.set(TEXT_SIZE_KEY, next)).catch(() => undefined);
     };
 
     const chooseEpub = async () => {

@@ -1,7 +1,9 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {MemoryRouter, Route, Routes} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
-import ReadingView, {ReadingAudio} from './ReadingView';
+import ReadingView, {DEFAULT_TEXT_SIZE, ReadingAudio, TEXT_SIZE_KEY, TEXT_SIZE_STEPS} from './ReadingView';
+import {PLAYBACK_RATES} from '../contexts/AudioContext';
+import storage from '../utils/storage';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 import SkipIcon from './SkipIcon';
 
@@ -14,6 +16,20 @@ const dragRegion = {WebkitAppRegion: 'drag'} as React.CSSProperties;
 const noDragRegion = {WebkitAppRegion: 'no-drag'} as React.CSSProperties;
 
 const control = (c: ReadAlongPopoutControl) => window.electronEpub?.popoutControl(c);
+
+// Speed and text-size menus: the same look as the player bar's speed and Chapters menus.
+const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[#D1D5DB] bg-white/[0.06] hover:bg-white/[0.10] hover:text-white transition-colors ${focusRing}`;
+const popoverClass = 'absolute top-full right-0 mt-1 w-32 max-h-[calc(100vh-44px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+const popoverHeader = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
+const popoverItem = (selected: boolean) =>
+    `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
+        selected ? 'bg-[#FF5100] text-[#0A0A0A]' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+    }`;
+const CheckIcon = () => (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+    </svg>
+);
 
 /**
  * Root of the read-along pop-out window (opened from the reading view, see
@@ -54,6 +70,36 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
 
     const bookId = playback?.bookId ?? initialBookId;
     const isPlaying = !!playback?.isPlaying;
+    const playbackRate = playback?.playbackRate ?? 1;
+
+    // Text size is shared with the main window's reading view (see setTextSize in src/preload.ts).
+    const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
+    useEffect(() => {
+        const apply = (value: unknown) => {
+            const size = Number(value);
+            if (Number.isFinite(size) && size > 0) setTextSize(size);
+        };
+        storage.get(TEXT_SIZE_KEY).then(apply).catch(() => undefined);
+        return window.electronEpub?.onTextSizeChange(apply);
+    }, []);
+
+    const [menu, setMenu] = useState<'speed' | 'textSize' | null>(null);
+    const menusRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!menu) return;
+        const closeOutside = (e: MouseEvent) => {
+            if (!menusRef.current?.contains(e.target as Node)) setMenu(null);
+        };
+        const closeOnEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMenu(null);
+        };
+        document.addEventListener('mousedown', closeOutside);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOutside);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [menu]);
 
     return (
         <div className="group relative h-screen w-screen flex flex-col overflow-hidden bg-[#0A0A0A] text-white select-none">
@@ -64,20 +110,92 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                 </Routes>
             </MemoryRouter>
 
-            <div style={dragRegion} className={`absolute inset-x-0 top-0 z-30 h-7 flex justify-end bg-gradient-to-b from-[#0A0A0A] to-transparent ${onHover}`}>
+            {/* Top strip: drag the window here. Close dot left (as on macOS), menus right. */}
+            <div
+                style={dragRegion}
+                className={`absolute inset-x-0 top-0 z-30 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu ? 'opacity-100' : onHover}`}
+            >
                 <button
                     type="button"
                     style={noDragRegion}
                     onClick={() => window.close()}
-                    aria-label={t('common.close')}
-                    title={t('common.close')}
-                    className={`m-1 w-6 h-6 flex items-center justify-center rounded-full text-[#9CA3AF] hover:text-white hover:bg-white/[0.08] transition-colors ${focusRing}`}
+                    aria-label={t('readAlong.closePopout')}
+                    title={t('readAlong.closePopout')}
+                    className={`group/close w-3 h-3 flex items-center justify-center rounded-full bg-[#FF5F57] border border-black/20 text-[#4D0000] ${focusRing}`}
                 >
-                    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         strokeWidth={2.5} strokeLinecap="round">
-                        <path d="M6 6l12 12M18 6L6 18"/>
+                    <svg aria-hidden="true" className="opacity-0 group-hover/close:opacity-100" width="6" height="6" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+                        <path d="M2 2l6 6M8 2L2 8"/>
                     </svg>
                 </button>
+
+                <div ref={menusRef} style={noDragRegion} className="flex items-center gap-1.5">
+                    {playback?.bookId && (
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setMenu(menu === 'speed' ? null : 'speed')}
+                                aria-label={t('player.speed')}
+                                aria-expanded={menu === 'speed'}
+                                title={t('player.speed')}
+                                className={menuBtn}
+                            >
+                                {playbackRate}×
+                            </button>
+                            {menu === 'speed' && (
+                                <div className={popoverClass}>
+                                    <div className={popoverHeader}>{t('player.speed')}</div>
+                                    {PLAYBACK_RATES.map((rate) => (
+                                        <button
+                                            key={rate}
+                                            type="button"
+                                            onClick={() => {
+                                                control({type: 'setSpeed', rate});
+                                                setMenu(null);
+                                            }}
+                                            className={popoverItem(playbackRate === rate)}
+                                        >
+                                            <span>{rate}×</span>
+                                            {playbackRate === rate && <CheckIcon/>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setMenu(menu === 'textSize' ? null : 'textSize')}
+                            aria-label={t('readAlong.textSize', {size: textSize})}
+                            aria-expanded={menu === 'textSize'}
+                            title={t('readAlong.textSize', {size: textSize})}
+                            className={`${menuBtn} font-normal text-[14px]`}
+                            style={{fontFamily: "Charter, 'Iowan Old Style', Georgia, serif"}}
+                        >
+                            Aa
+                        </button>
+                        {menu === 'textSize' && (
+                            <div className={popoverClass}>
+                                <div className={popoverHeader}>{t('readAlong.textSizeMenu')}</div>
+                                {TEXT_SIZE_STEPS.map((size) => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => {
+                                            setTextSize(size);
+                                            window.electronEpub?.setTextSize(size).catch(() => undefined);
+                                            setMenu(null);
+                                        }}
+                                        className={popoverItem(textSize === size)}
+                                    >
+                                        <span>{t('readAlong.textSizeOption', {size})}</span>
+                                        {textSize === size && <CheckIcon/>}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {playback?.bookId && (
@@ -112,15 +230,6 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         className={controlBtn}
                     >
                         <SkipIcon direction="forward" size={16}/>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => control({type: 'cycleSpeed'})}
-                        aria-label={t('player.speed')}
-                        title={t('player.speed')}
-                        className={`${controlBtn} tabular-nums`}
-                    >
-                        {playback.playbackRate}×
                     </button>
                 </div>
             )}
