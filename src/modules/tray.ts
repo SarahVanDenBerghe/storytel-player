@@ -34,7 +34,7 @@ export class TrayManager {
         this.tray = new Tray(trayIcon);
 
         this.updateMenu();
-        this.tray.setToolTip('Storytel Player');
+        this.tray.setToolTip('Storytel Companion');
 
         this.tray.on('double-click', () => {
             if (this.windowManager.isVisible()) {

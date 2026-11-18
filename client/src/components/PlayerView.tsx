@@ -186,7 +186,7 @@ function PlayerView() {
         void loadBookData();
 
         return () => {
-            document.title = 'Storytel Player';
+            document.title = 'Storytel Companion';
         };
     }, [activeConsumableId, book]);
 

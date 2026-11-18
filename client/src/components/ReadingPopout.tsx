@@ -260,7 +260,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         className={`${menuBtn} w-7 px-0`}
                     >
                         {/* Shows the theme a click switches to. */}
-                        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                             {light
                                 ? <path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>
