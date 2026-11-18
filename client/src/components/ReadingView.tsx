@@ -6,6 +6,7 @@ import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContex
 import {EpubParagraph, parseEpub} from '../utils/epub';
 import {cleanBookTitle} from '../utils/helpers';
 import {Chapter} from '../interfaces/chapters';
+import {bookChapterList} from '../utils/bookChapters';
 import {BookIndex, buildBookIndex, matchTranscript, ReadingPlace, readingPlace, SyncAnchor, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} from '../utils/readAlongAudio';
@@ -444,27 +445,11 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     // The EPUB's chapters, placed on the audio by the sync, replace the audiobook's in the
     // player's Chapters menu and footer while this view is open (main window, synced book).
     // Headings outside the synced audio (another part of a split book) are left out; audio
-    // before the first one belongs to the heading before it.
+    // before the first one belongs to the numbered chapter before it (see bookChapterList).
     const audioDuration = audio.duration;
     const bookChapters = useMemo<Chapter[] | null>(() => {
         if (isPopout || !isThisBook || !paragraphs || !bookIndex || anchors.length < 2 || syncData?.progress?.state !== 'done') return null;
-        const found: {title: string; start: number}[] = [];
-        let before: string | null = null;
-        paragraphs.forEach((p, i) => {
-            if (!p.heading) return;
-            const start = timeAtParagraph(bookIndex, anchors, i);
-            if (start === null) {
-                if (found.length === 0) before = p.text;
-            } else if (start < audioDuration && (found.length === 0 || start > found[found.length - 1].start)) {
-                found.push({title: p.text, start});
-            }
-        });
-        if (found.length === 0) return null;
-        if (found[0].start > 1 && before) found.unshift({title: before, start: 0});
-        return found.map((c, i) => {
-            const end = found[i + 1]?.start ?? audioDuration;
-            return {number: i + 1, title: c.title, start: c.start, end, durationInSeconds: end - c.start};
-        });
+        return bookChapterList(paragraphs, (i) => timeAtParagraph(bookIndex, anchors, i), audioDuration);
     }, [isPopout, isThisBook, paragraphs, bookIndex, anchors, audioDuration, syncData?.progress?.state]);
     const setBookChapters = sharedAudio?.setBookChapters;
     useEffect(() => {
