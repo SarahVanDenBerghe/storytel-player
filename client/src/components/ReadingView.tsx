@@ -32,7 +32,7 @@ const TEXT_WIDTHS = [
 ];
 // Focus mode: while the audio plays, the header, player bar and cursor fade out after
 // this long without mouse or keyboard input (see [data-reading-idle] in index.css).
-const FOCUS_IDLE_MS = 5_000;
+const FOCUS_IDLE_MS = 3_000;
 // Keys that scroll a focused scroller: pressing one means the user took over.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 // Follow mode keeps the spoken word on this line, as a fraction of the scroller's height from its top.
@@ -722,7 +722,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             {!isPopout && <Navbar
                 barTitle={t('readAlong.open')}
                 onBackClick={() => navigate('/')}
-                className="max-[1100px]:static max-[1100px]:flex-shrink-0 transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:-translate-y-1.5"
+                className="max-[1100px]:static max-[1100px]:flex-shrink-0 transition-[opacity,transform] duration-200 ease-out [html[data-reading-idle]_&]:duration-500 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:-translate-y-1.5"
             >
                 {view === 'ready' && (
                     <>
