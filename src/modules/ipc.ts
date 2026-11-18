@@ -396,7 +396,7 @@ export class IpcManager {
     // Read-along text size (px), shared by the reading view and the pop-out:
     // stored, then sent to every window so both follow a change made in either.
     ipcMain.handle('readAlong:set-text-size', (_event: IpcMainInvokeEvent, size: unknown) => {
-      if (typeof size !== 'number' || !Number.isFinite(size) || size < 8 || size > 40) throw new Error('Invalid text size');
+      if (typeof size !== 'number' || !Number.isFinite(size) || size < 8 || size > 64) throw new Error('Invalid text size');
       storeManager.set('readAlong.textSize', size);
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send('readAlong:text-size', size);

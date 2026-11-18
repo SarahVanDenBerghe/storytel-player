@@ -16,9 +16,9 @@ import apiClient from '../utils/api';
 export const TEXT_SIZE_KEY = 'readAlong.textSize';
 export const DEFAULT_TEXT_SIZE = 17;
 const MIN_TEXT_SIZE = 14;
-const MAX_TEXT_SIZE = 32;
+const MAX_TEXT_SIZE = 48;
 // The "Aa" button steps through these sizes and wraps around.
-export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22, 24, 28, 32];
+export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 44, 48];
 // The pop-out is small: it shows the shared size up to this one.
 export const POPOUT_MAX_TEXT_SIZE = 22;
 // Width of the text column (px), main window only; the "Aa" menu also picks these.
@@ -270,8 +270,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         storage.set(TEXT_WIDTH_KEY, next).catch(() => undefined);
     };
 
-    // Focus mode (main window): see FOCUS_IDLE_MS. Hovering the header or player bar
-    // shows it again (their hover:opacity-100), and any input wakes everything.
+    // Focus mode (main window): see FOCUS_IDLE_MS. Only input wakes it: a mouse resting
+    // on the header or player bar does not keep them up.
     const playing = audio.isPlaying;
     useEffect(() => {
         if (isPopout || !playing) return;
@@ -719,7 +719,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             {!isPopout && <Navbar
                 barTitle={t('readAlong.open')}
                 onBackClick={() => navigate('/')}
-                className="max-[1100px]:static max-[1100px]:flex-shrink-0 transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:-translate-y-1.5 [html[data-reading-idle]_&:hover]:opacity-100 [html[data-reading-idle]_&:hover]:translate-y-0"
+                className="max-[1100px]:static max-[1100px]:flex-shrink-0 transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:-translate-y-1.5"
             >
                 {view === 'ready' && (
                     <>

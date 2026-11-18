@@ -65,7 +65,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
     // Overlays the page (see AuthenticatedLayout), so the library scrolls behind its glass.
     // Fades out in the reading view's focus mode ([data-reading-idle], see ReadingView):
     // slowly out, quickly back in.
-    <div className="absolute bottom-0 inset-x-0 h-[76px] px-5 gap-5 flex items-center z-40 select-none transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:translate-y-1.5 [html[data-reading-idle]_&:hover]:opacity-100 [html[data-reading-idle]_&:hover]:translate-y-0">
+    <div className="absolute bottom-0 inset-x-0 h-[76px] px-5 gap-5 flex items-center z-40 select-none transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:translate-y-1.5">
       {/* The glass, bump included, and the top line sit on their own layers: on the
           bar itself the glass would stop the bar's menus (speed, volume…) from
           blurring what is behind them. Shapes: .player-bar-glass in index.css. */}
