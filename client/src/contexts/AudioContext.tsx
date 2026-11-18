@@ -18,11 +18,15 @@ import i18n from '../i18n';
 import { usePlaybackRate } from '../hooks/usePlaybackRate';
 import { buildCoverUrl } from '../utils/helpers';
 import { SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS } from '../config/player';
+import SpeakerPromptModal from '../components/SpeakerPromptModal';
 
 interface LocalPosition {
   position: number;
   updatedAt: string;
 }
+
+// Until when (ms timestamp) playing on speaker needs no confirmation.
+const SPEAKER_SNOOZE_KEY = 'speaker_prompt_snoozed_until';
 
 const positionStorageKey = (consumableId: string) => `pos:${consumableId}`;
 
@@ -88,6 +92,12 @@ export interface AudioContextType {
   sleepTimerRemaining: number | null;
   sleepTimerMode: number | 'chapter' | null;
   setSleepTimer: (option: number | 'chapter' | null) => void;
+  /** The current sound output, for the volume button; null when unknown. */
+  audioOutput: AudioOutput | null;
+  /** Until when (ms timestamp) playing on speaker asks nothing; 0 when not snoozed. */
+  speakerSnoozedUntil: number;
+  /** Ask again before playing on speaker; pauses a book playing out loud. */
+  clearSpeakerSnooze: () => void;
   error: string | null;
   setError: (err: string | null) => void;
 }
@@ -328,6 +338,100 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const shouldAutoPlayRef = useRef<boolean>(true);
 
+  // Speaker guard: playing out loud needs a yes, unless snoozed, already
+  // confirmed for this output (until it changes or the app restarts), or muted.
+  const [audioOutput, setAudioOutput] = useState<AudioOutput | null>(null);
+  const [speakerPrompt, setSpeakerPrompt] = useState<{ device: string | null } | null>(null);
+  const outputRef = useRef<AudioOutput | null>(null);
+  const confirmedOutputRef = useRef<string | null>(null);
+  const snoozedUntilRef = useRef(0);
+  const [speakerSnoozedUntil, setSpeakerSnoozedUntil] = useState(0);
+  // Set right before a play() that passed the guard; onPlay stops any other.
+  const playApprovedRef = useRef(false);
+  // The pause onPlay makes for an unapproved play, so onPause can ignore it.
+  const guardPauseRef = useRef(false);
+
+  const refreshOutput = useCallback(async () => {
+    const output = (await window.electronAudio?.getOutput().catch(() => null)) ?? null;
+    outputRef.current = output;
+    setAudioOutput(output);
+    return output;
+  }, []);
+
+  const mayPlayOutLoud = (output: AudioOutput | null) => {
+    const audio = audioRef.current;
+    return output?.kind === 'headphones'
+      || Date.now() < snoozedUntilRef.current
+      || (output !== null && confirmedOutputRef.current === output.name)
+      || (audio !== null && (audio.muted || audio.volume === 0));
+  };
+
+  const playApproved = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    playApprovedRef.current = true;
+    audio.play().catch((err) => {
+      playApprovedRef.current = false;
+      console.error(err);
+    });
+  };
+
+  // Every play goes through here; stable, so loadBook can use it.
+  const requestPlay = useCallback(async () => {
+    const output = await refreshOutput();
+    if (mayPlayOutLoud(output)) playApproved();
+    else setSpeakerPrompt({ device: output?.name ?? null });
+  }, [refreshOutput]);
+
+  const setSnooze = (until: number) => {
+    snoozedUntilRef.current = until;
+    setSpeakerSnoozedUntil(until);
+    storage.set(SPEAKER_SNOOZE_KEY, String(until)).catch(() => {});
+  };
+
+  const clearSpeakerSnooze = useCallback(() => {
+    setSnooze(0);
+    confirmedOutputRef.current = null;
+    const audio = audioRef.current;
+    if (audio && !audio.paused && outputRef.current?.kind !== 'headphones') audio.pause();
+  }, []);
+
+  const confirmSpeaker = (snoozeHours: number | null) => {
+    if (snoozeHours) {
+      setSnooze(Date.now() + snoozeHours * 3600_000);
+    } else {
+      confirmedOutputRef.current = outputRef.current?.name ?? null;
+    }
+    setSpeakerPrompt(null);
+    playApproved();
+  };
+
+  useEffect(() => {
+    storage.get(SPEAKER_SNOOZE_KEY)
+      .then((raw) => {
+        snoozedUntilRef.current = Number(raw) || 0;
+        setSpeakerSnoozedUntil(snoozedUntilRef.current);
+      })
+      .catch(() => {});
+  }, []);
+
+  // A headset connecting or dropping, or any other output switch: pause, so
+  // the book never jumps to the speakers (or away from them) unnoticed.
+  useEffect(() => {
+    const devices = navigator.mediaDevices;
+    if (!devices) return;
+    refreshOutput();
+    const onDeviceChange = async () => {
+      const before = outputRef.current;
+      const after = await refreshOutput();
+      if (before?.name === after?.name && before?.kind === after?.kind) return;
+      confirmedOutputRef.current = null;
+      if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+    };
+    devices.addEventListener('devicechange', onDeviceChange);
+    return () => devices.removeEventListener('devicechange', onDeviceChange);
+  }, [refreshOutput]);
+
   // Main book loader
   const loadBook = useCallback(
     async (book: BookShelfEntity | null, bookId: string, autoPlay: boolean = true) => {
@@ -344,7 +448,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       if (activeBookIdRef.current === bookId && audioSrcRef.current) {
         if (validBook) setActiveBook(validBook);
         if (autoPlay && audioRef.current && !isPlayingRef.current) {
-          audioRef.current.play().catch(console.error);
+          requestPlay();
         }
         return;
       }
@@ -414,7 +518,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     },
-    [loadChapters]
+    [loadChapters, requestPlay]
   );
 
   // Restore previous session on launch
@@ -459,10 +563,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      const audio = audioRef.current;
-      catchUpWithOtherDevices().finally(() => audio.play().catch(console.error));
+      catchUpWithOtherDevices().finally(requestPlay);
     }
-  }, [isPlaying, audioSrc, activeBookId, activeBook, loadBook, catchUpWithOtherDevices]);
+  }, [isPlaying, audioSrc, activeBookId, activeBook, loadBook, catchUpWithOtherDevices, requestPlay]);
 
   const seek = useCallback((seekTime: number) => {
     if (!audioRef.current) return;
@@ -543,6 +646,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   // Audio element listeners
   const onPlay = () => {
+    // Backstop for a play that skipped requestPlay (e.g. an OS control).
+    if (!playApprovedRef.current && !mayPlayOutLoud(outputRef.current)) {
+      guardPauseRef.current = true;
+      audioRef.current?.pause();
+      setSpeakerPrompt({ device: outputRef.current?.name ?? null });
+      return;
+    }
+    playApprovedRef.current = false;
     setIsPlaying(true);
     if (positionUpdateIntervalRef.current) clearInterval(positionUpdateIntervalRef.current);
     positionUpdateIntervalRef.current = setInterval(updatePosition, 15000);
@@ -553,6 +664,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   };
 
   const onPause = () => {
+    if (guardPauseRef.current) {
+      guardPauseRef.current = false;
+      return;
+    }
     setIsPlaying(false);
     updatePosition();
     if (positionUpdateIntervalRef.current) {
@@ -593,7 +708,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       await applyPlaybackRate();
       if (shouldAutoPlayRef.current && audioRef.current) {
-        audioRef.current.play().catch(console.error);
+        requestPlay();
       }
     }
   };
@@ -620,6 +735,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     const back = () => skipBackward(SKIP_BACKWARD_SECONDS);
     const forward = () => skipForward(SKIP_FORWARD_SECONDS);
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+      // Play goes through the speaker guard; without it Chromium plays directly.
+      ['play', () => { requestPlay(); }],
+      ['pause', () => audioRef.current?.pause()],
       ['previoustrack', back],
       ['seekbackward', back],
       ['nexttrack', forward],
@@ -630,7 +748,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     return () => {
       handlers.forEach(([action]) => navigator.mediaSession.setActionHandler(action, null));
     };
-  }, [skipBackward, skipForward]);
+  }, [skipBackward, skipForward, requestPlay]);
 
   // Title, author and cover shown in the OS "Now Playing" widget.
   useEffect(() => {
@@ -712,6 +830,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         sleepTimerRemaining,
         sleepTimerMode,
         setSleepTimer,
+        audioOutput,
+        speakerSnoozedUntil,
+        clearSpeakerSnooze,
         error,
         setError,
       }}
@@ -731,6 +852,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }}
       />
       {children}
+      <SpeakerPromptModal
+        isOpen={speakerPrompt !== null}
+        device={speakerPrompt?.device ?? null}
+        onPlay={confirmSpeaker}
+        onCancel={() => setSpeakerPrompt(null)}
+      />
     </AudioContext.Provider>
   );
 }

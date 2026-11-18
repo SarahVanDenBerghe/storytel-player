@@ -555,7 +555,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     tabIndex={0}
                     role="region"
                     aria-label={t('readAlong.bookText')}
-                    className={`relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none ${isPopout ? '[scrollbar-width:none]' : 'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]'}`}
+                    className={`relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-[calc(3rem+var(--player-bar-h,0px))] focus:outline-none ${isPopout ? '[scrollbar-width:none]' : 'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]'}`}
                     style={following && currentIndex >= 0 ? {maskImage: FOLLOW_FADE} : undefined}
                     {...scrollerHandlers}
                 >
@@ -687,7 +687,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             {body}
 
             {((!following && currentIndex >= 0) || undoJump) && (
-                <div className={`absolute ${isPopout ? 'right-3 bottom-3' : 'right-6 bottom-4'} z-20 flex items-center gap-2`}>
+                <div className={`absolute ${isPopout ? 'right-3 bottom-3' : 'right-6 bottom-[calc(1rem+var(--player-bar-h,0px))]'} z-20 flex items-center gap-2`}>
                     {undoJump && (
                         <button
                             type="button"

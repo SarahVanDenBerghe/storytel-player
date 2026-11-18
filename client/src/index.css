@@ -65,6 +65,50 @@
   --ra-shadow: rgba(90, 70, 40, 0.12);
 }
 
+/* Glass, shared by every translucent surface: the small menus (speed, volume,
+   chapters, text size, EPUB), dialogs and the reading window's controls.
+   `.glass-menu` adds the menu frame. In the app: a denser frost. The reading
+   window (.popout-glass on its themed root) uses its controls' lighter look for
+   all of it. Follows the Read along theme where it applies. */
+.glass,
+.glass-menu {
+  background: var(--glass-bg, color-mix(in srgb, var(--ra-surface) 72%, transparent));
+  -webkit-backdrop-filter: var(--glass-blur, blur(16px) saturate(150%));
+  backdrop-filter: var(--glass-blur, blur(16px) saturate(150%));
+  border: 1px solid var(--glass-border, var(--ra-line));
+}
+.glass-menu {
+  border-radius: 14px;
+  box-shadow: var(--glass-menu-shadow, 0 24px 60px rgba(0, 0, 0, 0.6));
+}
+/* On the element that carries .ra-light: a var() inside a custom property
+   resolves where it is declared, so one level up it would keep the dark theme. */
+.popout-glass {
+  --glass-bg: var(--ra-pill);
+  --glass-blur: blur(5px) saturate(150%);
+  --glass-border: var(--ra-glass-line);
+  --glass-menu-shadow: 0 8px 24px var(--ra-shadow);
+}
+
+/* The footer's glass: the bar plus the bump behind the play button (the same
+   curve PlayerBar draws its line along), centred like the bar's middle column.
+   The layer starts 23px above the bar, the bump's height. */
+.player-bar-glass {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='23'%3E%3Cpath d='M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5V23H0Z'/%3E%3C/svg%3E"), linear-gradient(#000, #000);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='23'%3E%3Cpath d='M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5V23H0Z'/%3E%3C/svg%3E"), linear-gradient(#000, #000);
+  -webkit-mask-size: 260px 23px, 100% calc(100% - 23px);
+  mask-size: 260px 23px, 100% calc(100% - 23px);
+  -webkit-mask-position: center top, bottom;
+  mask-position: center top, bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+/* The bar's top line, with a gap where the bump's curve takes over. */
+.player-bar-line {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(50% - 130px), transparent calc(50% - 130px), transparent calc(50% + 130px), #000 calc(50% + 130px));
+  mask-image: linear-gradient(to right, #000 calc(50% - 130px), transparent calc(50% - 130px), transparent calc(50% + 130px), #000 calc(50% + 130px));
+}
+
 /* Playing: a soft light sweeps along the orange progress fill, at the same speed
    whatever the fill's width (a fixed-size repeating tile). Paused: plain orange. */
 .progress-live {

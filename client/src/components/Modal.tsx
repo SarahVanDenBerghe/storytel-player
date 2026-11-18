@@ -47,7 +47,7 @@ const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
-        className={`animate-pop-in bg-[#17171A] text-white rounded-[14px] w-full ${maxWidth} border border-white/10 max-h-[90vh] flex flex-col shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden`}
+        className={`animate-pop-in glass text-white rounded-[14px] w-full ${maxWidth} border border-white/10 max-h-[90vh] flex flex-col shadow-[0_24px_60px_rgba(0,0,0,0.7)] overflow-hidden`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

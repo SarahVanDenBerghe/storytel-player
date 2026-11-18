@@ -9,13 +9,14 @@ import {useBookmarks} from '../hooks/useBookmarks';
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const pillIdle = 'bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white';
 const pillActive = 'bg-[#FF5100]/[0.15] text-[#FF7A3D]';
+// Playing out loud: orange button, white icon.
+const pillSpeaker = 'bg-[#FF5100] hover:bg-[#FF6A26] text-white';
 const iconBtn = `w-9 h-9 flex-shrink-0 rounded-[10px] flex items-center justify-center transition-colors ${focusRing}`;
-const popoverBase = 'absolute right-0 animate-pop-in origin-bottom-right bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+const popoverBase = 'absolute right-0 animate-pop-in origin-bottom-right glass-menu p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
         selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
     }`;
-const header = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
 
 type Menu = 'speed' | 'chapters' | 'volume' | null;
 
@@ -29,12 +30,13 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
     popoverOffset?: string;
     showModeToggle?: boolean;
 }) {
-    const {t} = useTranslation();
+    const {t, i18n} = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const {
         activeBookId, activeConsumableId, playbackRate, setRate, volume, isMuted, setVolume, toggleMute,
         chapters, currentChapter, jumpToChapter, audioRef, currentTime,
+        audioOutput, speakerSnoozedUntil, clearSpeakerSnooze,
     } = useAudioContext();
     // Loaded when the list is opened; failures fall back to an empty list (useBookmarks).
     const bookmarks = useBookmarks({consumableId: activeConsumableId ?? activeBookId ?? '', onError: () => undefined});
@@ -60,7 +62,10 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
     const toggle = (next: Menu) => setMenu(menu === next ? null : next);
     const isSilent = isMuted || volume === 0;
     const isReading = location.pathname.startsWith('/read/');
-    const isListening = location.pathname.startsWith('/player/');
+    const onSpeaker = audioOutput?.kind === 'speaker';
+    const onHeadphones = audioOutput?.kind === 'headphones';
+    const snoozed = speakerSnoozedUntil > Date.now();
+    const volumeTitle = audioOutput ? `${t('player.volume', 'Volume')} · ${audioOutput.name}` : t('player.volume', 'Volume');
 
     return (
         <div ref={rootRef} className="flex items-center justify-end gap-2 min-w-0">
@@ -79,7 +84,6 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                 </button>
                 {menu === 'speed' && (
                     <div className={`${popoverBase} ${popoverOffset} w-36`}>
-                        <div className={header}>{t('player.speed', 'Speed')}</div>
                         {PLAYBACK_RATES.map((rate) => (
                             <button
                                 key={rate}
@@ -150,20 +154,30 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                 <button
                     type="button"
                     onClick={() => toggle('volume')}
-                    aria-label={t('player.volume', 'Volume')}
+                    aria-label={volumeTitle}
                     aria-expanded={menu === 'volume'}
-                    title={t('player.volume', 'Volume')}
-                    className={`${iconBtn} ${isSilent ? pillActive : pillIdle}`}
+                    title={volumeTitle}
+                    className={`${iconBtn} ${isSilent ? pillActive : onSpeaker ? pillSpeaker : pillIdle}`}
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-                        {isSilent
-                            ? <path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
-                            : <path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728"/>}
+                        {!isSilent && onHeadphones ? (
+                            <>
+                                <path d="M3 18v-6a9 9 0 0118 0v6"/>
+                                <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>
+                            </>
+                        ) : (
+                            <>
+                                <path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                                {isSilent
+                                    ? <path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+                                    : <path d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728"/>}
+                            </>
+                        )}
                     </svg>
                 </button>
                 {menu === 'volume' && (
-                    <div className={`${popoverBase} ${popoverOffset} w-52 !flex-row items-center gap-2 px-2 py-2`}>
+                    <div className={`${popoverBase} ${popoverOffset} w-60 gap-2 px-2 py-2`}>
+                    <div className="flex items-center gap-2">
                         <button
                             type="button"
                             onClick={toggleMute}
@@ -187,47 +201,45 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                             className={`flex-1 h-1 bg-white/[0.12] rounded-full appearance-none cursor-pointer accent-[#FF5100] ${focusRing}`}
                         />
                     </div>
+                    {audioOutput && (
+                        <div className="px-1 pt-2 border-t border-white/[0.08] text-[11px] text-[#9CA3AF] flex flex-col gap-1.5">
+                            <span className={`truncate ${onSpeaker ? 'text-[#FF7A3D]' : ''}`}>{audioOutput.name}</span>
+                            {snoozed && (
+                                <div className="flex items-center gap-2">
+                                    <span className="flex-1 min-w-0 truncate">
+                                        {t('speaker.snoozedUntil', {
+                                            time: new Date(speakerSnoozedUntil).toLocaleTimeString(i18n.language, {hour: '2-digit', minute: '2-digit'}),
+                                        })}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={clearSpeakerSnooze}
+                                        className={`h-6 px-2 rounded-[6px] text-[11px] font-semibold flex-shrink-0 transition-colors ${focusRing} ${pillIdle}`}
+                                    >
+                                        {t('speaker.askAgain')}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    </div>
                 )}
             </div>
 
-            {/* Mode: listen (full player) or read along, two views of the same book. */}
+            {/* Read along on/off: the reading view or back to the full player. */}
             {showModeToggle && activeBookId && (
-                <div role="group" aria-label={t('player.mode')} className="relative flex flex-shrink-0 gap-1 p-1 rounded-[10px] bg-white/[0.06]">
-                    {/* Inset highlight that slides to the active mode (hidden on other pages). */}
-                    <span
-                        aria-hidden="true"
-                        className={`absolute top-1 left-1 w-7 h-7 rounded-[7px] bg-white/[0.12] transition-[transform,opacity] duration-200 ease-out ${
-                            isReading ? 'translate-x-8' : 'translate-x-0'
-                        } ${isListening || isReading ? 'opacity-100' : 'opacity-0'}`}
-                    />
-                    {([
-                        {route: 'player', active: isListening, label: t('player.listenMode'), icon: (
-                            <>
-                                <path d="M3 18v-6a9 9 0 0118 0v6"/>
-                                <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>
-                            </>
-                        )},
-                        {route: 'read', active: isReading, label: t('readAlong.open'), icon: (
-                            <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
-                        )},
-                    ] as const).map(({route, active, label, icon}) => (
-                        <button
-                            key={route}
-                            type="button"
-                            onClick={() => !active && navigate(`/${route}/${activeBookId}`)}
-                            aria-label={label}
-                            aria-pressed={active}
-                            title={label}
-                            className={`relative w-7 h-7 rounded-[7px] flex items-center justify-center transition-colors duration-200 ${focusRing} ${
-                                active ? 'text-white' : 'text-[#9CA3AF] hover:text-white'
-                            }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                {icon}
-                            </svg>
-                        </button>
-                    ))}
-                </div>
+                <button
+                    type="button"
+                    onClick={() => navigate(`/${isReading ? 'player' : 'read'}/${activeBookId}`)}
+                    aria-label={t('readAlong.open')}
+                    aria-pressed={isReading}
+                    title={t('readAlong.open')}
+                    className={`${iconBtn} ${isReading ? 'bg-white/[0.14] text-white' : pillIdle}`}
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M2 5h7a3 3 0 013 3v12a2 2 0 00-2-2H2zM22 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>
+                    </svg>
+                </button>
             )}
 
             <BookmarkModals

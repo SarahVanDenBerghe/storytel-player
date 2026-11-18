@@ -376,5 +376,16 @@
     "textSizeOption": "{{size}} px",
     "preparing": "Preparing audio…",
     "preparingDetail": "Downloading the audio to sync the text: {{percent}}%"
+  },
+  "speaker": {
+    "title": "Play on speaker?",
+    "body": "Your book will play out loud through {{device}}.",
+    "bodyUnknown": "No headphones found, so your book will play out loud.",
+    "snooze": "Don't ask for",
+    "hours": "{{count}} h",
+    "cancel": "Cancel",
+    "play": "Play",
+    "snoozedUntil": "Not asking until {{time}}",
+    "askAgain": "Ask again"
   }
 }

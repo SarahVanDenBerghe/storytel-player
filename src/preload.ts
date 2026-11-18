@@ -110,6 +110,12 @@ contextBridge.exposeInMainWorld('electronDownloads', {
   ensureFolder: (): Promise<string | null> => ipcRenderer.invoke('downloads:ensure-folder'),
 });
 
+// Sound output API (see setupAudioOutputHandlers in src/modules/ipc.ts).
+contextBridge.exposeInMainWorld('electronAudio', {
+  getOutput: (): Promise<{ name: string; kind: 'headphones' | 'speaker' } | null> =>
+    ipcRenderer.invoke('audio:output'),
+});
+
 // Read along API: the EPUB stored per audiobook, read in the main process.
 contextBridge.exposeInMainWorld('electronEpub', {
   choose: (bookId: string): Promise<{ name: string } | null> =>

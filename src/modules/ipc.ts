@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { readZipTextEntries } from './epubZip';
@@ -47,6 +48,38 @@ export class IpcManager {
     this.setupReadAlongSyncHandlers();
     this.setupReadAlongPopoutHandlers();
     this.setupDownloadFolderHandlers();
+    this.setupAudioOutputHandlers();
+  }
+
+  // The Mac's current sound output and whether it plays out loud, so the player
+  // can ask before playing on speaker. macOS only (system_profiler, ~0.2 s);
+  // resolves null when unknown, which the player treats as a speaker.
+  private setupAudioOutputHandlers(): void {
+    let lastLogged = '';
+    ipcMain.handle('audio:output', () => new Promise((resolve) => {
+      execFile('system_profiler', ['SPAudioDataType', '-json'], { timeout: 5000 }, (err, stdout) => {
+        if (err) return resolve(null);
+        try {
+          const devices = (JSON.parse(stdout).SPAudioDataType ?? []).flatMap((group: any) => group._items ?? []);
+          const device = devices.find((d: any) => d.coreaudio_default_audio_output_device === 'spaudio_yes');
+          if (!device?._name) return resolve(null);
+          const entry = JSON.stringify(device);
+          if (entry !== lastLogged) {
+            lastLogged = entry;
+            console.log('[audio-output]', entry);
+          }
+          const transport = String(device.coreaudio_device_transport ?? '');
+          // Bluetooth and USB are headsets; the built-in output is headphones only
+          // when something is in the jack (named "External Headphones" on Apple
+          // silicon, an output source of headphones on older Macs), else the speakers.
+          const headphones = /bluetooth|usb/.test(transport)
+            || (/builtin/.test(transport) && /headphone/i.test(`${device._name} ${device.coreaudio_output_source ?? ''}`));
+          resolve({ name: device._name, kind: headphones ? 'headphones' : 'speaker' });
+        } catch {
+          resolve(null);
+        }
+      });
+    }));
   }
 
   // The folder downloaded audiobooks go to: fixed (~/Music/<app name>, set as

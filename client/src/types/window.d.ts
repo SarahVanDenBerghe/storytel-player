@@ -2,6 +2,12 @@
 export {};
 
 declare global {
+  /** The current sound output (see setupAudioOutputHandlers in src/modules/ipc.ts). */
+  interface AudioOutput {
+    name: string;
+    kind: 'headphones' | 'speaker';
+  }
+
   /** Mirrors `LanguageState` in the Electron main process (src/i18n/index.ts). */
   interface AppLanguageState {
     /** 'auto', or an explicit language code the user picked. */
@@ -75,6 +81,10 @@ declare global {
       getLocale: () => Promise<string>;
       getState: () => Promise<AppLanguageState>;
       setLocale: (locale: string) => Promise<AppLanguageState>;
+    };
+    electronAudio?: {
+      /** The Mac's current sound output; null when unknown. */
+      getOutput: () => Promise<AudioOutput | null>;
     };
     electronLogs?: {
       openLogsFolder: () => Promise<void>;

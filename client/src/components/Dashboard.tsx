@@ -248,7 +248,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
         </button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-[84px] pb-12">{body}</div>
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-[84px] pb-[calc(3rem+var(--player-bar-h,0px))]">{body}</div>
     </div>
   );
 }

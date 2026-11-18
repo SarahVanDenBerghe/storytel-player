@@ -21,8 +21,8 @@ const POPOUT_THEME_KEY = 'readAlong.popoutTheme';
 const control = (c: ReadAlongPopoutControl) => window.electronEpub?.popoutControl(c);
 
 // Speed and text-size menus: the same look as the player bar's speed and Chapters menus.
-const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[var(--ra-text)] bg-[var(--ra-pill)] backdrop-blur-[5px] backdrop-saturate-150 border border-[var(--ra-glass-line)] hover:text-[var(--ra-strong)] transition-colors ${focusRing}`;
-const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-44px-var(--ra-vh-trim,0px))] overflow-y-auto bg-[var(--ra-surface)] border border-[var(--ra-line)] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
+const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[var(--ra-text)] glass hover:text-[var(--ra-strong)] transition-colors ${focusRing}`;
+const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-44px-var(--ra-vh-trim,0px))] overflow-y-auto glass-menu p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
         selected ? 'bg-[#FF5100] text-white' : 'text-[var(--ra-text)] hover:bg-[var(--ra-fill)] hover:text-[var(--ra-strong)]'
@@ -150,7 +150,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
     return (
         // --ra-vh-trim: the menus size themselves to the window height (100vh), which includes the padding.
         <div className="h-screen w-screen" style={{padding: WINDOW_INSET, '--ra-vh-trim': `${2 * WINDOW_INSET}px`} as React.CSSProperties}>
-        <div className={`group relative h-full w-full flex flex-col overflow-hidden rounded-[10px] border border-[var(--ra-line)] shadow-[0_6px_22px_rgba(0,0,0,0.16)] bg-[var(--ra-bg)] text-[var(--ra-strong)] select-none ${light ? 'ra-light' : ''}`}>
+        <div className={`group relative h-full w-full flex flex-col overflow-hidden rounded-[10px] border border-[var(--ra-line)] shadow-[0_6px_22px_rgba(0,0,0,0.16)] bg-[var(--ra-bg)] text-[var(--ra-strong)] select-none popout-glass ${light ? 'ra-light' : ''}`}>
             {RESIZE_HANDLES.map(({edge, className}) => (
                 <div key={edge} aria-hidden="true" onPointerDown={(e) => startWindowResize(edge, e)} className={`absolute z-50 ${className}`}/>
             ))}
@@ -255,7 +255,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             </div>
 
             {playback?.bookId && (
-                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[var(--ra-pill)] backdrop-blur-[5px] backdrop-saturate-150 border border-[var(--ra-glass-line)] shadow-[0_8px_24px_var(--ra-shadow)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
+                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full glass shadow-[0_8px_24px_var(--ra-shadow)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
                     <button
                         type="button"
                         onClick={() => control({type: 'skip', seconds: -SKIP_BACKWARD_SECONDS})}

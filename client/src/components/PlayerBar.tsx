@@ -62,9 +62,13 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
   const skipClass = `h-8 w-9 flex items-center justify-center rounded-[8px] bg-transparent text-[#D1D5DB] hover:text-[#FF5100] transition-colors ${focusRing}`;
 
   return (
-    <div className={`h-[76px] px-5 gap-5 border-t flex items-center z-40 select-none flex-shrink-0 relative transition-colors duration-150 ${
-      toolsOnly ? 'bg-transparent border-transparent' : 'bg-[#121214] border-white/[0.08]'
-    }`}>
+    // Overlays the page (see AuthenticatedLayout), so the library scrolls behind its glass.
+    <div className="absolute bottom-0 inset-x-0 h-[76px] px-5 gap-5 flex items-center z-40 select-none">
+      {/* The glass, bump included, and the top line sit on their own layers: on the
+          bar itself the glass would stop the bar's menus (speed, volume…) from
+          blurring what is behind them. Shapes: .player-bar-glass in index.css. */}
+      <div aria-hidden="true" className={`player-bar-glass absolute inset-x-0 bottom-0 -top-[23px] -z-10 pointer-events-none bg-[#121214]/80 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 ${toolsOnly ? 'opacity-0' : ''}`} />
+      <div aria-hidden="true" className={`player-bar-line absolute inset-x-0 top-0 h-px pointer-events-none bg-white/[0.08] transition-opacity duration-150 ${toolsOnly ? 'opacity-0' : ''}`} />
       {/* 1. Left: cover, title, author · chapter */}
       <div aria-hidden={toolsOnly || undefined} className={`flex-[0_1_260px] min-w-0 flex items-center gap-3 ${fadeOut}`}>
         <button
@@ -107,10 +111,9 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
       {/* 2. Centre: transport row + scrubber */}
       <div aria-hidden={toolsOnly || undefined} className={`relative self-stretch flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-3 ${fadeOut}`}>
         {/* The bump: the bar rises in one soft curve behind the play button, so the
-            flat part keeps its height. It covers the bar's top border where it sits
-            and draws its own along the curve. */}
+            flat part keeps its height. Its glass is part of .player-bar-glass; this
+            draws the top line along the curve (the bar's own line skips it). */}
         <svg aria-hidden="true" width="260" height="23" viewBox="0 0 260 23" className="absolute bottom-full left-1/2 -translate-x-1/2 pointer-events-none">
-          <path d="M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5V23H0Z" fill="#121214" />
           <path d="M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5" fill="none" stroke="rgba(255,255,255,0.08)" />
         </svg>
         <div className="relative flex items-center gap-[14px] -mt-2">
