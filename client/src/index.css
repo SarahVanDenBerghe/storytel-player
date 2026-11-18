@@ -149,6 +149,9 @@ button:not(:disabled):active {
 @layer components {
   .cover-border {
     position: relative;
+    /* Keeps the rim's blending inside the cover. Without it the blend isolates
+       the footer bar, and its glass (backdrop blur) stops seeing the page behind. */
+    isolation: isolate;
   }
   /* Two 1px rings, shown only on the edge (the mask cuts out the middle). */
   .cover-border::before,
