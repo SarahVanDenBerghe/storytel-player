@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, powerSaveBlocker, shell } from 'electron';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -240,6 +240,17 @@ export class IpcManager {
 
     ipcMain.handle('window-is-always-on-top', () => {
       return this.windowManager.isAlwaysOnTop();
+    });
+
+    // Read along keeps the display awake while a book plays, as video players do.
+    let keepAwakeId: number | null = null;
+    ipcMain.handle('window:keep-awake', (_event: IpcMainInvokeEvent, on: unknown) => {
+      if (on === true && keepAwakeId === null) {
+        keepAwakeId = powerSaveBlocker.start('prevent-display-sleep');
+      } else if (on !== true && keepAwakeId !== null) {
+        powerSaveBlocker.stop(keepAwakeId);
+        keepAwakeId = null;
+      }
     });
 
     // A cover's main colour (Up next tint); see coverColor.ts.

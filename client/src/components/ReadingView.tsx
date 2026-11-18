@@ -284,7 +284,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         const events = ['pointermove', 'pointerdown', 'keydown', 'wheel'] as const;
         events.forEach((name) => window.addEventListener(name, wake, {passive: true}));
         wake();
+        // Reading along to the audio: the screen must not dim or sleep meanwhile.
+        window.electronWindow?.keepAwake(true).catch(() => undefined);
         return () => {
+            window.electronWindow?.keepAwake(false).catch(() => undefined);
             window.clearTimeout(timer);
             events.forEach((name) => window.removeEventListener(name, wake));
             setIdle(false);

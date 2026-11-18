@@ -96,6 +96,8 @@ declare global {
       isFullScreen: () => Promise<boolean>;
       /** A cover's main colour as #rrggbb, darkened for white text; null when unknown. */
       coverColor: (url: string) => Promise<string | null>;
+      /** Keeps the display from sleeping or dimming while true. */
+      keepAwake: (on: boolean) => Promise<void>;
       /** Main window entered or left full screen. Returns an unsubscribe function. */
       onFullScreenChange: (callback: (fullScreen: boolean) => void) => () => void;
     };
