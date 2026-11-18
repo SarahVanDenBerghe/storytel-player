@@ -67,7 +67,7 @@ export function BookCard({ book, onBookSelect, onQuickPlay }: BookCardProps) {
           {totalLength && (
             <span
               aria-hidden="true"
-              className="absolute bottom-3 left-1/2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[11px] font-medium leading-none tabular-nums text-white/95 shadow-[0_2px_10px_rgba(0,0,0,0.35)] backdrop-blur-md opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-[opacity,transform] duration-200 ease-out pointer-events-none"
+              className="absolute bottom-3 left-1/2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-full border border-white/15 bg-black/35 px-3 py-1.5 font-mono text-[11px] leading-none tabular-nums text-white/95 shadow-[0_2px_10px_rgba(0,0,0,0.35)] backdrop-blur-md opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-[opacity,transform] duration-200 ease-out pointer-events-none"
             >
               {totalLength}
             </span>
