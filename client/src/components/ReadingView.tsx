@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 import {AudioContextType, useOptionalAudioContext} from '../contexts/AudioContext';
 import {EpubParagraph, parseEpub} from '../utils/epub';
 import {cleanBookTitle} from '../utils/helpers';
+import {Chapter} from '../interfaces/chapters';
 import {BookIndex, buildBookIndex, matchTranscript, ReadingPlace, readingPlace, SyncAnchor, timeAtParagraph} from '../utils/readAlongSync';
 import storage from '../utils/storage';
 import {ensureAudioDownloaded, shareEpubWithOtherParts, takeEpubFromOtherParts} from '../utils/readAlongAudio';
@@ -46,6 +47,8 @@ const popoutReadingLine = (height: number) => {
     const t = (POPOUT_LINE_FROM - height) / (POPOUT_LINE_FROM - POPOUT_LINE_CENTRED_AT);
     return READING_LINE + Math.min(Math.max(t, 0), 1) * (0.5 - READING_LINE);
 };
+// An audio time this far (s) from where playback would be is a seek: the text follows again.
+const SEEK_JUMP_SEC = 3;
 // Between two reports of the audio time, predict at most this far ahead (audio seconds).
 const MAX_PREDICTION_SEC = 1;
 // While following, text above the reading line fades out towards the top of the
@@ -198,7 +201,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     // scrollTop as read back after our own last write: a scroll event at this value is ours.
     const lastScrollTopRef = useRef<number | null>(null);
     // The last reported audio time, when it was reported and the rate then: the base for prediction.
-    const reportRef = useRef({time: 0, at: 0, rate: 1});
+    const reportRef = useRef({time: 0, at: 0, rate: 1, playing: false});
     const placeAtRef = useRef<(timeSec: number) => ReadingPlace | null>(() => null);
     const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -438,6 +441,38 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     }, [bookIndex, segments]);
     // Hold the text back (invisible, laid out) until the real place is known, then fade it in.
     const revealed = !syncActive || !!syncData?.loaded;
+    // The EPUB's chapters, placed on the audio by the sync, replace the audiobook's in the
+    // player's Chapters menu and footer while this view is open (main window, synced book).
+    // Headings outside the synced audio (another part of a split book) are left out; audio
+    // before the first one belongs to the heading before it.
+    const audioDuration = audio.duration;
+    const bookChapters = useMemo<Chapter[] | null>(() => {
+        if (isPopout || !isThisBook || !paragraphs || !bookIndex || anchors.length < 2 || syncData?.progress?.state !== 'done') return null;
+        const found: {title: string; start: number}[] = [];
+        let before: string | null = null;
+        paragraphs.forEach((p, i) => {
+            if (!p.heading) return;
+            const start = timeAtParagraph(bookIndex, anchors, i);
+            if (start === null) {
+                if (found.length === 0) before = p.text;
+            } else if (start < audioDuration && (found.length === 0 || start > found[found.length - 1].start)) {
+                found.push({title: p.text, start});
+            }
+        });
+        if (found.length === 0) return null;
+        if (found[0].start > 1 && before) found.unshift({title: before, start: 0});
+        return found.map((c, i) => {
+            const end = found[i + 1]?.start ?? audioDuration;
+            return {number: i + 1, title: c.title, start: c.start, end, durationInSeconds: end - c.start};
+        });
+    }, [isPopout, isThisBook, paragraphs, bookIndex, anchors, audioDuration, syncData?.progress?.state]);
+    const setBookChapters = sharedAudio?.setBookChapters;
+    useEffect(() => {
+        if (!setBookChapters) return;
+        setBookChapters(bookChapters);
+        return () => setBookChapters(null);
+    }, [setBookChapters, bookChapters]);
+
     const placeAt = (timeSec: number) => (showPosition && bookIndex
         ? readingPlace(bookIndex, anchors, lengths, timeSec, audio.duration, bookPart)
         : null);
@@ -524,7 +559,12 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         followingRef.current = following;
     }, [following]);
     useEffect(() => {
-        reportRef.current = {time: audio.currentTime, at: performance.now(), rate: audio.playbackRate};
+        const prev = reportRef.current;
+        const now = performance.now();
+        // A jump in the audio (seek, skip, chapter) brings the text back to the spoken place.
+        const expected = prev.playing ? prev.time + ((now - prev.at) / 1000) * prev.rate : prev.time;
+        if (prev.at > 0 && Math.abs(audio.currentTime - expected) > SEEK_JUMP_SEC) setFollowing(true);
+        reportRef.current = {time: audio.currentTime, at: now, rate: audio.playbackRate, playing: audio.isPlaying};
     }, [audio.currentTime, audio.isPlaying, audio.playbackRate]);
 
     // While playing: move every frame, predicting the audio time between the

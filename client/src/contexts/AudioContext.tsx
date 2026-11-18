@@ -77,7 +77,10 @@ export interface AudioContextType {
   volume: number;
   isMuted: boolean;
   audioRef: React.RefObject<HTMLAudioElement | null>;
+  /** The audiobook's chapters, or the EPUB's while the reading view provides them. */
   chapters: Chapter[];
+  /** Read along: the EPUB's chapters placed on the audio (null: back to the audiobook's). */
+  setBookChapters: (chapters: Chapter[] | null) => void;
   currentChapter: CurrentChapterInfo | null;
   loadBook: (book: BookShelfEntity | null, bookId: string, autoPlay?: boolean) => Promise<void>;
   togglePlayPause: () => void;
@@ -124,7 +127,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const [volume, setVolumeState] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(1.0);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [audioChapters, setChapters] = useState<Chapter[]>([]);
+  const [bookChapters, setBookChapters] = useState<Chapter[] | null>(null);
+  // Everything chapter-based (menu, footer title, sleep timer) uses the book's chapters while read along has them.
+  const chapters = bookChapters ?? audioChapters;
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [sleepTimerMode, setSleepTimerMode] = useState<number | 'chapter' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -139,12 +145,45 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // Discards a slow /stream response once a newer book has taken over.
   const loadRequestIdRef = useRef(0);
 
+  // The shown time; whether a stream is on its way (loadBook until onLoadedMetadata); and a
+  // move made before any stream was loaded, applied in onLoadedMetadata.
+  const shownTimeRef = useRef(0);
+  const streamLoadingRef = useRef(false);
+  const pendingMoveRef = useRef<{at: number} | {by: number} | null>(null);
+
   useEffect(() => {
     activeBookIdRef.current = activeBookId;
     activeConsumableIdRef.current = activeConsumableId;
     audioSrcRef.current = audioSrc;
     isPlayingRef.current = isPlaying;
+    shownTimeRef.current = currentTime;
   });
+
+  // Before a stream is loaded (right after launch, with the last book restored) the audio
+  // element sits at 0, so a move must not be applied to it: that jumped to the start.
+  // Such a move is kept and applied once the stream has loaded, after the saved place is
+  // chosen (goToPosition): a seek as a time, a skip as an offset from that place, since the
+  // newest place may come from another device. While a stream is loading, moves are ignored.
+  const isLoaded = () => !!audioRef.current && audioRef.current.readyState >= HTMLMediaElement.HAVE_METADATA;
+  const moveTo = useCallback((timeSec: number) => {
+    if (!audioRef.current || streamLoadingRef.current) return;
+    if (isLoaded()) audioRef.current.currentTime = timeSec;
+    else pendingMoveRef.current = {at: timeSec};
+    shownTimeRef.current = timeSec;
+    setCurrentTime(timeSec);
+  }, []);
+  const moveBy = useCallback((deltaSec: number, maxSec: number) => {
+    if (!audioRef.current || streamLoadingRef.current) return;
+    const timeSec = Math.min(Math.max((isLoaded() ? audioRef.current.currentTime : shownTimeRef.current) + deltaSec, 0), maxSec);
+    if (isLoaded()) {
+      audioRef.current.currentTime = timeSec;
+    } else {
+      const pending = pendingMoveRef.current;
+      pendingMoveRef.current = pending && 'at' in pending ? {at: timeSec} : {by: (pending?.by ?? 0) + deltaSec};
+    }
+    shownTimeRef.current = timeSec;
+    setCurrentTime(timeSec);
+  }, []);
 
   // Position synchronization helper
   const updatePosition = useCallback(async () => {
@@ -292,12 +331,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   const jumpToChapter = useCallback(
     (startTime: number) => {
-      if (audioRef.current && typeof startTime === 'number' && !isNaN(startTime)) {
-        audioRef.current.currentTime = startTime;
-        setCurrentTime(startTime);
-      }
+      if (typeof startTime === 'number' && !isNaN(startTime)) moveTo(startTime);
     },
-    []
+    [moveTo]
   );
 
   // Sleep timer implementation
@@ -455,6 +491,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
       // If switching from a previous book, flush its position bookmark immediately
       const prevCid = activeConsumableIdRef.current;
+      // A move kept for the previous book does not apply to this one.
+      if (prevCid !== consumableId) pendingMoveRef.current = null;
+      streamLoadingRef.current = true;
       if (prevCid && prevCid !== consumableId && audioRef.current) {
         const prevPosition = Math.floor(audioRef.current.currentTime * 1000);
         if (prevPosition > 0) {
@@ -511,6 +550,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         }
       } catch (err: any) {
         if (requestId !== loadRequestIdRef.current) return;
+        streamLoadingRef.current = false;
         console.error('Failed to load audio stream:', err);
         setError(err.response?.status === 403
           ? i18n.t('player.accessDenied')
@@ -567,11 +607,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [isPlaying, audioSrc, activeBookId, activeBook, loadBook, catchUpWithOtherDevices, requestPlay]);
 
-  const seek = useCallback((seekTime: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = seekTime;
-    setCurrentTime(seekTime);
-  }, []);
+  const seek = moveTo;
 
   // The book the app reopens in the player bar at launch: the last one that
   // actually played, not the last book page merely opened.
@@ -593,25 +629,21 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const skipForward = useCallback(
     (seconds: number = SKIP_FORWARD_SECONDS) => {
       if (audioRef.current) {
-        const nextTime = Math.min(audioRef.current.currentTime + seconds, duration || audioRef.current.duration || Infinity);
-        audioRef.current.currentTime = nextTime;
-        setCurrentTime(nextTime);
+        moveBy(seconds, duration || audioRef.current.duration || Infinity);
         trackAction('skip_forward', { bookId: activeBookId, consumableId: activeConsumableId, seconds });
       }
     },
-    [duration, activeBookId, activeConsumableId]
+    [duration, activeBookId, activeConsumableId, moveBy]
   );
 
   const skipBackward = useCallback(
     (seconds: number = SKIP_BACKWARD_SECONDS) => {
       if (audioRef.current) {
-        const nextTime = Math.max(audioRef.current.currentTime - seconds, 0);
-        audioRef.current.currentTime = nextTime;
-        setCurrentTime(nextTime);
+        moveBy(-seconds, Infinity);
         trackAction('skip_backward', { bookId: activeBookId, consumableId: activeConsumableId, seconds });
       }
     },
-    [activeBookId, activeConsumableId]
+    [activeBookId, activeConsumableId, moveBy]
   );
 
   const cyclePlaybackRate = useCallback(() => {
@@ -705,6 +737,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         });
       }
       await goToPosition(cid);
+      streamLoadingRef.current = false;
+      const pending = pendingMoveRef.current;
+      pendingMoveRef.current = null;
+      if (pending && audioRef.current) {
+        const target = 'at' in pending ? pending.at : audioRef.current.currentTime + pending.by;
+        audioRef.current.currentTime = Math.min(Math.max(target, 0), audioRef.current.duration || Infinity);
+        setCurrentTime(audioRef.current.currentTime);
+      }
       setIsLoading(false);
       await applyPlaybackRate();
       if (shouldAutoPlayRef.current && audioRef.current) {
@@ -816,6 +856,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         isMuted,
         audioRef,
         chapters,
+        setBookChapters,
         currentChapter,
         loadBook,
         togglePlayPause,
@@ -847,6 +888,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         onEnded={onEnded}
         onError={(e) => {
           console.error('Audio error:', e);
+          streamLoadingRef.current = false;
           setIsLoading(false);
           setIsPlaying(false);
         }}
