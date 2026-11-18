@@ -65,11 +65,13 @@ const BookInfo: React.FC<BookInfoProps> = ({
 
     return (
         <div className="flex flex-col items-center w-full">
-            <img
-                src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
-                alt=""
-                className="w-[280px] max-w-[70vw] aspect-square object-cover rounded-[6px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
-            />
+            <div className="w-[280px] max-w-[70vw] aspect-square overflow-hidden rounded-[6px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+                <img
+                    src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                />
+            </div>
             <h1 className="mt-6 max-w-[480px] font-serif text-[22px] font-semibold leading-[1.25] text-white text-center break-words"
                 title={book.book.name}>
                 {shortTitle || book.book.name}
