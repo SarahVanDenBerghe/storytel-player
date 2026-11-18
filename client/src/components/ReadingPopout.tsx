@@ -14,7 +14,11 @@ const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-fu
 // Skip buttons: a soft fill on hover (the play button keeps its own orange).
 const skipBtn = `${controlBtn} text-[var(--ra-control)] hover:bg-[var(--ra-fill-strong)]`;
 // Shown while the pointer is over the window or a control has keyboard focus.
-const onHover = 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-[opacity,transform] duration-200 ease-out';
+// Controls show while the mouse is over the window and moving (see IDLE_HIDE_MS), or
+// while keyboard focus is in them; a mouse click's focus alone doesn't keep them up.
+const onHover = 'opacity-0 group-hover/controls:opacity-100 has-[:focus-visible]:opacity-100 transition-[opacity,transform] duration-200 ease-out';
+// The controls hide after this long without mouse movement, even with the mouse over the window.
+const IDLE_HIDE_MS = 10_000;
 
 const POPOUT_THEME_KEY = 'readAlong.popoutTheme';
 
@@ -142,6 +146,15 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
     }, [menu]);
 
     // The window around the visible pop-out is transparent.
+    const [idle, setIdle] = useState(false);
+    const idleTimerRef = useRef<number | undefined>(undefined);
+    const wake = () => {
+        setIdle(false);
+        window.clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = window.setTimeout(() => setIdle(true), IDLE_HIDE_MS);
+    };
+    useEffect(() => () => window.clearTimeout(idleTimerRef.current), []);
+
     useEffect(() => {
         document.documentElement.style.background = 'transparent';
         document.body.style.background = 'transparent';
@@ -150,7 +163,10 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
     return (
         // --ra-vh-trim: the menus size themselves to the window height (100vh), which includes the padding.
         <div className="h-screen w-screen" style={{padding: WINDOW_INSET, '--ra-vh-trim': `${2 * WINDOW_INSET}px`} as React.CSSProperties}>
-        <div className={`group relative h-full w-full flex flex-col overflow-hidden rounded-[10px] border border-[var(--ra-line)] shadow-[0_6px_22px_rgba(0,0,0,0.16)] bg-[var(--ra-bg)] text-[var(--ra-strong)] select-none popout-glass ${light ? 'ra-light' : ''}`}>
+        <div
+            onPointerMove={wake}
+            onPointerDown={wake}
+            className={`group ${idle ? '' : 'group/controls'} relative h-full w-full flex flex-col overflow-hidden rounded-[10px] border border-[var(--ra-line)] shadow-[0_6px_22px_rgba(0,0,0,0.16)] bg-[var(--ra-bg)] text-[var(--ra-strong)] select-none popout-glass ${light ? 'ra-light' : ''}`}>
             {RESIZE_HANDLES.map(({edge, className}) => (
                 <div key={edge} aria-hidden="true" onPointerDown={(e) => startWindowResize(edge, e)} className={`absolute z-50 ${className}`}/>
             ))}
@@ -165,7 +181,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             <div
                 onPointerDown={onStripPointerDown}
                 onClickCapture={drag.onClickCapture}
-                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between ${menu || textSizeMenuOpen ? 'opacity-100' : `${onHover} -translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}`}
+                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between ${menu || textSizeMenuOpen ? 'opacity-100' : `${onHover} -translate-y-1 group-hover/controls:translate-y-0 has-[:focus-visible]:translate-y-0`}`}
             >
                 {/* The macOS window dots: close, and minimize to a bubble in the screen corner. */}
                 <div className="group/lights flex items-center gap-2">
@@ -255,7 +271,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
             </div>
 
             {playback?.bookId && (
-                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full glass shadow-[0_8px_24px_var(--ra-shadow)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
+                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full glass shadow-[0_8px_24px_var(--ra-shadow)] ${onHover} translate-y-1 group-hover/controls:translate-y-0 has-[:focus-visible]:translate-y-0`}>
                     <button
                         type="button"
                         onClick={() => control({type: 'skip', seconds: -SKIP_BACKWARD_SECONDS})}
