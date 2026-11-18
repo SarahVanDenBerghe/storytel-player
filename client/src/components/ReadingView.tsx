@@ -16,9 +16,23 @@ import apiClient from '../utils/api';
 export const TEXT_SIZE_KEY = 'readAlong.textSize';
 export const DEFAULT_TEXT_SIZE = 17;
 const MIN_TEXT_SIZE = 14;
-const MAX_TEXT_SIZE = 22;
+const MAX_TEXT_SIZE = 32;
 // The "Aa" button steps through these sizes and wraps around.
-export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
+export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22, 24, 28, 32];
+// The pop-out is small: it shows the shared size up to this one.
+export const POPOUT_MAX_TEXT_SIZE = 22;
+// Width of the text column (px), main window only; the "Aa" menu also picks these.
+const TEXT_WIDTH_KEY = 'readAlong.textWidth';
+const DEFAULT_TEXT_WIDTH = 660;
+const TEXT_WIDTHS = [
+    {width: 560, label: 'readAlong.widthNarrow'},
+    {width: 660, label: 'readAlong.widthMedium'},
+    {width: 900, label: 'readAlong.widthWide'},
+    {width: 1200, label: 'readAlong.widthExtraWide'},
+];
+// Focus mode: while the audio plays, the header, player bar and cursor fade out after
+// this long without mouse or keyboard input (see [data-reading-idle] in index.css).
+const FOCUS_IDLE_MS = 5_000;
 // Keys that scroll a focused scroller: pressing one means the user took over.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 // Follow mode keeps the spoken word on this line, as a fraction of the scroller's height from its top.
@@ -60,6 +74,13 @@ const clampTextSize = (value: unknown): number | null => {
 };
 storage.get(TEXT_SIZE_KEY).then((value: unknown) => {
     knownTextSize = clampTextSize(value) ?? knownTextSize;
+}).catch(() => undefined);
+// The same for the text width.
+let knownTextWidth: number | null = null;
+const toTextWidth = (value: unknown): number | null =>
+    TEXT_WIDTHS.find((w) => w.width === Number(value))?.width ?? null;
+storage.get(TEXT_WIDTH_KEY).then((value: unknown) => {
+    knownTextWidth = toTextWidth(value) ?? knownTextWidth;
 }).catch(() => undefined);
 /** The part of the player the reading view needs; the pop-out window feeds it over IPC. */
 export type ReadingAudio = Pick<AudioContextType, 'activeBookId' | 'currentTime' | 'duration' | 'isPlaying' | 'playbackRate' | 'seek'> & {
@@ -163,6 +184,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const [booksText, setBooksText] = useState<Record<string, EpubParagraph[]>>(() => ({...parsedBooks}));
     const [status, setStatus] = useState<LoadStatus>(() => (bookId && parsedBooks[bookId] ? 'ready' : 'loading'));
     const [textSize, setTextSize] = useState(() => knownTextSize ?? DEFAULT_TEXT_SIZE);
+    const [textWidth, setTextWidth] = useState(() => knownTextWidth ?? DEFAULT_TEXT_WIDTH);
+    const [idle, setIdle] = useState(false);
     const [following, setFollowing] = useState(true);
     const [sync, setSync] = useState<SyncData | null>(() => (bookId ? syncCache[bookId] ?? null : null));
     const requestRef = useRef(0);
@@ -240,6 +263,41 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         // Electron: stored and sent to the other window (pop-out or reading view).
         (window.electronEpub ? window.electronEpub.setTextSize(next) : storage.set(TEXT_SIZE_KEY, next)).catch(() => undefined);
     };
+
+    const changeTextWidth = (next: number) => {
+        knownTextWidth = next;
+        setTextWidth(next);
+        storage.set(TEXT_WIDTH_KEY, next).catch(() => undefined);
+    };
+
+    // Focus mode (main window): see FOCUS_IDLE_MS. Hovering the header or player bar
+    // shows it again (their hover:opacity-100), and any input wakes everything.
+    const playing = audio.isPlaying;
+    useEffect(() => {
+        if (isPopout || !playing) return;
+        let timer: number | undefined;
+        const wake = () => {
+            setIdle(false);
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => setIdle(true), FOCUS_IDLE_MS);
+        };
+        const events = ['pointermove', 'pointerdown', 'keydown', 'wheel'] as const;
+        events.forEach((name) => window.addEventListener(name, wake, {passive: true}));
+        wake();
+        return () => {
+            window.clearTimeout(timer);
+            events.forEach((name) => window.removeEventListener(name, wake));
+            setIdle(false);
+        };
+    }, [isPopout, playing]);
+    useEffect(() => {
+        if (!idle) return;
+        const root = document.documentElement;
+        root.dataset.readingIdle = '';
+        return () => {
+            delete root.dataset.readingIdle;
+        };
+    }, [idle]);
 
     const chooseEpub = async () => {
         if (!bookId || !epubApi) return;
@@ -489,7 +547,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     useLayoutEffect(() => {
         if (view !== 'ready' || !followingRef.current) return;
         scrollToPlace(currentTimeRef.current);
-    }, [view, textSize, revealed, anchors, scrollToPlace]);
+    }, [view, textSize, textWidth, revealed, anchors, scrollToPlace]);
 
     // Paused (or reduced motion): position once, again after a seek, a new
     // paragraph (reduced motion), new anchors or another text size.
@@ -497,7 +555,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     useEffect(() => {
         if (!following || animate || !showPosition) return;
         scrollToPlace(currentTimeRef.current);
-    }, [following, animate, showPosition, staticKey, anchors, textSize, scrollToPlace]);
+    }, [following, animate, showPosition, staticKey, anchors, textSize, textWidth, scrollToPlace]);
 
     // A resize reflows the text: keep the place.
     useEffect(() => {
@@ -578,8 +636,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 >
                     <article
                         ref={articleRef}
-                        className={`max-w-[660px] mx-auto font-serif select-text transition-opacity duration-200 ease-out ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'} ${revealed ? 'opacity-100' : 'opacity-0'}`}
-                        style={{fontSize: isPopout ? textSize - POPOUT_TEXT_SHRINK : textSize}}
+                        className={`${isPopout ? 'max-w-[660px]' : ''} mx-auto font-serif select-text transition-opacity duration-200 ease-out ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'} ${revealed ? 'opacity-100' : 'opacity-0'}`}
+                        style={isPopout
+                            ? {fontSize: Math.min(textSize, POPOUT_MAX_TEXT_SIZE) - POPOUT_TEXT_SHRINK}
+                            : {fontSize: textSize, maxWidth: textWidth}}
                         onClick={handleArticleClick}
                     >
                         {paragraphs.map((p, i) => (
@@ -659,7 +719,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
             {!isPopout && <Navbar
                 barTitle={t('readAlong.open')}
                 onBackClick={() => navigate('/')}
-                className="max-[1100px]:static max-[1100px]:flex-shrink-0"
+                className="max-[1100px]:static max-[1100px]:flex-shrink-0 transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:-translate-y-1.5 [html[data-reading-idle]_&:hover]:opacity-100 [html[data-reading-idle]_&:hover]:translate-y-0"
             >
                 {view === 'ready' && (
                     <>
@@ -678,6 +738,9 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                             value={textSize}
                             sizes={TEXT_SIZE_STEPS}
                             onChange={changeTextSize}
+                            widths={TEXT_WIDTHS.map(({width, label}) => ({width, label: t(label)}))}
+                            width={textWidth}
+                            onWidthChange={changeTextWidth}
                             buttonClassName={`${iconBtn} text-[16px]`}
                         />
                         {epubApi && (

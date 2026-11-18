@@ -414,6 +414,7 @@ function PlayerView() {
                         currentTime={shownTime}
                         playbackRate={audio.playbackRate}
                         onShowChaptersModal={() => chapters.setShowChaptersModal(true)}
+                        isPlaying={audio.isPlaying && !isPreview}
                     />
 
                     <PlayerControls

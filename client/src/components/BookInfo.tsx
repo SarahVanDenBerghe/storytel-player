@@ -17,6 +17,8 @@ interface BookInfoProps {
     currentTime: number;
     playbackRate: number;
     onShowChaptersModal: () => void;
+    /** This book is playing: the cover's rim light turns. */
+    isPlaying?: boolean;
 }
 
 const BookInfo: React.FC<BookInfoProps> = ({
@@ -26,6 +28,7 @@ const BookInfo: React.FC<BookInfoProps> = ({
                                                currentTime,
                                                playbackRate,
                                                onShowChaptersModal,
+                                               isPlaying = false,
                                            }) => {
     const {t} = useTranslation();
 
@@ -65,7 +68,7 @@ const BookInfo: React.FC<BookInfoProps> = ({
 
     return (
         <div className="flex flex-col items-center w-full">
-            <div className="w-[280px] max-w-[70vw] aspect-square overflow-hidden rounded-[6px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+            <div className={`w-[280px] max-w-[70vw] aspect-square overflow-hidden rounded-[6px] bg-[#141416] cover-border ${isPlaying ? 'cover-border-live' : ''} shadow-[0_24px_60px_rgba(0,0,0,0.6)] [--rim-turn-time:6s]`}>
                 <img
                     src={buildCoverUrl(book.book.largeCover || book.book.largeCoverE)}
                     alt=""

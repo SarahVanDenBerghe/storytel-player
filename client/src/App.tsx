@@ -61,6 +61,8 @@ function AuthenticatedLayout({
 }) {
   const location = useLocation();
   const isPlayerView = location.pathname.startsWith('/player/');
+  // Read along: the footer glass is lighter there, so the thin book text shows through it.
+  const isReading = location.pathname.startsWith('/read/');
   // The footer overlays the page. The library and Read along scroll behind its
   // glass (they pad their own scroll area by --player-bar-h); the full player,
   // whose footer has no glass, stays clear of it.
@@ -70,6 +72,7 @@ function AuthenticatedLayout({
   return (
     <div
       className="h-screen w-screen flex flex-col overflow-hidden bg-[#0A0A0A] text-white select-none relative"
+      data-reading={isReading || undefined}
       style={{ '--player-bar-h': hasPlayerBar ? '76px' : '0px' } as React.CSSProperties}
     >
       <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative flex flex-col ${isPlayerView ? 'pb-[var(--player-bar-h)]' : ''}`}>

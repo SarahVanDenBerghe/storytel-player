@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {MemoryRouter, Route, Routes} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
-import ReadingView, {DEFAULT_TEXT_SIZE, ReadingAudio, TEXT_SIZE_KEY, TEXT_SIZE_STEPS} from './ReadingView';
+import ReadingView, {DEFAULT_TEXT_SIZE, POPOUT_MAX_TEXT_SIZE, ReadingAudio, TEXT_SIZE_KEY, TEXT_SIZE_STEPS} from './ReadingView';
 import {PLAYBACK_RATES} from '../contexts/AudioContext';
 import storage from '../utils/storage';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
@@ -243,8 +243,8 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         </div>
                     )}
                     <TextSizeMenu
-                        value={textSize}
-                        sizes={TEXT_SIZE_STEPS}
+                        value={Math.min(textSize, POPOUT_MAX_TEXT_SIZE)}
+                        sizes={TEXT_SIZE_STEPS.filter((size) => size <= POPOUT_MAX_TEXT_SIZE)}
                         onChange={(size) => {
                             setTextSize(size);
                             window.electronEpub?.setTextSize(size).catch(() => undefined);

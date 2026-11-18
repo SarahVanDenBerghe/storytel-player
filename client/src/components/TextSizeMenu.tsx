@@ -6,14 +6,24 @@ const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
         selected ? 'bg-[#FF5100] text-white' : 'text-[var(--ra-text)] hover:bg-[var(--ra-fill)] hover:text-[var(--ra-strong)]'
     }`;
+const CheckIcon = () => (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+    </svg>
+);
+
 /**
  * The read-along "Aa" button and its menu of text sizes, styled like the
- * player's speed and Chapters menus. Used by the reading view and the pop-out.
+ * player's speed and Chapters menus. Used by the reading view and the pop-out;
+ * the reading view also lists text widths below the sizes.
  */
-function TextSizeMenu({value, sizes, onChange, buttonClassName, onOpenChange}: {
+function TextSizeMenu({value, sizes, onChange, widths, width, onWidthChange, buttonClassName, onOpenChange}: {
     value: number;
     sizes: number[];
     onChange: (size: number) => void;
+    widths?: {width: number; label: string}[];
+    width?: number;
+    onWidthChange?: (width: number) => void;
     buttonClassName: string;
     /** The pop-out keeps its hover controls visible while the menu is open. */
     onOpenChange?: (open: boolean) => void;
@@ -54,7 +64,7 @@ function TextSizeMenu({value, sizes, onChange, buttonClassName, onOpenChange}: {
                 Aa
             </button>
             {open && (
-                <div className="absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-56px-var(--ra-vh-trim,0px))] overflow-y-auto glass-menu p-1.5 z-50 flex flex-col gap-0.5 select-none" role="group" aria-label={t('readAlong.textSizeMenu')}>
+                <div className={`absolute top-full right-0 mt-1 animate-pop-in origin-top-right ${widths ? 'w-36' : 'w-32'} max-h-[calc(100vh-56px-var(--ra-vh-trim,0px))] overflow-y-auto glass-menu p-1.5 z-50 flex flex-col gap-0.5 select-none`} role="group" aria-label={t('readAlong.textSizeMenu')}>
                     {sizes.map((size) => (
                         <button
                             key={size}
@@ -66,13 +76,28 @@ function TextSizeMenu({value, sizes, onChange, buttonClassName, onOpenChange}: {
                             className={popoverItem(value === size)}
                         >
                             <span>{t('readAlong.textSizeOption', {size})}</span>
-                            {value === size && (
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
-                                </svg>
-                            )}
+                            {value === size && <CheckIcon/>}
                         </button>
                     ))}
+                    {widths && onWidthChange && (
+                        <>
+                            <div aria-hidden="true" className="my-1 mx-2 h-px bg-[var(--ra-line)]"/>
+                            {widths.map((option) => (
+                                <button
+                                    key={option.width}
+                                    type="button"
+                                    onClick={() => {
+                                        onWidthChange(option.width);
+                                        setOpen(false);
+                                    }}
+                                    className={popoverItem(width === option.width)}
+                                >
+                                    <span>{option.label}</span>
+                                    {width === option.width && <CheckIcon/>}
+                                </button>
+                            ))}
+                        </>
+                    )}
                 </div>
             )}
         </div>

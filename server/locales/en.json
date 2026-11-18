@@ -374,6 +374,10 @@
     "darkTheme": "Dark theme",
     "textSizeMenu": "Text size",
     "textSizeOption": "{{size}} px",
+    "widthNarrow": "Narrow",
+    "widthMedium": "Medium",
+    "widthWide": "Wide",
+    "widthExtraWide": "Extra wide",
     "preparing": "Preparing audio…",
     "preparingDetail": "Downloading the audio to sync the text: {{percent}}%"
   },

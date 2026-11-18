@@ -63,11 +63,13 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
 
   return (
     // Overlays the page (see AuthenticatedLayout), so the library scrolls behind its glass.
-    <div className="absolute bottom-0 inset-x-0 h-[76px] px-5 gap-5 flex items-center z-40 select-none">
+    // Fades out in the reading view's focus mode ([data-reading-idle], see ReadingView):
+    // slowly out, quickly back in.
+    <div className="absolute bottom-0 inset-x-0 h-[76px] px-5 gap-5 flex items-center z-40 select-none transition-[opacity,transform] duration-300 ease-out [html[data-reading-idle]_&]:duration-1000 [html[data-reading-idle]_&]:opacity-0 [html[data-reading-idle]_&]:translate-y-1.5 [html[data-reading-idle]_&:hover]:opacity-100 [html[data-reading-idle]_&:hover]:translate-y-0">
       {/* The glass, bump included, and the top line sit on their own layers: on the
           bar itself the glass would stop the bar's menus (speed, volume…) from
           blurring what is behind them. Shapes: .player-bar-glass in index.css. */}
-      <div aria-hidden="true" className={`player-bar-glass absolute inset-x-0 bottom-0 -top-[23px] -z-10 pointer-events-none bg-[#121214]/80 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 ${toolsOnly ? 'opacity-0' : ''}`} />
+      <div aria-hidden="true" className={`player-bar-glass absolute inset-x-0 bottom-0 -top-[23px] -z-10 pointer-events-none bg-[#121214]/80 backdrop-blur-xl [[data-reading]_&]:bg-[#121214]/60 [[data-reading]_&]:backdrop-blur-md backdrop-saturate-150 transition-opacity duration-150 ${toolsOnly ? 'opacity-0' : ''}`} />
       <div aria-hidden="true" className={`player-bar-line absolute inset-x-0 top-0 h-px pointer-events-none bg-white/[0.08] transition-opacity duration-150 ${toolsOnly ? 'opacity-0' : ''}`} />
       {/* 1. Left: cover, title, author · chapter */}
       <div aria-hidden={toolsOnly || undefined} className={`flex-[0_1_260px] min-w-0 flex items-center gap-3 ${fadeOut}`}>
@@ -75,7 +77,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
           type="button"
           onClick={handleOpenFullPlayer}
           aria-label={t('player.expand', 'Open full player')}
-          className={`w-[52px] h-[52px] rounded-[5px] bg-[#141416] cover-border overflow-hidden flex-shrink-0 ${focusRing}`}
+          className={`w-[52px] h-[52px] rounded-[5px] bg-[#141416] cover-border ${isPlaying ? 'cover-border-live' : ''} overflow-hidden flex-shrink-0 ${focusRing}`}
         >
           {coverUrl ? (
             <img src={buildCoverUrl(coverUrl)} alt="" className="w-full h-full object-cover" />

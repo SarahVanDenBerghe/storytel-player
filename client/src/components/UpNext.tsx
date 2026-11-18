@@ -105,7 +105,13 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
     const tintEnd = artwork && queue.length > 0 ? `${tint}80 75%, ${tint}5c 100%` : `${tint}33 75%, transparent 100%`;
     const meta = (item: Item) => [item.author, item.partLabel].filter(Boolean).join(' · ');
 
-    const resume = () => navigate(`/player/${current.id}`, {state: {book: current.entry, autoPlay: true}});
+    // Resume plays right here (the cover opens the book page); while it plays, it pauses.
+    const isActive = String(audio.activeBookId) === current.id;
+    const playingHere = isActive && audio.isPlaying;
+    const resume = () => {
+        if (isActive) audio.togglePlayPause();
+        else void audio.loadBook(current.entry, current.id, true);
+    };
     const readAlong = () => {
         // Read along follows the player's book: load it (without playing) first.
         if (String(audio.activeBookId) !== current.id) void audio.loadBook(current.entry, current.id, false);
@@ -135,7 +141,10 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                 <div className="relative flex gap-7 p-6">
                     <button type="button" onClick={() => open(current)} className={`group/cover flex-shrink-0 rounded-[6px] ${focusRing}`}
                             aria-label={current.title}>
-                        <img src={current.cover} alt="" className={`w-[184px] h-[184px] rounded-[6px] object-cover shadow-[0_14px_36px_rgba(0,0,0,0.55)] ${coverHover}`}/>
+                        {/* The rim's light turns while this book plays, as in the footer. */}
+                        <span className={`block w-[184px] h-[184px] rounded-[6px] overflow-hidden cover-border ${playingHere ? 'cover-border-live' : ''} shadow-[0_14px_36px_rgba(0,0,0,0.55)] [--rim-turn-time:6s] ${coverHover}`}>
+                            <img src={current.cover} alt="" className="w-full h-full object-cover"/>
+                        </span>
                     </button>
 
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
@@ -148,13 +157,17 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                         </div>
                         <div className="flex flex-col gap-4 max-w-[340px]">
                             <div className="h-1 rounded-sm bg-white/[0.14]" role="progressbar" aria-valuenow={Math.round(current.percent)} aria-valuemin={0} aria-valuemax={100}>
-                                <div className="h-1 rounded-sm bg-[#FF5100] transition-[width] duration-300" style={{width: `${current.percent}%`}}/>
+                                <div className={`h-1 rounded-sm bg-[#FF5100] transition-[width] duration-300 ${playingHere ? 'progress-live' : ''}`} style={{width: `${current.percent}%`}}/>
                             </div>
                             <div className="flex gap-2">
                                 <button type="button" onClick={resume}
                                         className={`h-9 pl-3 pr-4 rounded-[10px] bg-[#FF5100] hover:bg-[#FF6A26] text-white text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${focusRing}`}>
-                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/></svg>
-                                    {t('upNext.resume')}
+                                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        {playingHere
+                                            ? <path d="M7 5.5h3.5v13H7zM13.5 5.5H17v13h-3.5z"/>
+                                            : <path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/>}
+                                    </svg>
+                                    {playingHere ? t('tray.pause') : t('upNext.resume')}
                                 </button>
                                 <button type="button" onClick={readAlong} aria-label={t('readAlong.open')} title={t('readAlong.open')}
                                         className={`w-9 h-9 rounded-[10px] bg-white/10 hover:bg-white/[0.16] text-white flex items-center justify-center transition-colors ${focusRing}`}>
