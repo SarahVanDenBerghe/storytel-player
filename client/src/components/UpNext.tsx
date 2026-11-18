@@ -8,7 +8,7 @@ import {useAudioContext} from '../contexts/AudioContext';
 import Modal from './Modal';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-const heading = 'text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]';
+const heading = 'font-serif text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]';
 // Covers in the block answer the pointer: a small lift, a touch brighter, a deeper shadow.
 const coverHover = 'transition-[transform,filter,box-shadow] duration-200 ease-out group-hover/cover:-translate-y-0.5 group-hover/cover:brightness-110 group-hover/cover:shadow-[0_18px_40px_rgba(0,0,0,0.6)]';
 // Shown in the Next column; more would not fit beside the current book.
@@ -152,7 +152,7 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                             </div>
                             <div className="flex gap-2">
                                 <button type="button" onClick={resume}
-                                        className={`h-9 pl-3 pr-4 rounded-[10px] bg-[#FF5100] hover:bg-[#ff641a] text-white text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${focusRing}`}>
+                                        className={`h-9 pl-3 pr-4 rounded-[10px] bg-[#FF5100] hover:bg-[#FF6A26] text-white text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${focusRing}`}>
                                     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 6.8v10.4a1 1 0 001.5.86l8.3-5.2a1 1 0 000-1.72l-8.3-5.2A1 1 0 009 6.8z"/></svg>
                                     {t('upNext.resume')}
                                 </button>
@@ -175,7 +175,7 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between gap-6 text-[12px] text-white/70">
                                     <span className="font-semibold text-white">{t('upNext.next')}</span>
-                                    <span>{t('upNext.moreToGo', {count: queue.length})}</span>
+                                    <span>{t('upNext.moreInQueue', {count: queue.length})}</span>
                                 </div>
                                 <div className="flex gap-1" aria-hidden="true">
                                     {items.map((item, i) => (
@@ -280,7 +280,7 @@ function UpNextEditor({items, currentIndex, onClose}: {items: Item[]; currentInd
             <div className="flex items-center justify-between gap-3 px-[18px] pt-2.5 pb-3.5 border-t border-white/[0.05]">
                 <span className="text-[12px] text-[#9CA3AF]">{t('upNext.editHint')}</span>
                 <button type="button" onClick={onClose}
-                        className={`h-7 px-3 rounded-[8px] bg-[#FF5100] hover:bg-[#ff641a] text-white text-[12px] font-semibold transition-colors ${focusRing}`}>
+                        className={`h-7 px-3 rounded-[8px] bg-[#FF5100] hover:bg-[#FF6A26] text-white text-[12px] font-semibold transition-colors ${focusRing}`}>
                     {t('upNext.done')}
                 </button>
             </div>

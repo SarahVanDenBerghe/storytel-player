@@ -7,30 +7,46 @@ import storage from '../utils/storage';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 import SkipIcon from './SkipIcon';
 import TextSizeMenu from './TextSizeMenu';
+import {ResizeEdge, startWindowResize, useWindowDrag} from '../hooks/useWindowDrag';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold text-[#E5E7EB] hover:bg-white/[0.08] transition-colors ${focusRing}`;
+const controlBtn = `h-8 min-w-8 px-2 flex items-center justify-center rounded-full text-[12px] font-semibold transition-colors ${focusRing}`;
+// Skip buttons: a soft fill on hover (the play button keeps its own orange).
+const skipBtn = `${controlBtn} text-[var(--ra-control)] hover:bg-[var(--ra-fill-strong)]`;
 // Shown while the pointer is over the window or a control has keyboard focus.
 const onHover = 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-[opacity,transform] duration-200 ease-out';
-// The window has no frame: this strip is where it can be dragged.
-const dragRegion = {WebkitAppRegion: 'drag'} as React.CSSProperties;
-const noDragRegion = {WebkitAppRegion: 'no-drag'} as React.CSSProperties;
+
+const POPOUT_THEME_KEY = 'readAlong.popoutTheme';
 
 const control = (c: ReadAlongPopoutControl) => window.electronEpub?.popoutControl(c);
 
 // Speed and text-size menus: the same look as the player bar's speed and Chapters menus.
-const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[#D1D5DB] bg-white/[0.06] hover:bg-white/[0.10] hover:text-white transition-colors ${focusRing}`;
-const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-44px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
-const popoverHeader = 'text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider';
+const menuBtn = `h-7 px-2 flex items-center justify-center rounded-[8px] text-[12px] font-semibold tabular-nums text-[var(--ra-text)] bg-[var(--ra-pill)] backdrop-blur-[5px] backdrop-saturate-150 border border-[var(--ra-glass-line)] hover:text-[var(--ra-strong)] transition-colors ${focusRing}`;
+const popoverClass = 'absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-44px-var(--ra-vh-trim,0px))] overflow-y-auto bg-[var(--ra-surface)] border border-[var(--ra-line)] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
-        selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+        selected ? 'bg-[#FF5100] text-white' : 'text-[var(--ra-text)] hover:bg-[var(--ra-fill)] hover:text-[var(--ra-strong)]'
     }`;
 const CheckIcon = () => (
     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
     </svg>
 );
+
+// The window is transparent around the visible pop-out: this padding holds its
+// soft shadow. Must match POPOUT_INSET in src/modules/window.ts.
+const WINDOW_INSET = 32;
+// Resize handles on the visible edges: thin strips, and corners a bit larger.
+const RESIZE_HANDLES: {edge: ResizeEdge; className: string}[] = [
+    {edge: 'n', className: 'top-0 inset-x-3 h-1.5 cursor-ns-resize'},
+    {edge: 's', className: 'bottom-0 inset-x-3 h-1.5 cursor-ns-resize'},
+    {edge: 'w', className: 'left-0 inset-y-3 w-1.5 cursor-ew-resize'},
+    {edge: 'e', className: 'right-0 inset-y-3 w-1.5 cursor-ew-resize'},
+    {edge: 'nw', className: 'top-0 left-0 w-3 h-3 cursor-nwse-resize'},
+    {edge: 'se', className: 'bottom-0 right-0 w-3 h-3 cursor-nwse-resize'},
+    {edge: 'ne', className: 'top-0 right-0 w-3 h-3 cursor-nesw-resize'},
+    {edge: 'sw', className: 'bottom-0 left-0 w-3 h-3 cursor-nesw-resize'},
+];
 
 /**
  * Root of the read-along pop-out window (opened from the reading view, see
@@ -70,7 +86,9 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
         seek: (timeSec: number) => control({type: 'seek', timeSec}),
     }), [playback]);
 
+    // Always the player's book (the one in the player bar).
     const bookId = playback?.bookId ?? initialBookId;
+
     const isPlaying = !!playback?.isPlaying;
     const playbackRate = playback?.playbackRate ?? 1;
 
@@ -84,6 +102,25 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
         storage.get(TEXT_SIZE_KEY).then(apply).catch(() => undefined);
         return window.electronEpub?.onTextSizeChange(apply);
     }, []);
+
+    // Light or dark, for this window only; remembered in electron-store.
+    const [light, setLight] = useState(false);
+    useEffect(() => {
+        storage.get(POPOUT_THEME_KEY).then((value) => setLight(value === 'light')).catch(() => undefined);
+    }, []);
+    const toggleTheme = () => {
+        const next = !light;
+        setLight(next);
+        storage.set(POPOUT_THEME_KEY, next ? 'light' : 'dark').catch(() => undefined);
+    };
+
+    // The window has no frame: the top strip drags it (by hand, so it can snap
+    // to a bottom corner on release; see useWindowDrag). Its buttons stay buttons.
+    const drag = useWindowDrag();
+    const onStripPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if ((e.target as Element).closest('button, [role="group"]')) return;
+        drag.onPointerDown(e);
+    };
 
     const [menu, setMenu] = useState<'speed' | null>(null);
     const [textSizeMenuOpen, setTextSizeMenuOpen] = useState(false);
@@ -104,8 +141,19 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
         };
     }, [menu]);
 
+    // The window around the visible pop-out is transparent.
+    useEffect(() => {
+        document.documentElement.style.background = 'transparent';
+        document.body.style.background = 'transparent';
+    }, []);
+
     return (
-        <div className="group relative h-screen w-screen flex flex-col overflow-hidden bg-[#0A0A0A] text-white select-none">
+        // --ra-vh-trim: the menus size themselves to the window height (100vh), which includes the padding.
+        <div className="h-screen w-screen" style={{padding: WINDOW_INSET, '--ra-vh-trim': `${2 * WINDOW_INSET}px`} as React.CSSProperties}>
+        <div className={`group relative h-full w-full flex flex-col overflow-hidden rounded-[10px] border border-[var(--ra-line)] shadow-[0_6px_22px_rgba(0,0,0,0.16)] bg-[var(--ra-bg)] text-[var(--ra-strong)] select-none ${light ? 'ra-light' : ''}`}>
+            {RESIZE_HANDLES.map(({edge, className}) => (
+                <div key={edge} aria-hidden="true" onPointerDown={(e) => startWindowResize(edge, e)} className={`absolute z-50 ${className}`}/>
+            ))}
             {/* ReadingView reads the book from the route; a new book remounts it. */}
             <MemoryRouter key={bookId} initialEntries={[`/read/${bookId}`]}>
                 <Routes>
@@ -113,25 +161,39 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                 </Routes>
             </MemoryRouter>
 
-            {/* Top strip: drag the window here. Close dot left (as on macOS), menus right. */}
+            {/* Top strip: drag the window here. Window dots left (as on macOS), menus right. */}
             <div
-                style={dragRegion}
-                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent ${menu || textSizeMenuOpen ? 'opacity-100' : `${onHover} -translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}`}
+                onPointerDown={onStripPointerDown}
+                onClickCapture={drag.onClickCapture}
+                className={`absolute inset-x-0 top-0 z-40 h-10 px-2.5 flex items-center justify-between ${menu || textSizeMenuOpen ? 'opacity-100' : `${onHover} -translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}`}
             >
-                <button
-                    type="button"
-                    style={noDragRegion}
-                    onClick={() => window.close()}
-                    aria-label={t('readAlong.closePopout')}
-                    title={t('readAlong.closePopout')}
-                    className={`group/close w-3 h-3 flex items-center justify-center rounded-full bg-[#FF5F57] border border-black/20 text-[#4D0000] ${focusRing}`}
-                >
-                    <svg aria-hidden="true" className="opacity-0 group-hover/close:opacity-100" width="6" height="6" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
-                        <path d="M2 2l6 6M8 2L2 8"/>
-                    </svg>
-                </button>
+                {/* The macOS window dots: close, and minimize to a bubble in the screen corner. */}
+                <div className="group/lights flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => window.close()}
+                        aria-label={t('readAlong.closePopout')}
+                        title={t('readAlong.closePopout')}
+                        className={`w-3 h-3 flex items-center justify-center rounded-full bg-[#FF5F57] border border-black/20 text-[#4D0000] ${focusRing}`}
+                    >
+                        <svg aria-hidden="true" className="opacity-0 group-hover/lights:opacity-100" width="6" height="6" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+                            <path d="M2 2l6 6M8 2L2 8"/>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => window.electronEpub?.minimizePopout()}
+                        aria-label={t('readAlong.minimizePopout')}
+                        title={t('readAlong.minimizePopout')}
+                        className={`w-3 h-3 flex items-center justify-center rounded-full bg-[#FEBC2E] border border-black/20 text-[#5A3A00] ${focusRing}`}
+                    >
+                        <svg aria-hidden="true" className="opacity-0 group-hover/lights:opacity-100" width="6" height="6" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+                            <path d="M1.5 5h7"/>
+                        </svg>
+                    </button>
+                </div>
 
-                <div ref={menusRef} style={noDragRegion} className="flex items-center gap-1.5">
+                <div ref={menusRef} className="flex items-center gap-1.5">
                     {playback?.bookId && (
                         <div className="relative">
                             <button
@@ -145,8 +207,7 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                                 {playbackRate}×
                             </button>
                             {menu === 'speed' && (
-                                <div className={popoverClass}>
-                                    <div className={popoverHeader}>{t('player.speed')}</div>
+                                <div className={popoverClass} role="group" aria-label={t('player.speed')}>
                                     {PLAYBACK_RATES.map((rate) => (
                                         <button
                                             key={rate}
@@ -175,17 +236,32 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         buttonClassName={`${menuBtn} font-normal text-[14px]`}
                         onOpenChange={setTextSizeMenuOpen}
                     />
+                    <button
+                        type="button"
+                        onClick={toggleTheme}
+                        aria-label={t(light ? 'readAlong.darkTheme' : 'readAlong.lightTheme')}
+                        title={t(light ? 'readAlong.darkTheme' : 'readAlong.lightTheme')}
+                        className={`${menuBtn} w-7 px-0`}
+                    >
+                        {/* Shows the theme a click switches to. */}
+                        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                            {light
+                                ? <path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>
+                                : <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>}
+                        </svg>
+                    </button>
                 </div>
             </div>
 
             {playback?.bookId && (
-                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[#1A1A1A]/95 border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
+                <div className={`absolute left-1/2 -translate-x-1/2 bottom-3 z-30 flex items-center gap-0.5 p-0.5 rounded-full bg-[var(--ra-pill)] backdrop-blur-[5px] backdrop-saturate-150 border border-[var(--ra-glass-line)] shadow-[0_8px_24px_var(--ra-shadow)] ${onHover} translate-y-1 group-hover:translate-y-0 focus-within:translate-y-0`}>
                     <button
                         type="button"
                         onClick={() => control({type: 'skip', seconds: -SKIP_BACKWARD_SECONDS})}
                         aria-label={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                         title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
-                        className={controlBtn}
+                        className={skipBtn}
                     >
                         <SkipIcon direction="backward" size={16}/>
                     </button>
@@ -207,12 +283,13 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                         onClick={() => control({type: 'skip', seconds: SKIP_FORWARD_SECONDS})}
                         aria-label={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                         title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
-                        className={controlBtn}
+                        className={skipBtn}
                     >
                         <SkipIcon direction="forward" size={16}/>
                     </button>
                 </div>
             )}
+        </div>
         </div>
     );
 }

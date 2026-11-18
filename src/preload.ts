@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronLocale', {
 });
 
 // Window API
+// Cleaned covers (ISBN -> file URL), fixed for the window's lifetime.
+contextBridge.exposeInMainWorld('electronCovers', { overrides: ipcRenderer.sendSync('covers:overrides') });
+
 contextBridge.exposeInMainWorld('electronWindow', {
   setAlwaysOnTop: (alwaysOnTop: boolean): Promise<void> =>
     ipcRenderer.invoke('window-set-always-on-top', alwaysOnTop),
@@ -143,6 +146,12 @@ contextBridge.exposeInMainWorld('electronEpub', {
   openPopout: (bookId: string): Promise<void> => ipcRenderer.invoke('readAlong:popout-open', bookId),
   closePopout: (): Promise<void> => ipcRenderer.invoke('readAlong:popout-close'),
   isPopoutOpen: (): Promise<boolean> => ipcRenderer.invoke('readAlong:popout-is-open'),
+  minimizePopout: (): void => ipcRenderer.send('readAlong:popout-minimize'),
+  restorePopout: (): void => ipcRenderer.send('readAlong:popout-restore'),
+  dragWindow: (phase: 'start' | 'move' | 'end', dx: number, dy: number): void =>
+    ipcRenderer.send('readAlong:window-drag', phase, dx, dy),
+  resizeWindow: (phase: 'start' | 'move' | 'end', edge: string, dx: number, dy: number): void =>
+    ipcRenderer.send('readAlong:window-resize', phase, edge, dx, dy),
   onPopoutOpenChange: (callback: (open: boolean) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, open: boolean) => callback(open);
     ipcRenderer.on('readAlong:popout-open-change', listener);

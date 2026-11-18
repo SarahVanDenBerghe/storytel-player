@@ -130,7 +130,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                 className={iconBtn}
             >
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                     strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/>
                     <path d="M14 3v6h6"/>
                 </svg>
@@ -147,7 +147,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                                 setMenu('closed');
                                 void prepareAndSync();
                             }}
-                            className={`self-start mt-1 ${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-white`}
+                            className={`self-start mt-1 ${smallBtn} bg-[#FF5100] hover:bg-[#FF6A26] text-white`}
                         >
                             {t('bookView.prepareAudio')}
                         </button>
@@ -174,7 +174,7 @@ function EpubButton({bookId, book, consumableId, onChanged}: {
                                 <button
                                     type="button"
                                     onClick={chooseEpub}
-                                    className={`${smallBtn} bg-[#FF5100] hover:bg-[#ff641a] text-white`}
+                                    className={`${smallBtn} bg-[#FF5100] hover:bg-[#FF6A26] text-white`}
                                 >
                                     {t('bookView.chooseNewFile')}
                                 </button>

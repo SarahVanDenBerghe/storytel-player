@@ -17,6 +17,10 @@ module.exports = {
         'page-in': 'page-in 180ms cubic-bezier(0.2, 0, 0, 1)',
         'pop-in': 'pop-in 150ms cubic-bezier(0.2, 0, 0, 1)',
       },
+      // The serif of Read along, also used for page and section titles.
+      fontFamily: {
+        serif: ['Charter', "'Iowan Old Style'", 'Georgia', 'serif'],
+      },
       colors: {
         primary: {
           50: '#f0f9ff',

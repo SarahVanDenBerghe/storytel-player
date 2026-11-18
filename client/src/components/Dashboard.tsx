@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../utils/api';
 import BookCard from './BookCard';
-import ConfirmRemoveBookModal from './ConfirmRemoveBookModal';
 import { BookShelfEntity, BookShelfResponse } from '../interfaces/books';
-import { bookProgress, bookRouteId, removeFromBookshelfErrorKey } from '../utils/helpers';
+import { bookProgress, bookRouteId, cleanBookTitle } from '../utils/helpers';
 import UpNext from './UpNext';
 import { useUpNext } from '../hooks/useUpNext';
 
@@ -46,12 +45,6 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [bookToRemove, setBookToRemove] = useState<BookShelfEntity | null>(null);
-  const [isRemoving, setIsRemoving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
 
   useEffect(() => {
     loadBookshelf();
@@ -120,14 +113,18 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
       );
     }
 
-    // Sort by most recently updated
+    // Like a bookcase: by the first author's surname, then title, then part ("1 of 2" before "2 of 2").
+    const sortKey = (book: BookShelfEntity) => {
+      const firstAuthor = (book.book?.authorsAsString || '').split(',')[0].trim();
+      const { title, part } = cleanBookTitle(book.book?.name || '');
+      return { surname: firstAuthor.split(' ').pop() || '', firstAuthor, title, part: part?.n ?? 0 };
+    };
+    const compare = (x: string, y: string) => x.localeCompare(y, undefined, { sensitivity: 'base', numeric: true });
     result.sort((a, b) => {
-      const getTimestamp = (book: BookShelfEntity): number => {
-        if (book.positionUpdatedTime) return new Date(book.positionUpdatedTime).getTime();
-        if (book.stateUpdateTime) return new Date(book.stateUpdateTime).getTime();
-        return 0;
-      };
-      return getTimestamp(b) - getTimestamp(a);
+      const ka = sortKey(a);
+      const kb = sortKey(b);
+      return compare(ka.surname, kb.surname) || compare(ka.firstAuthor, kb.firstAuthor)
+        || compare(ka.title, kb.title) || ka.part - kb.part;
     });
 
     return result;
@@ -147,28 +144,6 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     navigate(`/player/${bookId}`, {
       state: { book, autoPlay: true },
     });
-  };
-
-  const handleRemoveBook = async () => {
-    if (!bookToRemove || isRemoving) return;
-    const consumableId = bookToRemove.book?.consumableId || bookToRemove.id;
-    if (!consumableId) return;
-
-    try {
-      setIsRemoving(true);
-      await api.post('/bookshelf/remove', { consumableId: String(consumableId) });
-      setBookToRemove(null);
-      setBooks((prev) => prev.filter((b) => b !== bookToRemove));
-      setToastMessage({ type: 'success', text: t('bookshelf.removed', 'Removed from your library') });
-      loadBookshelf();
-    } catch (err: any) {
-      console.error('Failed to remove book from bookshelf:', err);
-      setBookToRemove(null);
-      setToastMessage({ type: 'error', text: t(removeFromBookshelfErrorKey(err)) });
-    } finally {
-      setIsRemoving(false);
-      setTimeout(() => setToastMessage(null), 4000);
-    }
   };
 
   const focusRing =
@@ -202,12 +177,9 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     body = (
       <div className="max-w-sm mx-auto py-20 text-center">
         <h2 className="text-[15px] font-semibold text-white mb-1">{t('dashboard.noBooks', 'No books found')}</h2>
-        <p className="text-[13px] text-[#9CA3AF] mb-5">
+        <p className="text-[13px] text-[#9CA3AF]">
           {t('dashboard.emptyLibrary', 'Your library appears to be empty.')}
         </p>
-        <button type="button" onClick={() => navigate('/search')} className={secondaryButton}>
-          {t('dashboard.exploreCatalog', 'Explore the catalog (⌘K)')}
-        </button>
       </div>
     );
   } else if (filteredBooks.length === 0) {
@@ -230,7 +202,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     );
   } else {
     const grid = (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-7 gap-y-8">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-7">
         {filteredBooks
           .filter((book) => !!book?.abook || !!book?.book)
           .map((book) => (
@@ -238,7 +210,6 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
               key={book.abook?.id || book.id || book.book?.consumableId}
               book={book}
               onBookSelect={handleBookSelect}
-              onRemove={setBookToRemove}
               onQuickPlay={handleQuickPlay}
             />
           ))}
@@ -248,7 +219,7 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     body = showUpNext ? (
       <div className="max-w-[1000px] mx-auto pt-3">
         <UpNext books={books} />
-        <h2 className="mt-12 mb-4 text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]">
+        <h2 className="mt-12 mb-4 font-serif text-[21px] font-semibold tracking-[-0.012em] leading-[1.2] text-white/[0.92]">
           {t('upNext.library')}
         </h2>
         {grid}
@@ -259,9 +230,10 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white">
-      {/* A plain player: no title, filters or search, only the settings cog. */}
-      <header className="flex-shrink-0 flex justify-end px-3 pt-2">
+    <div className="relative flex-1 min-h-0 flex flex-col bg-[#0A0A0A] text-white selection:bg-[#FF5100] selection:text-white">
+      {/* A plain player: no title, filters or search, only the settings cog. It floats
+          over the page (no bar), so the library scrolls up under it, as in Read along. */}
+      <header className="absolute top-0 right-0 z-20 px-3 pt-2">
         <button
           type="button"
           onClick={onOpenSettings}
@@ -269,34 +241,14 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
           title={t('settings.title', 'Settings')}
           className={`w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`}
         >
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
           </svg>
         </button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-4 pb-12">{body}</div>
-
-      <ConfirmRemoveBookModal
-        isOpen={!!bookToRemove}
-        bookTitle={bookToRemove?.book?.name || ''}
-        isRemoving={isRemoving}
-        onConfirm={handleRemoveBook}
-        onCancel={() => setBookToRemove(null)}
-      />
-
-      {toastMessage && (
-        <div
-          className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl backdrop-blur-md border animate-in fade-in slide-in-from-bottom-2 ${
-            toastMessage.type === 'success'
-              ? 'bg-green-950/90 text-green-300 border-green-700/50'
-              : 'bg-red-950/90 text-red-300 border-red-700/50'
-          }`}
-        >
-          {toastMessage.text}
-        </div>
-      )}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-10 pt-[84px] pb-12">{body}</div>
     </div>
   );
 }

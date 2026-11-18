@@ -59,7 +59,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
   };
 
   const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-  const skipClass = `h-8 w-9 flex items-center justify-center rounded-[8px] bg-transparent text-[#D1D5DB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+  const skipClass = `h-8 w-9 flex items-center justify-center rounded-[8px] bg-transparent text-[#D1D5DB] hover:text-[#FF5100] transition-colors ${focusRing}`;
 
   return (
     <div className={`h-[76px] px-5 gap-5 border-t flex items-center z-40 select-none flex-shrink-0 relative transition-colors duration-150 ${
@@ -105,8 +105,15 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
       </div>
 
       {/* 2. Centre: transport row + scrubber */}
-      <div aria-hidden={toolsOnly || undefined} className={`flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-1 ${fadeOut}`}>
-        <div className="flex items-center gap-[14px]">
+      <div aria-hidden={toolsOnly || undefined} className={`relative self-stretch flex-[1_1_360px] min-w-0 max-w-[560px] mx-auto flex flex-col items-center gap-3 ${fadeOut}`}>
+        {/* The bump: the bar rises in one soft curve behind the play button, so the
+            flat part keeps its height. It covers the bar's top border where it sits
+            and draws its own along the curve. */}
+        <svg aria-hidden="true" width="260" height="23" viewBox="0 0 260 23" className="absolute bottom-full left-1/2 -translate-x-1/2 pointer-events-none">
+          <path d="M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5V23H0Z" fill="#121214" />
+          <path d="M0 22.5C60 22.5 74 0.5 130 0.5S200 22.5 260 22.5" fill="none" stroke="rgba(255,255,255,0.08)" />
+        </svg>
+        <div className="relative flex items-center gap-[14px] -mt-2">
           <button
             type="button"
             onClick={() => skipBackward(SKIP_BACKWARD_SECONDS)}
@@ -122,7 +129,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
             onClick={togglePlayPause}
             disabled={isLoading}
             aria-label={isPlaying ? t('tray.pause', 'Pause') : t('tray.play', 'Play')}
-            className={`w-10 h-10 rounded-full bg-[#FF5100] hover:bg-[#ff641a] text-white flex items-center justify-center transition-colors disabled:cursor-wait ${focusRing}`}
+            className={`w-10 h-10 rounded-full bg-[#FF5100] hover:bg-[#FF6A26] text-white flex items-center justify-center transition-colors disabled:cursor-wait ${focusRing}`}
           >
             {isLoading ? (
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -157,7 +164,7 @@ export function PlayerBar({ variant = 'full' }: { variant?: 'full' | 'tools' }) 
 
           <div className="flex-1 relative flex items-center py-1 rounded [&:has(:focus-visible)]:outline [&:has(:focus-visible)]:outline-2 [&:has(:focus-visible)]:outline-offset-2 [&:has(:focus-visible)]:outline-[#FF5100]">
             <div className="w-full h-1 bg-white/[0.12] rounded-full overflow-hidden">
-              <div className="h-full bg-[#FF5100] rounded-full transition-[width] duration-300 ease-linear" style={{ width: `${progressPercent}%` }} />
+              <div className={`h-full bg-[#FF5100] rounded-full transition-[width] duration-300 ease-linear ${isPlaying ? 'progress-live' : ''}`} style={{ width: `${progressPercent}%` }} />
             </div>
             <input
               type="range"

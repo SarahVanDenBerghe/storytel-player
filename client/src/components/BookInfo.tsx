@@ -1,6 +1,6 @@
 import React from 'react';
 import {useTranslation} from 'react-i18next';
-import {buildCoverUrl, formatTime} from '../utils/helpers';
+import {buildCoverUrl, cleanBookTitle, formatTime} from '../utils/helpers';
 import {BookShelfEntity} from '../interfaces/books';
 import {Chapter} from '../interfaces/chapters';
 
@@ -30,14 +30,17 @@ const BookInfo: React.FC<BookInfoProps> = ({
     const {t} = useTranslation();
 
     const author = book.book.authorsAsString;
+    // Short title, as on the home page ("Golden Son"); the part goes in the line below.
+    const {title: shortTitle, part} = cleanBookTitle(book.book.name);
     const hasChapters = chapters && chapters.length > 0;
     const chapterTimeLeft = currentChapter
         ? formatTime(Math.max(0, (currentChapter.end - currentTime) / playbackRate))
         : null;
 
-    // "author · chapter title · time left in chapter"; missing parts are dropped.
+    // "author · part · chapter title · time left in chapter"; missing parts are dropped.
     const metaParts: React.ReactNode[] = [];
     if (author) metaParts.push(<span key="author">{author}</span>);
+    if (part) metaParts.push(<span key="part">{t('bookCard.part', {n: part.n, total: part.total})}</span>);
     if (currentChapter?.title) {
         metaParts.push(hasChapters ? (
             <button
@@ -67,8 +70,9 @@ const BookInfo: React.FC<BookInfoProps> = ({
                 alt=""
                 className="w-[280px] max-w-[70vw] aspect-square object-cover rounded-[6px] bg-[#141416] cover-border shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
             />
-            <h1 className="mt-6 max-w-[480px] text-[17px] font-semibold text-white text-center break-words">
-                {book.book.name}
+            <h1 className="mt-6 max-w-[480px] font-serif text-[22px] font-semibold leading-[1.25] text-white text-center break-words"
+                title={book.book.name}>
+                {shortTitle || book.book.name}
             </h1>
             {metaParts.length > 0 && (
                 <p className="mt-1 max-w-[480px] text-[13px] text-[#9CA3AF] text-center break-words">

@@ -76,7 +76,7 @@ function BookmarkModals({
   const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2';
   const primaryButton = `flex-1 h-11 px-4 rounded-[10px] bg-[#FF5100] text-white text-sm font-semibold hover:bg-[#FF6A26] transition-colors ${focusRing}`;
   const secondaryButton = `flex-1 h-11 px-4 rounded-[10px] bg-white/[0.06] text-[#D1D5DB] text-sm font-medium hover:bg-white/10 transition-colors ${focusRing}`;
-  const destructiveButton = `flex-1 h-11 px-4 rounded-[10px] border border-[#FF7A3D]/40 bg-transparent text-[#FF7A3D] text-sm font-semibold hover:bg-[#FF7A3D]/10 transition-colors ${focusRing}`;
+  const destructiveButton = `flex-1 h-11 px-4 rounded-[10px] border border-[#FF7A3D]/40 bg-transparent text-[#FF7A3D] text-sm font-semibold hover:bg-[#FF6A26]/10 transition-colors ${focusRing}`;
   const textareaClass = `w-full px-3 py-2.5 rounded-[10px] border border-white/[0.14] bg-[#121214] text-white text-sm resize-none placeholder-[#9CA3AF] ${focusRing}`;
   const iconButton = `w-9 h-9 flex items-center justify-center rounded-lg text-[#9CA3AF] hover:bg-white/[0.06] transition-colors ${focusRing} focus-visible:outline-offset-[-2px]`;
 

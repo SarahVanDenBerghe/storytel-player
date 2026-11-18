@@ -19,7 +19,6 @@ const MIN_TEXT_SIZE = 14;
 const MAX_TEXT_SIZE = 22;
 // The "Aa" button steps through these sizes and wraps around.
 export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
-const SERIF_STACK = "Charter, 'Iowan Old Style', Georgia, serif";
 // Keys that scroll a focused scroller: pressing one means the user took over.
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 // Follow mode keeps the spoken word on this line, as a fraction of the scroller's height from its top.
@@ -88,16 +87,19 @@ const Paragraph = React.memo(function Paragraph({index, text, heading, current, 
     text: string;
     heading: boolean;
     current: boolean;
+    /** Set when a click plays from this paragraph; it then highlights on hover. */
     title?: string;
 }) {
     const Tag = heading ? 'h2' : 'p';
     const headingStyle = heading ? `text-[1.15em] font-semibold ${index > 0 ? 'mt-[1em]' : ''}` : '';
+    // The negative margin keeps the text in place while the hover fill gets some room.
+    const clickable = title ? '-mx-2 px-2 rounded-[8px] cursor-pointer transition-colors hover:bg-[var(--ra-fill)]' : '';
     return (
         <Tag
             data-index={index}
             title={title}
             aria-current={current ? 'true' : undefined}
-            className={`mb-[0.6em] text-[#E5E7EB] ${headingStyle}`}
+            className={`mb-[0.6em] text-[var(--ra-text)] ${headingStyle} ${clickable}`}
         >
             {text}
         </Tag>
@@ -387,8 +389,17 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
 
     // Play from here: a click on a paragraph (not the end of a text selection)
     // moves the audio to where that paragraph is read, inside the synced range only.
-    const canSetPlace = isThisBook && bookIndex !== null && anchors.length >= 2;
+    // Not in the pop-out, which is for reading along only.
+    const canSetPlace = !isPopout && isThisBook && bookIndex !== null && anchors.length >= 2;
     const setPlaceTitle = canSetPlace ? t('readAlong.playFromHere') : undefined;
+    // For 10 s after a jump, Undo returns to where the audio was before it (before
+    // the first of several quick jumps).
+    const [undoJump, setUndoJump] = useState<{fromSec: number; at: number} | null>(null);
+    useEffect(() => {
+        if (!undoJump) return;
+        const timer = setTimeout(() => setUndoJump(null), 10_000);
+        return () => clearTimeout(timer);
+    }, [undoJump]);
     const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
         if (!canSetPlace || !bookIndex) return;
         // Part of a double or triple click: the user is selecting words.
@@ -399,6 +410,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         if (!el || !Number.isInteger(paragraphIndex)) return;
         const timeSec = timeAtParagraph(bookIndex, anchors, paragraphIndex);
         if (timeSec === null) return;
+        setUndoJump((prev) => ({fromSec: prev?.fromSec ?? audio.currentTime, at: Date.now()}));
         audio.seek(timeSec);
         setFollowing(true);
     };
@@ -496,6 +508,21 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         };
     }, []);
 
+    // While not following: is the spoken paragraph above the view? The Back to now
+    // arrow points that way.
+    const [nowAbove, setNowAbove] = useState(false);
+    useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (following || currentIndex < 0 || !scroller) return;
+        const update = () => {
+            const el = articleRef.current?.children[currentIndex] as HTMLElement | undefined;
+            if (el) setNowAbove(el.getBoundingClientRect().bottom < scroller.getBoundingClientRect().top + scroller.clientHeight / 2);
+        };
+        update();
+        scroller.addEventListener('scroll', update, {passive: true});
+        return () => scroller.removeEventListener('scroll', update);
+    }, [following, currentIndex]);
+
     // Only user input stops following, never our own programmatic scrolls.
     const stopFollowing = () => {
         followingRef.current = false;
@@ -528,14 +555,14 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     tabIndex={0}
                     role="region"
                     aria-label={t('readAlong.bookText')}
-                    className="relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]"
+                    className={`relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-12 focus:outline-none ${isPopout ? '[scrollbar-width:none]' : 'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]'}`}
                     style={following && currentIndex >= 0 ? {maskImage: FOLLOW_FADE} : undefined}
                     {...scrollerHandlers}
                 >
                     <article
                         ref={articleRef}
-                        className={`max-w-[660px] mx-auto select-text transition-opacity duration-200 ease-out ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'} ${revealed ? 'opacity-100' : 'opacity-0'}`}
-                        style={{fontSize: isPopout ? textSize - POPOUT_TEXT_SHRINK : textSize, fontFamily: SERIF_STACK}}
+                        className={`max-w-[660px] mx-auto font-serif select-text transition-opacity duration-200 ease-out ${isPopout ? 'leading-[1.6]' : 'leading-[1.75]'} ${revealed ? 'opacity-100' : 'opacity-0'}`}
+                        style={{fontSize: isPopout ? textSize - POPOUT_TEXT_SHRINK : textSize}}
                         onClick={handleArticleClick}
                     >
                         {paragraphs.map((p, i) => (
@@ -551,13 +578,13 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     </article>
                 </div>
                 {findingPlace && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0A0A0A]/70 animate-fade-in pointer-events-none">
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_srgb,var(--ra-bg)_70%,transparent)] animate-fade-in pointer-events-none">
                         <div role="status" className="flex flex-col items-center gap-3 text-center">
-                            <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-white/10 border-t-[#FF5100] animate-spin"/>
-                            <span className="text-[14px] font-medium text-[#E5E7EB]">
+                            <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-[var(--ra-line)] border-t-[#FF5100] animate-spin"/>
+                            <span className="text-[14px] font-medium text-[var(--ra-text)]">
                                 {chip === 'preparing' ? t('readAlong.preparing') : t('readAlong.finding')}
                             </span>
-                            {chipDetail && <span className="text-[12px] text-[#9CA3AF] tabular-nums">{chipDetail}</span>}
+                            {chipDetail && <span className="text-[12px] text-[var(--ra-muted)] tabular-nums">{chipDetail}</span>}
                         </div>
                     </div>
                 )}
@@ -569,7 +596,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                 <div className="max-w-[360px] flex flex-col items-center gap-3 text-center">
                     <span className="text-[#FF5100]"><OpenBookIcon size={32} strokeWidth={1.6}/></span>
                     <h1 className="text-[15px] font-semibold">{t('readAlong.emptyTitle')}</h1>
-                    <p className="text-[13px] leading-[1.6] text-[#9CA3AF]">{t('readAlong.emptyBody')}</p>
+                    <p className="text-[13px] leading-[1.6] text-[var(--ra-muted)]">{t('readAlong.emptyBody')}</p>
                     <button type="button" onClick={chooseEpub} className={`mt-1 ${primaryBtn}`}>
                         {t('readAlong.chooseEpub')}
                     </button>
@@ -591,8 +618,8 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         body = (
             <div className="flex-1 min-h-0 flex items-center justify-center p-6">
                 <div role="status" className="flex flex-col items-center">
-                    <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-2 border-white/10 border-t-[#FF5100] mb-4"/>
-                    <div className="text-[15px] font-medium text-[#E5E7EB]">{t('common.loading')}</div>
+                    <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--ra-line)] border-t-[#FF5100] mb-4"/>
+                    <div className="text-[15px] font-medium text-[var(--ra-text)]">{t('common.loading')}</div>
                 </div>
             </div>
         );
@@ -600,7 +627,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
 
     return (
         <div
-            className="flex-1 min-h-0 flex flex-col relative bg-[#0A0A0A] text-white"
+            className="flex-1 min-h-0 flex flex-col relative bg-[var(--ra-bg)] text-[var(--ra-strong)]"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -639,9 +666,9 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                 className={`${iconBtn} ${popoutOpen ? 'text-[#FF5100] hover:text-[#FF6A26]' : ''}`}
                             >
                                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                    <rect x="12" y="11" width="6" height="5" rx="1"/>
+                                     strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="16" rx="2"/>
+                                    <rect x="12" y="12" width="6" height="5" rx="1"/>
                                 </svg>
                             </button>
                         )}
@@ -659,14 +686,43 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
 
             {body}
 
-            {!following && currentIndex >= 0 && (
-                <button
-                    type="button"
-                    onClick={() => setFollowing(true)}
-                    className={`absolute left-1/2 -translate-x-1/2 ${isPopout ? 'bottom-16' : 'bottom-4'} z-20 h-8 px-3.5 rounded-full bg-[#FF5100] text-white text-[12px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
-                >
-                    {t('readAlong.backToNow')}
-                </button>
+            {((!following && currentIndex >= 0) || undoJump) && (
+                <div className={`absolute ${isPopout ? 'right-3 bottom-3' : 'right-6 bottom-4'} z-20 flex items-center gap-2`}>
+                    {undoJump && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                audio.seek(undoJump.fromSec);
+                                setUndoJump(null);
+                                setFollowing(true);
+                            }}
+                            className={`h-9 pl-3 pr-3.5 flex items-center gap-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-white text-[12px] font-semibold whitespace-nowrap shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#242424] transition-colors animate-fade-in ${focusRing}`}
+                        >
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 14L4 9l5-5"/>
+                                <path d="M4 9h10.5a5.5 5.5 0 010 11H11"/>
+                            </svg>
+                            {t('readAlong.undoJump')}
+                        </button>
+                    )}
+                    {!following && currentIndex >= 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setFollowing(true)}
+                            aria-label={t('readAlong.backToNow')}
+                            title={t('readAlong.backToNow')}
+                            className={`w-9 h-9 flex items-center justify-center rounded-full bg-[#FF5100] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
+                        >
+                            {/* Points to where the spoken text is. */}
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"
+                                 className={`transition-transform duration-150 ${nowAbove ? 'rotate-180' : ''}`}>
+                                <path d="M12 5v14M6 13l6 6 6-6"/>
+                            </svg>
+                        </button>
+                    )}
+                </div>
             )}
         </div>
     );

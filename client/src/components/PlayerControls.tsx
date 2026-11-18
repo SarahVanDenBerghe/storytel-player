@@ -16,13 +16,15 @@ interface PlayerControlsProps {
     onSeek: (time: number) => void;
     onSkipForward: () => void;
     onSkipBackward: () => void;
+    /** Preview of a book not in the player: only play works; skipping and seeking are dimmed. */
+    seekDisabled?: boolean;
     /** The main action under the transport (the read-along button). */
     children?: React.ReactNode;
 }
 
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
-const skipBtn = `h-11 w-12 flex items-center justify-center rounded-[10px] bg-transparent text-[#E5E7EB] hover:text-white hover:bg-white/[0.06] transition-colors ${focusRing}`;
+const skipBtn = `h-11 w-12 flex items-center justify-center rounded-[10px] bg-transparent text-[#E5E7EB] hover:text-[#FF5100] disabled:opacity-40 disabled:hover:text-[#E5E7EB] transition-colors ${focusRing}`;
 
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -34,6 +36,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     onSeek,
     onSkipForward,
     onSkipBackward,
+    seekDisabled = false,
     children,
 }) => {
     const {t} = useTranslation();
@@ -46,10 +49,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     return (
         <div className="w-full flex flex-col items-center">
             {/* Progress */}
-            <div className="w-full max-w-[480px] mt-7">
+            <div className={`w-full max-w-[480px] mt-7 ${seekDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="relative flex items-center py-2 rounded [&:has(:focus-visible)]:outline [&:has(:focus-visible)]:outline-2 [&:has(:focus-visible)]:outline-offset-2 [&:has(:focus-visible)]:outline-[#FF5100]">
                     <div className="w-full h-1 bg-white/[0.12] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#FF5100] rounded-full transition-[width] duration-300 ease-linear" style={{width: `${progressPercent}%`}}/>
+                        <div className={`h-full bg-[#FF5100] rounded-full transition-[width] duration-300 ease-linear ${isPlaying ? 'progress-live' : ''}`} style={{width: `${progressPercent}%`}}/>
                     </div>
                     <input
                         type="range"
@@ -58,6 +61,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                         step="any"
                         value={currentTime}
                         onChange={(e) => onSeek(parseFloat(e.target.value))}
+                        disabled={seekDisabled}
                         aria-label={t('player.seekPosition', 'Playback position')}
                         aria-valuetext={formatTime(elapsed)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -74,6 +78,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                 <button
                     type="button"
                     onClick={onSkipBackward}
+                    disabled={seekDisabled}
                     aria-label={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                     title={t('player.skipBackward', {seconds: SKIP_BACKWARD_SECONDS})}
                     className={skipBtn}
@@ -85,7 +90,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     type="button"
                     onClick={onPlayPause}
                     aria-label={isPlaying ? t('tray.pause', 'Pause') : t('tray.play', 'Play')}
-                    className={`w-[60px] h-[60px] rounded-full bg-[#FF5100] hover:bg-[#ff641a] text-white flex items-center justify-center shadow-[0_6px_20px_rgba(255,81,0,0.3)] transition-colors ${focusRing}`}
+                    className={`w-[60px] h-[60px] rounded-full bg-[#FF5100] hover:bg-[#FF6A26] text-white flex items-center justify-center shadow-[0_6px_20px_rgba(255,81,0,0.3)] transition-colors ${focusRing}`}
                 >
                     {isPlaying ? (
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -102,6 +107,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                 <button
                     type="button"
                     onClick={onSkipForward}
+                    disabled={seekDisabled}
                     aria-label={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                     title={t('player.skipForward', {seconds: SKIP_FORWARD_SECONDS})}
                     className={skipBtn}

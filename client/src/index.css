@@ -31,6 +31,52 @@
   padding-left: 84px !important;
 }
 
+/*
+ * Read along colours. Dark everywhere; the pop-out window can switch itself to
+ * light (`.ra-light` on its root, toggled in ReadingPopout).
+ */
+:root {
+  --ra-bg: #0a0a0a;
+  --ra-text: #e5e7eb;
+  --ra-strong: #ffffff;
+  --ra-muted: #9ca3af;
+  --ra-surface: #17171a;
+  --ra-pill: rgba(26, 26, 26, 0.5);
+  --ra-line: rgba(255, 255, 255, 0.1);
+  --ra-fill: rgba(255, 255, 255, 0.06);
+  --ra-fill-strong: rgba(255, 255, 255, 0.1);
+  --ra-glass-line: rgba(255, 255, 255, 0.05);
+  --ra-control: #e5e7eb;
+  --ra-shadow: rgba(0, 0, 0, 0.5);
+}
+.ra-light {
+  color-scheme: light;
+  --ra-bg: #faf8f3;
+  --ra-text: #2b2a27;
+  --ra-strong: #111111;
+  --ra-muted: #6f6a61;
+  --ra-surface: #f3efe6;
+  --ra-pill: rgba(240, 235, 224, 0.45);
+  --ra-line: rgba(90, 70, 40, 0.07);
+  --ra-fill: rgba(90, 70, 40, 0.06);
+  --ra-fill-strong: rgba(90, 70, 40, 0.1);
+  --ra-glass-line: rgba(90, 70, 40, 0.04);
+  --ra-control: #6a6356;
+  --ra-shadow: rgba(90, 70, 40, 0.12);
+}
+
+/* Playing: a soft light sweeps along the orange progress fill, at the same speed
+   whatever the fill's width (a fixed-size repeating tile). Paused: plain orange. */
+.progress-live {
+  background-image: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.38) 50%, transparent 70%);
+  background-size: 220px 100%;
+  animation: progress-sweep 2.2s linear infinite;
+}
+@keyframes progress-sweep {
+  from { background-position: -220px 0; }
+  to { background-position: 0 0; }
+}
+
 /* Press feedback: buttons dip slightly while pressed (`scale` composes with transforms). */
 button:not(:disabled):active {
   scale: 0.97;

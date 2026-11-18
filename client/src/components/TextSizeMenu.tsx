@@ -4,10 +4,8 @@ import {useTranslation} from 'react-i18next';
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const popoverItem = (selected: boolean) =>
     `w-full text-left px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center justify-between transition-colors ${focusRing} ${
-        selected ? 'bg-[#FF5100] text-white' : 'text-[#D1D5DB] hover:bg-white/[0.06] hover:text-white'
+        selected ? 'bg-[#FF5100] text-white' : 'text-[var(--ra-text)] hover:bg-[var(--ra-fill)] hover:text-[var(--ra-strong)]'
     }`;
-const SERIF_STACK = "Charter, 'Iowan Old Style', Georgia, serif";
-
 /**
  * The read-along "Aa" button and its menu of text sizes, styled like the
  * player's speed and Chapters menus. Used by the reading view and the pop-out.
@@ -51,14 +49,12 @@ function TextSizeMenu({value, sizes, onChange, buttonClassName, onOpenChange}: {
                 aria-label={t('readAlong.textSize', {size: value})}
                 aria-expanded={open}
                 title={t('readAlong.textSize', {size: value})}
-                className={buttonClassName}
-                style={{fontFamily: SERIF_STACK}}
+                className={`${buttonClassName} font-serif`}
             >
                 Aa
             </button>
             {open && (
-                <div className="absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-56px)] overflow-y-auto bg-[#17171A] border border-white/[0.10] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none">
-                    <div className="text-[11px] font-bold text-[#9CA3AF] px-2 py-1 uppercase tracking-wider">{t('readAlong.textSizeMenu')}</div>
+                <div className="absolute top-full right-0 mt-1 animate-pop-in origin-top-right w-32 max-h-[calc(100vh-56px-var(--ra-vh-trim,0px))] overflow-y-auto bg-[var(--ra-surface)] border border-[var(--ra-line)] rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] p-1.5 z-50 flex flex-col gap-0.5 select-none" role="group" aria-label={t('readAlong.textSizeMenu')}>
                     {sizes.map((size) => (
                         <button
                             key={size}

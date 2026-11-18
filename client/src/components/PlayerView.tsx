@@ -9,7 +9,7 @@ import PlayerControls from "./PlayerControls";
 import BookInfo from "./BookInfo";
 import DownloadCancelModal from "./DownloadCancelModal";
 import {BookShelfEntity} from "../interfaces/books";
-import {useAudioContext} from "../contexts/AudioContext";
+import {readLocalPosition, useAudioContext} from "../contexts/AudioContext";
 import {useChapters} from "../hooks/useChapters";
 import {truncateTitle} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
@@ -127,21 +127,43 @@ function PlayerView() {
     // missing. A re-run (the book details arriving, say, or React invoking the
     // effect twice in development) can therefore neither swallow the intent nor
     // resume playback the user has just paused.
+    // Only a play request loads the book: merely opening a book's page leaves the
+    // player (and the player bar) on the book it holds, and this page shows a preview.
     const lastBookIdRef = useRef<string | null>(null);
     useEffect(() => {
-        if (bookId) {
+        if (bookId && autoPlayRequested) {
             const isNewBook = lastBookIdRef.current !== bookId;
             lastBookIdRef.current = bookId;
             const isAlreadyLoaded = audio.activeBookId === bookId && !isNewBook && !!audio.audioSrc;
-            const autoPlay = autoPlayRequested && (isNewBook || !isAlreadyLoaded);
-            audio.loadBook(book, bookId, autoPlay);
+            if (isNewBook || !isAlreadyLoaded) audio.loadBook(book, bookId, true);
         }
     }, [bookId, book, autoPlayRequested, audio.loadBook]);
+
+    // Preview: another book is in the player. Show this book's last position
+    // (this computer's, else Storytel's) and length; play switches the player to it.
+    const isPreview = !!bookId && String(audio.activeBookId) !== String(bookId);
+    const [previewTime, setPreviewTime] = useState(0);
+    useEffect(() => {
+        if (!isPreview || !book) return;
+        let alive = true;
+        const cid = book.book?.consumableId || bookId || '';
+        readLocalPosition(cid).then((local) => {
+            if (alive) setPreviewTime(local ? local.position / 1000 : (book.abookMark?.pos || 0) / 1000000);
+        });
+        return () => {
+            alive = false;
+        };
+    }, [isPreview, book, bookId]);
+    const shownTime = isPreview ? previewTime : audio.currentTime;
+    const shownDuration = isPreview ? (book?.abook?.time || 0) / 1000000 : audio.duration;
+    const playThisBook = () => {
+        if (bookId) audio.loadBook(book, bookId, true);
+    };
 
     // Chapters hook
     const chapters = useChapters({
         consumableId: activeConsumableId,
-        currentTime: audio.currentTime,
+        currentTime: shownTime,
         onError: setError,
     });
 
@@ -259,11 +281,14 @@ function PlayerView() {
                 return;
             }
 
+            // Preview: Space plays this book; the arrows wait until it is in the player.
+            if (isPreview && event.code !== 'Space') return;
             switch (event.code) {
                 case 'Space':
                     event.preventDefault();
-                    setShowKeyOverlay(audio.isPlaying ? 'pause' : 'play');
-                    audio.togglePlayPause();
+                    setShowKeyOverlay(audio.isPlaying && !isPreview ? 'pause' : 'play');
+                    if (isPreview) playThisBook();
+                    else audio.togglePlayPause();
                     setTimeout(() => setShowKeyOverlay(null), 1000);
                     break;
                 case 'ArrowLeft':
@@ -286,13 +311,14 @@ function PlayerView() {
         return () => {
             document.removeEventListener('keydown', handleKeyPress);
         };
-    }, [audio.togglePlayPause, audio.skipForward, audio.skipBackward, audio.isPlaying]);
+    }, [audio.togglePlayPause, audio.skipForward, audio.skipBackward, audio.isPlaying, isPreview, book, bookId]);
 
-    if (audio.isLoading || isLoadingBookData || !book) {
-        return <LoadingState message={audio.isLoading ? t('player.loadingAudio') : t('player.loadingBookData')}/>;
+    const audioLoading = audio.isLoading && !isPreview;
+    if (audioLoading || isLoadingBookData || !book) {
+        return <LoadingState message={audioLoading ? t('player.loadingAudio') : t('player.loadingBookData')}/>;
     }
 
-    if (error || audio.error) {
+    if (error || (audio.error && !isPreview)) {
         return <ErrorState error={error || audio.error || ''} onRetry={() => navigate('/')}/>;
     }
 
@@ -383,19 +409,20 @@ function PlayerView() {
                 <div className="my-auto w-full flex flex-col items-center">
                     <BookInfo
                         book={book}
-                        currentChapter={chapters.currentChapter || audio.currentChapter}
+                        currentChapter={chapters.currentChapter || (isPreview ? null : audio.currentChapter)}
                         chapters={chapterList}
-                        currentTime={audio.currentTime}
+                        currentTime={shownTime}
                         playbackRate={audio.playbackRate}
                         onShowChaptersModal={() => chapters.setShowChaptersModal(true)}
                     />
 
                     <PlayerControls
-                        isPlaying={audio.isPlaying}
-                        currentTime={audio.currentTime}
-                        duration={audio.duration}
+                        isPlaying={audio.isPlaying && !isPreview}
+                        currentTime={shownTime}
+                        duration={shownDuration}
                         playbackRate={audio.playbackRate}
-                        onPlayPause={audio.togglePlayPause}
+                        seekDisabled={isPreview}
+                        onPlayPause={isPreview ? playThisBook : audio.togglePlayPause}
                         onSeek={audio.seek}
                         onSkipForward={() => audio.skipForward(SKIP_FORWARD_SECONDS)}
                         onSkipBackward={() => audio.skipBackward(SKIP_BACKWARD_SECONDS)}
@@ -410,11 +437,11 @@ function PlayerView() {
             <ChaptersModal
                 isOpen={chapters.showChaptersModal}
                 chapters={chapterList}
-                currentTime={audio.currentTime}
+                currentTime={shownTime}
                 playbackRate={audio.playbackRate}
                 onClose={() => chapters.setShowChaptersModal(false)}
                 onChapterClick={(time) => {
-                    audio.seek(time);
+                    if (!isPreview) audio.seek(time);
                     chapters.setShowChaptersModal(false);
                 }}
             />

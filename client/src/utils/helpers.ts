@@ -1,81 +1,18 @@
-import { SearchResultBook, BookShelfEntity } from '../interfaces/books';
+import { BookShelfEntity } from '../interfaces/books';
 
 // Build a usable cover URL. The new bookshelf API returns absolute URLs
 // (https://covers.storytel.com/...); the legacy API returned relative paths
 // that needed the www.storytel.com host prepended. Storytel only serves the
 // 640px variant, so there is no smaller size to request.
-export const buildCoverUrl = (cover?: string | null): string => {
+// Covers made on disk win, keyed by the ISBN that starts the cover's file name
+// (.../jpg-640/<ISBN>.<uuid>): 'clean' has no text at all (Up next, player), 'tidy' is the
+// original minus publisher logos (the library grid, where the cover is the only label).
+export const buildCoverUrl = (cover?: string | null, level: 'clean' | 'tidy' = 'clean'): string => {
     if (!cover) return '';
+    const isbn = cover.split('/').pop()?.split('.')[0];
+    const cleaned = isbn ? window.electronCovers?.overrides[level === 'tidy' ? `${isbn}.tidy` : isbn] : undefined;
+    if (cleaned) return cleaned;
     return /^https?:\/\//.test(cover) ? cover : `https://www.storytel.com${cover}`;
-};
-
-export const searchResultToBookEntity = (searchBook: SearchResultBook): BookShelfEntity => {
-    const numericId = parseInt(searchBook.id, 10) || 0;
-    return {
-        id: numericId,
-        status: 2,
-        book: {
-            id: numericId,
-            name: searchBook.title || '',
-            authorsAsString: searchBook.authors || '',
-            consumableId: String(searchBook.id),
-            cover: searchBook.coverUrl || '',
-            coverE: '',
-            largeCover: searchBook.coverUrl || '',
-            largeCoverE: '',
-            category: { id: 0, title: searchBook.category || '' } as any,
-            language: { id: 0, isoCode: searchBook.language || '', name: searchBook.languageName || '', localizedName: '' } as any,
-            authors: [],
-            grade: 0,
-            haveRead: 0,
-            href: null,
-            lastBookmarkTimeStamp: 0,
-            latestReleaseDate: '',
-            lengthTime: 0,
-            mappingStatus: 0,
-            myGrade: 0,
-            nrEndBookTotal: 0,
-            nrEndBookWeek: 0,
-            nrGrade: 0,
-            origName: searchBook.title || '',
-            progress: 0,
-            season: null,
-            abridged: 0,
-            AId: numericId,
-            EId: 0,
-        } as any,
-        abook: {
-            id: numericId,
-            allowedToStream: true,
-            bitRate: 0,
-            consumableFormatId: String(searchBook.id),
-            copyright: null,
-            description: searchBook.description || '',
-            display: true,
-            edition: 0,
-            isComing: 0,
-            isbn: '',
-            length: 0,
-            lengthInHHMM: '',
-            narratorAsString: searchBook.narrators || '',
-            narrators: [],
-            product: null,
-            publisher: { id: 0, name: '', description: null },
-            releaseDate: '',
-            releaseDateFormat: '',
-            time: (searchBook.durationMs || 0) * 1000,
-        },
-        abookMark: null as any,
-        ebook: null,
-        ebookMark: null,
-        entityMetadata: null,
-        insertDate: '',
-        matchInFields: null,
-        owns: 0,
-        restriction: 0,
-        shareUrl: '',
-        subscribesToSerie: 0,
-    };
 };
 
 export const localizedLanguageName = (
@@ -146,20 +83,6 @@ export const formatTimeNatural = (seconds: number, units: Required<TimeUnitLabel
 
     return parts.join(' ');
 };
-
-// Pick the translation key for a failed "add to library" call. The backend
-// reports a machine-readable `code` so the user-facing wording stays in the
-// i18n files instead of coming back as an untranslated server string.
-export const addToBookshelfErrorKey = (err: any): string =>
-    err?.response?.data?.code === 'ADD_TO_BOOKSHELF_NOT_CONFIRMED'
-        ? 'search.errors.addToBookshelfNotConfirmed'
-        : 'search.errors.addToBookshelfFailed';
-
-// Same idea for "remove from library".
-export const removeFromBookshelfErrorKey = (err: any): string =>
-    err?.response?.data?.code === 'REMOVE_FROM_BOOKSHELF_NOT_CONFIRMED'
-        ? 'bookshelf.errors.removeNotConfirmed'
-        : 'bookshelf.errors.removeFailed';
 
 export const truncateTitle = (title: string, maxLength: number = 30): string => {
     if (title.length <= maxLength) return title;

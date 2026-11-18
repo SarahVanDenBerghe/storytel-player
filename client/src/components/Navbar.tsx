@@ -29,7 +29,7 @@ function Navbar({onBackClick, barTitle, children, className = ''}: NavbarProps) 
                 className="pointer-events-auto w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
             >
                 <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                     strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M15 18l-6-6 6-6"/>
                 </svg>
             </button>

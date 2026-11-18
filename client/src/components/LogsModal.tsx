@@ -146,7 +146,7 @@ function LogsModal({ isOpen, onClose }: LogsModalProps) {
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
         <span className="hidden sm:inline">{t('logs.export', 'Export')}</span>
       </button>
-      <button onClick={clearLogs} type="button" className="flex items-center gap-2 h-9 px-2.5 sm:px-3 text-xs font-medium rounded-lg border border-white/[0.14] bg-transparent hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2 text-[#FF7A3D] border-[#FF7A3D]/40 hover:bg-[#FF7A3D]/10" title={t('logs.clear', 'Clear')} aria-label={t('logs.clear', 'Clear')}>
+      <button onClick={clearLogs} type="button" className="flex items-center gap-2 h-9 px-2.5 sm:px-3 text-xs font-medium rounded-lg border border-white/[0.14] bg-transparent hover:bg-white/[0.06] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FF5100] focus-visible:outline-offset-2 text-[#FF7A3D] border-[#FF7A3D]/40 hover:bg-[#FF6A26]/10" title={t('logs.clear', 'Clear')} aria-label={t('logs.clear', 'Clear')}>
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         <span className="hidden sm:inline">{t('logs.clear', 'Clear')}</span>
       </button>

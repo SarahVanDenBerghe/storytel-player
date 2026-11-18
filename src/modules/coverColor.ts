@@ -1,4 +1,25 @@
-import { nativeImage, net } from 'electron';
+import { app, nativeImage, net } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
+import { pathToFileURL } from 'url';
+
+/**
+ * Covers made outside the app, in <userData>/covers, the ISBN being the file name in
+ * Storytel's cover URL: <ISBN>.png has no text at all, <ISBN>.tidy.png is the original
+ * minus publisher logos. Books without one keep Storytel's cover.
+ */
+const OVERRIDES_DIR = path.join(app.getPath('userData'), 'covers');
+
+/** ISBN (or ISBN.tidy) -> file URL. */
+export function coverOverrides(): Record<string, string> {
+  try {
+    return Object.fromEntries(fs.readdirSync(OVERRIDES_DIR)
+      .filter((file) => file.endsWith('.png'))
+      .map((file) => [path.basename(file, '.png'), pathToFileURL(path.join(OVERRIDES_DIR, file)).href]));
+  } catch {
+    return {};
+  }
+}
 
 /**
  * A cover's main colour, for tinting the home page's Up next block (the way
@@ -63,6 +84,7 @@ function isCoverUrl(url: unknown): url is string {
   if (typeof url !== 'string') return false;
   try {
     const { protocol, hostname } = new URL(url);
+    if (protocol === 'file:') return url.startsWith(pathToFileURL(OVERRIDES_DIR).href + '/');
     return protocol === 'https:' && (hostname === 'covers.storytel.com' || hostname.endsWith('.storytel.com'));
   } catch {
     return false;

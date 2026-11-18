@@ -99,6 +99,10 @@ declare global {
       ensureFolder: () => Promise<string | null>;
     };
     /** Read along: the EPUB stored per audiobook (Electron only). */
+    electronCovers?: {
+      /** ISBN -> file URL of a cleaned cover, ISBN.tidy -> the tidied original (see src/modules/coverColor.ts). */
+      overrides: Record<string, string>;
+    };
     electronEpub?: {
       /** Opens a file dialog; resolves with null when cancelled. */
       choose: (bookId: string) => Promise<{ name: string } | null>;
@@ -131,6 +135,14 @@ declare global {
       openPopout: (bookId: string) => Promise<void>;
       closePopout: () => Promise<void>;
       isPopoutOpen: () => Promise<boolean>;
+      /** Pop-out: hide it and show the small bubble in the screen corner. */
+      minimizePopout: () => void;
+      /** Bubble: bring the pop-out back. */
+      restorePopout: () => void;
+      /** Pop-out or bubble: move its own window; dx/dy are the pointer's travel since 'start'. */
+      dragWindow: (phase: 'start' | 'move' | 'end', dx: number, dy: number) => void;
+      /** Pop-out: resize from a visible edge; `edge` names the moving sides ('n', 'se', ...). */
+      resizeWindow: (phase: 'start' | 'move' | 'end', edge: string, dx: number, dy: number) => void;
       /** Main window: the pop-out opened or closed. Returns an unsubscribe function. */
       onPopoutOpenChange: (callback: (open: boolean) => void) => () => void;
       /** Main window: report the playback state; main relays it to the pop-out. */

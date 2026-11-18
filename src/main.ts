@@ -1,4 +1,4 @@
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, nativeTheme} from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import {WindowManager} from './modules/window';
@@ -22,6 +22,9 @@ let ssoManager: SsoManager;
 
 async function initialize(): Promise<void> {
 
+    // The app is always dark: native parts follow suit, so the macOS window buttons
+    // of an inactive window turn light grey instead of near-black on black.
+    nativeTheme.themeSource = 'dark';
     process.env.IS_ELECTRON = 'true';
     // Downloads always go to one fixed, visible folder outside iCloud, created
     // silently: ~/Music/<app name>. Folders used before (a folder picked in an

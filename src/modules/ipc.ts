@@ -1,8 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { readZipTextEntries } from './epubZip';
-import { coverColor } from './coverColor';
+import { coverColor, coverOverrides } from './coverColor';
 import { createReadAlongSync, isValidBookId } from './readAlongSync';
 import { storeManager } from './store';
 import { ServerManager } from './server';
@@ -11,6 +11,11 @@ import { WindowManager } from './window';
 import { SsoManager } from './sso';
 import { ApiConfig } from '../types';
 import { i18n } from '../i18n';
+
+// The read-along pop-out's minimize shortcut (see setupReadAlongPopoutHandlers).
+const POPOUT_SHORTCUT = 'CommandOrControl+Shift+;';
+// The EPUB file chosen per audiobook: { [bookId]: absolute path }.
+const EPUB_PATHS_KEY = 'readAlong.epubPaths';
 
 export class IpcManager {
   private serverManager: ServerManager;
@@ -206,6 +211,8 @@ export class IpcManager {
 
     // A cover's main colour (Up next tint); see coverColor.ts.
     ipcMain.handle('covers:color', (_event: IpcMainInvokeEvent, url: unknown) => coverColor(url));
+    // Read once by the preload, synchronously, so covers render right the first time.
+    ipcMain.on('covers:overrides', (event) => { event.returnValue = coverOverrides(); });
 
     ipcMain.handle('window-is-full-screen', () => this.windowManager.getWindow()?.isFullScreen() ?? false);
   }
@@ -223,9 +230,8 @@ export class IpcManager {
   // Read along: the EPUB chosen for each audiobook, stored as an absolute path
   // under `readAlong.epubPaths[bookId]`. The file itself stays where it is.
   private setupEpubHandlers(): void {
-    const STORE_KEY = 'readAlong.epubPaths';
     const getPaths = (): Record<string, string> =>
-      storeManager.get<Record<string, string>>(STORE_KEY) || {};
+      storeManager.get<Record<string, string>>(EPUB_PATHS_KEY) || {};
     const storePath = (bookId: unknown, filePath: unknown): { name: string } => {
       if (typeof bookId !== 'string' || !bookId) throw new Error('Invalid book id');
       if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
@@ -235,7 +241,7 @@ export class IpcManager {
         throw new Error('Not an EPUB file');
       }
       // Write only the paths map, so other `readAlong.*` settings are kept.
-      storeManager.set(STORE_KEY, { ...getPaths(), [bookId]: filePath });
+      storeManager.set(EPUB_PATHS_KEY, { ...getPaths(), [bookId]: filePath });
       return { name: path.basename(filePath) };
     };
 
@@ -265,7 +271,7 @@ export class IpcManager {
       for (const id of toBookIds) {
         if (typeof id === 'string' && id) paths[id] = filePath;
       }
-      storeManager.set(STORE_KEY, paths);
+      storeManager.set(EPUB_PATHS_KEY, paths);
     });
 
     // File name of the stored EPUB, or null when none is stored or the file is gone.
@@ -350,6 +356,7 @@ export class IpcManager {
       return win && !win.isDestroyed() ? win.webContents : null;
     };
     const notifyOpen = (open: boolean) => mainContents()?.send('readAlong:popout-open-change', open);
+    const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
     // The last state the main window reported, so a new pop-out starts in place.
     let lastPlayback: unknown = null;
 
@@ -369,6 +376,42 @@ export class IpcManager {
     });
     ipcMain.handle('readAlong:popout-close', () => this.windowManager.closeReadAlongPopout());
     ipcMain.handle('readAlong:popout-is-open', () => this.windowManager.getReadAlongPopout() !== null);
+    // Minimize to a bubble (sent by the pop-out) and back (sent by the bubble).
+    ipcMain.on('readAlong:popout-minimize', (event) => {
+      if (event.sender === this.windowManager.getReadAlongPopout()?.webContents) this.windowManager.minimizeReadAlongPopout();
+    });
+    ipcMain.on('readAlong:popout-restore', (event) => {
+      if (event.sender === this.windowManager.getReadAlongBubble()?.webContents) this.windowManager.restoreReadAlongPopout();
+    });
+    ipcMain.on('readAlong:window-resize', (event, phase: unknown, edge: unknown, dx: unknown, dy: unknown) => {
+      if ((phase === 'start' || phase === 'move' || phase === 'end') && typeof edge === 'string'
+        && /^(n|s|e|w|ne|nw|se|sw)$/.test(edge) && isNumber(dx) && isNumber(dy)) {
+        this.windowManager.resizeReadAlongPopout(event.sender, phase, edge, dx, dy);
+      }
+    });
+    ipcMain.on('readAlong:window-drag', (event, phase: unknown, dx: unknown, dy: unknown) => {
+      if ((phase === 'start' || phase === 'move' || phase === 'end') && isNumber(dx) && isNumber(dy)) {
+        this.windowManager.dragReadAlongWindow(event.sender, phase, dx, dy);
+      }
+    });
+    // Works from any app. With a pop-out open it hides or shows it; without one it
+    // opens the pop-out for the book in the player, when that book has an EPUB.
+    // macOS matches the character the key types, so ';' is ⌘⇧; on any keyboard
+    // layout (tested on AZERTY).
+    const onShortcut = () => {
+      if (this.windowManager.getReadAlongPopout()) {
+        this.windowManager.toggleReadAlongPopout();
+        return;
+      }
+      const bookId = (lastPlayback as { bookId?: unknown } | null)?.bookId;
+      if (!isValidBookId(bookId)) return;
+      const epubPath = (storeManager.get<Record<string, string>>(EPUB_PATHS_KEY) || {})[bookId];
+      if (epubPath && fs.existsSync(epubPath)) this.windowManager.openReadAlongPopout(bookId, notifyOpen);
+    };
+    if (!globalShortcut.register(POPOUT_SHORTCUT, onShortcut)) {
+      console.warn(`Read along: shortcut ${POPOUT_SHORTCUT} is taken by another app`);
+    }
+    app.on('will-quit', () => globalShortcut.unregister(POPOUT_SHORTCUT));
 
     ipcMain.on('readAlong:playback', (event, playback: unknown) => {
       if (event.sender !== mainContents()) return;
@@ -377,7 +420,6 @@ export class IpcManager {
     });
     ipcMain.handle('readAlong:playback-get', () => lastPlayback);
 
-    const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
     ipcMain.on('readAlong:popout-control', (event, control: { type?: unknown; timeSec?: unknown; seconds?: unknown; rate?: unknown }) => {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
       const valid =

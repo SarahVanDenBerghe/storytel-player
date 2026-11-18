@@ -151,22 +151,21 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [activeConsumableId]);
 
-  // Read remote/local saved position and jump
-  const goToPosition = useCallback(async (consumableId: string) => {
-    let remote: { position: number; updatedAt: string | null } | null = null;
+  // Storytel's saved position (set by any device: phone app, web, this app).
+  const readRemotePosition = useCallback(async (consumableId: string) => {
     try {
       const response = await api.get<BookmarkPositional[]>(`/bookmark-positional/${consumableId}`);
       const entry = response.data?.find((format) => format.type === 'abook');
-      if (entry) {
-        remote = {
-          position: entry.position || 0,
-          updatedAt: entry.updatedTime || null,
-        };
-      }
+      return entry ? { position: entry.position || 0, updatedAt: entry.updatedTime || null } : null;
     } catch (err) {
       console.warn('Failed to fetch remote position, will use local cache', err);
+      return null;
     }
+  }, []);
 
+  // Read remote/local saved position and jump
+  const goToPosition = useCallback(async (consumableId: string) => {
+    const remote = await readRemotePosition(consumableId);
     const local = await readLocalPosition(consumableId);
     let chosenPosition = 0;
     if (remote && local) {
@@ -183,7 +182,36 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       audioRef.current.currentTime = Math.floor(chosenPosition / 1000);
       setCurrentTime(audioRef.current.currentTime);
     }
-  }, []);
+  }, [readRemotePosition]);
+
+  // While the app stays open (window closed to the tray), the book may be listened to on
+  // another device. Before playing on, and when the window is shown again, take Storytel's
+  // position if it is newer than this app's last save; otherwise playing on here would
+  // also send the old position back to Storytel.
+  const catchUpWithOtherDevices = useCallback(async () => {
+    const cid = activeConsumableIdRef.current;
+    if (!cid || !audioRef.current || !audioRef.current.paused) return;
+    const [remote, local] = await Promise.all([readRemotePosition(cid), readLocalPosition(cid)]);
+    if (!remote?.updatedAt || !audioRef.current.paused || activeConsumableIdRef.current !== cid) return;
+    if (local && Date.parse(local.updatedAt) >= Date.parse(remote.updatedAt)) return;
+    // Our own last save comes back from Storytel a moment later: same spot, no jump.
+    if (Math.abs(remote.position - audioRef.current.currentTime * 1000) < 2000) return;
+    audioRef.current.currentTime = Math.floor(remote.position / 1000);
+    setCurrentTime(audioRef.current.currentTime);
+    await writeLocalPosition(cid, remote.position);
+  }, [readRemotePosition]);
+
+  useEffect(() => {
+    const onShown = () => {
+      if (document.visibilityState === 'visible') catchUpWithOtherDevices();
+    };
+    window.addEventListener('focus', onShown);
+    document.addEventListener('visibilitychange', onShown);
+    return () => {
+      window.removeEventListener('focus', onShown);
+      document.removeEventListener('visibilitychange', onShown);
+    };
+  }, [catchUpWithOtherDevices]);
 
   // Load chapters for active book
   const loadChapters = useCallback(async (consumableId: string, knownDurationSeconds?: number) => {
@@ -351,14 +379,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setDuration(0);
       setAudioSrc(null);
 
-      // Persist session to local storage for quick restore
-      storage
-        .set(
-          'last_played_session',
-          JSON.stringify({ book: validBook, bookId, consumableId })
-        )
-        .catch(() => {});
-
       const knownDurationSec = validBook?.abook?.time ? validBook.abook.time / 1000000 : 0;
       loadChapters(consumableId, knownDurationSec);
 
@@ -439,15 +459,25 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(console.error);
+      const audio = audioRef.current;
+      catchUpWithOtherDevices().finally(() => audio.play().catch(console.error));
     }
-  }, [isPlaying, audioSrc, activeBookId, activeBook, loadBook]);
+  }, [isPlaying, audioSrc, activeBookId, activeBook, loadBook, catchUpWithOtherDevices]);
 
   const seek = useCallback((seekTime: number) => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
   }, []);
+
+  // The book the app reopens in the player bar at launch: the last one that
+  // actually played, not the last book page merely opened.
+  useEffect(() => {
+    if (!isPlaying || !activeBookId) return;
+    storage
+      .set('last_played_session', JSON.stringify({ book: activeBook, bookId: activeBookId, consumableId: activeConsumableId }))
+      .catch(() => {});
+  }, [isPlaying, activeBook, activeBookId, activeConsumableId]);
 
   // Read along pop-out: report the playback state (the main process keeps the
   // last one for a pop-out that opens later).
@@ -621,7 +651,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleBeforeUnload = () => {
       const consumableId = activeConsumableIdRef.current;
-      if (audioRef.current && consumableId) {
+      // Only while playing: a paused position was saved at the pause, with that time. Saving it
+      // again on quit would stamp it "now" and make it beat a newer position from another device.
+      if (audioRef.current && consumableId && !audioRef.current.paused) {
         const position = Math.floor(audioRef.current.currentTime * 1000);
         if (position > 0) {
           writeLocalPosition(consumableId, position);

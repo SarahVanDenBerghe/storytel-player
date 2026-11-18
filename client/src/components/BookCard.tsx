@@ -7,13 +7,12 @@ import { BookShelfEntity } from '../interfaces/books';
 interface BookCardProps {
   book: BookShelfEntity;
   onBookSelect: (book: BookShelfEntity) => void;
-  onRemove?: (book: BookShelfEntity) => void;
   onQuickPlay?: (e: React.MouseEvent, book: BookShelfEntity) => void;
 }
 
 const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 
-export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCardProps) {
+export function BookCard({ book, onBookSelect, onQuickPlay }: BookCardProps) {
   const { t } = useTranslation();
 
   const { percent: progressPercent, isFinished, isStarted } = bookProgress(book);
@@ -22,13 +21,7 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
   const starred = useUpNext().includes(routeId);
 
   const rawTitle = book?.book?.name || '';
-  const { title, part } = cleanBookTitle(rawTitle);
-  const meta = [
-    book?.book?.authorsAsString,
-    part && t('bookCard.part', { n: part.n, total: part.total, defaultValue: 'Part {{n}} of {{total}}' }),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const { title } = cleanBookTitle(rawTitle);
 
   const percent = Math.round(progressPercent);
   const coverLabel = isFinished
@@ -42,17 +35,19 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
       <button
         type="button"
         onClick={() => onBookSelect(book)}
-        className={`w-full min-w-0 flex flex-col gap-[10px] text-left rounded-[6px] ${focusRing}`}
+        className={`w-full min-w-0 flex flex-col text-left rounded-[6px] ${focusRing}`}
       >
-        {/* Cover with progress drawn on it */}
+        {/* The cover with its own title and author (logos tidied away) is the whole card: no caption below.
+            Only the progress line is drawn on it; controls appear on hover. */}
         <div
           role="img"
           aria-label={coverLabel}
+          title={rawTitle}
           className="relative aspect-square w-full overflow-hidden rounded-[6px] bg-[#121214] cover-border flex items-center justify-center transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_10px_28px_rgba(0,0,0,0.5)]"
         >
           {coverUrl ? (
             <img
-              src={buildCoverUrl(coverUrl)}
+              src={buildCoverUrl(coverUrl, 'tidy')}
               alt=""
               className="w-full h-full object-cover"
               loading="lazy"
@@ -69,21 +64,8 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
             </div>
           )}
 
-          {isFinished && (
-            <div className="absolute top-2 right-2 w-[22px] h-[22px] rounded-full bg-[#0A0A0A]/75 text-white flex items-center justify-center">
-              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12l5 5 9-10" />
-              </svg>
-            </div>
-          )}
         </div>
 
-        <div className="min-w-0 w-full">
-          <div className="text-[13px] font-medium leading-[1.3] text-white/[0.92] truncate" title={rawTitle}>
-            {title || '—'}
-          </div>
-          <div className="mt-0.5 text-[12px] leading-[1.3] text-[#8E939C] truncate">{meta}</div>
-        </div>
       </button>
 
       {/* Hover actions, layered over the cover (siblings of the main button, never nested) */}
@@ -103,7 +85,7 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         </div>
       )}
 
-      {/* Up next: a star on hover; starred books keep it (left of the finished badge). */}
+      {/* Up next: a star on hover only, like every control on the cover; filled when starred. */}
       <button
         type="button"
         onClick={(e) => {
@@ -113,8 +95,8 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         aria-pressed={starred}
         aria-label={starred ? t('upNext.removeStar') : t('upNext.addStar')}
         title={starred ? t('upNext.removeStar') : t('upNext.addStar')}
-        className={`absolute top-2 ${isFinished ? 'right-[38px]' : 'right-2'} w-7 h-7 rounded-full bg-[#0A0A0A]/75 flex items-center justify-center transition-[opacity,transform,color,background-color] duration-200 ease-out group-hover:-translate-y-0.5 ${
-          starred ? 'opacity-100 text-[#FF7A3D]' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-white hover:text-[#FF7A3D]'
+        className={`absolute top-2 right-2 w-7 h-7 rounded-full bg-[#0A0A0A]/75 flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-[opacity,transform,color,background-color] duration-200 ease-out group-hover:-translate-y-0.5 ${
+          starred ? 'text-[#FF7A3D]' : 'text-white hover:text-[#FF7A3D]'
         } hover:bg-[#0A0A0A]/95 hover:scale-110 ${focusRing}`}
       >
         <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill={starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinejoin="round">
@@ -122,27 +104,6 @@ export function BookCard({ book, onBookSelect, onRemove, onQuickPlay }: BookCard
         </svg>
       </button>
 
-      {onRemove && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(book);
-          }}
-          title={t('bookshelf.remove', 'Remove from library')}
-          aria-label={t('bookshelf.remove', 'Remove from library')}
-          className={`absolute top-2 left-2 w-7 h-7 rounded-full bg-[#0A0A0A]/75 text-[#D1D5DB] hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity ${focusRing}`}
-        >
-          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
-      )}
     </div>
   );
 }
