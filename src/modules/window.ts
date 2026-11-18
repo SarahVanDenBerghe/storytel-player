@@ -14,7 +14,7 @@ const SNAP_DISTANCE = 90; // how close (px) the window's corner must come to sna
 // off. Margins, snapping and corners all apply to the visible box inside it.
 // POPOUT_INSET must match the padding in ReadingPopout.tsx.
 const POPOUT_INSET = 32;
-const POPOUT_MIN = {width: 280, height: 200}; // visible size
+const POPOUT_MIN = {width: 280, height: 120}; // visible size
 const BUBBLE_CIRCLE = 40;
 const BUBBLE_INSET = 24;
 

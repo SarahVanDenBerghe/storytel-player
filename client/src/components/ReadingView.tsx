@@ -23,14 +23,23 @@ export const TEXT_SIZE_STEPS = [14, 16, 17, 18, 20, 22];
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 // Follow mode keeps the spoken word on this line, as a fraction of the scroller's height from its top.
 const READING_LINE = 0.4;
+// The pop-out moves the line towards the middle as it gets shorter, so at its smallest
+// the spoken line stays clear of the fade above it: READING_LINE from this height (px)...
+const POPOUT_LINE_FROM = 250;
+// ...down to the middle at this height, gliding in between.
+const POPOUT_LINE_CENTRED_AT = 120;
+const popoutReadingLine = (height: number) => {
+    const t = (POPOUT_LINE_FROM - height) / (POPOUT_LINE_FROM - POPOUT_LINE_CENTRED_AT);
+    return READING_LINE + Math.min(Math.max(t, 0), 1) * (0.5 - READING_LINE);
+};
 // Between two reports of the audio time, predict at most this far ahead (audio seconds).
 const MAX_PREDICTION_SEC = 1;
 // While following, text above the reading line fades out towards the top of the
 // scroller; the spoken line and everything below it stay fully visible.
-const FOLLOW_FADE = `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc(${READING_LINE * 100}% - 2em))`;
+const followFade = (line: number) => `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc(${line * 100}% - 2em))`;
 // The faded text is also blurred: a blur layer over the same band, itself faded
 // from full blur at the top to none at the reading line.
-const FOLLOW_BLUR_HEIGHT = `calc(${READING_LINE * 100}% - 2em)`;
+const followBlurHeight = (line: number) => `calc(${line * 100}% - 2em)`;
 // The pop-out window is small: smaller text and line height than the main window's.
 const POPOUT_TEXT_SHRINK = 2;
 
@@ -84,7 +93,7 @@ const OpenBookIcon = ({size, strokeWidth}: {size: number; strokeWidth: number}) 
 );
 
 // Memoised so a playback tick only re-renders the paragraphs whose state changed.
-// All paragraphs share one colour; read text fades through the scroller's mask (FOLLOW_FADE).
+// All paragraphs share one colour; read text fades through the scroller's mask (followFade).
 const Paragraph = React.memo(function Paragraph({index, text, heading, current, title}: {
     index: number;
     text: string;
@@ -118,6 +127,9 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
     const audio = popoutAudio ?? sharedAudio;
     if (!audio) throw new Error('ReadingView needs an AudioProvider or popoutAudio');
     const isPopout = !!popoutAudio;
+    // The scroller's height, for the pop-out's reading line (see popoutReadingLine).
+    const [scrollerHeight, setScrollerHeight] = useState(0);
+    const readingLine = isPopout ? popoutReadingLine(scrollerHeight) : READING_LINE;
     const bookPart = cleanBookTitle((isPopout ? popoutAudio?.activeBookName : sharedAudio?.activeBook?.book?.name) ?? '').part;
     // Main window: the player, for downloading the audio when the sync needs it.
     const playerRef = useRef(sharedAudio);
@@ -439,11 +451,12 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         const span = next ? next.offsetTop - el.offsetTop : el.offsetHeight;
         const y = el.offsetTop + place.fraction * span;
         const maxTop = scroller.scrollHeight - scroller.clientHeight;
-        const top = Math.min(Math.max(y - READING_LINE * scroller.clientHeight, 0), maxTop);
+        const h = scroller.clientHeight;
+        const top = Math.min(Math.max(y - (isPopout ? popoutReadingLine(h) : READING_LINE) * h, 0), maxTop);
         if (Math.abs(top - scroller.scrollTop) >= 0.5) scroller.scrollTop = top;
         // Read back: the browser may round or clamp what we wrote.
         lastScrollTopRef.current = scroller.scrollTop;
-    }, []);
+    }, [isPopout]);
 
     // Declared before the scroll effects so they see the current values.
     useEffect(() => {
@@ -491,6 +504,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
         const scroller = scrollerRef.current;
         if (view !== 'ready' || !scroller) return;
         const observer = new ResizeObserver(() => {
+            setScrollerHeight(scroller.clientHeight);
             if (followingRef.current) scrollToPlace(currentTimeRef.current);
         });
         observer.observe(scroller);
@@ -559,7 +573,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     role="region"
                     aria-label={t('readAlong.bookText')}
                     className={`relative flex-1 min-h-0 overflow-auto px-6 pt-5 pb-[calc(3rem+var(--player-bar-h,0px))] focus:outline-none ${isPopout ? '[scrollbar-width:none]' : 'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF5100]'}`}
-                    style={following && currentIndex >= 0 ? {maskImage: FOLLOW_FADE} : undefined}
+                    style={following && currentIndex >= 0 ? {maskImage: followFade(readingLine)} : undefined}
                     {...scrollerHandlers}
                 >
                     <article
@@ -584,7 +598,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                     <div
                         aria-hidden="true"
                         className="absolute inset-x-0 top-0 pointer-events-none backdrop-blur-[3px] [mask-image:linear-gradient(to_bottom,#000,transparent)]"
-                        style={{height: FOLLOW_BLUR_HEIGHT}}
+                        style={{height: followBlurHeight(readingLine)}}
                     />
                 )}
                 {findingPlace && (
