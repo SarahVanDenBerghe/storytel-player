@@ -140,10 +140,13 @@ button:not(:disabled):active {
   }
 }
 
-/* The one cover border: library cards, book page, footer and full player. */
+/* The one cover border: library cards, book page, footer and full player.
+   A see-through white outline set inside the edge: outlines paint over the image
+   (a border would sit beside it), so the rim takes on the cover's own colours. */
 @layer components {
   .cover-border {
-    @apply border border-white/[0.015];
+    outline: 1px solid rgb(255 255 255 / 0.16);
+    outline-offset: -1px;
   }
 }
 
