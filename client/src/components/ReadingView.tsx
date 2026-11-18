@@ -28,6 +28,9 @@ const MAX_PREDICTION_SEC = 1;
 // While following, text above the reading line fades out towards the top of the
 // scroller; the spoken line and everything below it stay fully visible.
 const FOLLOW_FADE = `linear-gradient(to bottom, rgba(0, 0, 0, 0.12), #000 calc(${READING_LINE * 100}% - 2em))`;
+// The faded text is also blurred: a blur layer over the same band, itself faded
+// from full blur at the top to none at the reading line.
+const FOLLOW_BLUR_HEIGHT = `calc(${READING_LINE * 100}% - 2em)`;
 // The pop-out window is small: smaller text and line height than the main window's.
 const POPOUT_TEXT_SHRINK = 2;
 
@@ -577,6 +580,13 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                         ))}
                     </article>
                 </div>
+                {following && currentIndex >= 0 && (
+                    <div
+                        aria-hidden="true"
+                        className="absolute inset-x-0 top-0 pointer-events-none backdrop-blur-[3px] [mask-image:linear-gradient(to_bottom,#000,transparent)]"
+                        style={{height: FOLLOW_BLUR_HEIGHT}}
+                    />
+                )}
                 {findingPlace && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_srgb,var(--ra-bg)_70%,transparent)] animate-fade-in pointer-events-none">
                         <div role="status" className="flex flex-col items-center gap-3 text-center">
@@ -696,7 +706,7 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                                 setUndoJump(null);
                                 setFollowing(true);
                             }}
-                            className={`h-9 pl-3 pr-3.5 flex items-center gap-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-white text-[12px] font-semibold whitespace-nowrap shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#242424] transition-colors animate-fade-in ${focusRing}`}
+                            className={`h-9 pl-3 pr-3.5 flex items-center gap-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-white text-[12px] font-semibold whitespace-nowrap ${isPopout ? 'shadow-[0_2px_8px_rgba(0,0,0,0.2)]' : 'shadow-[0_6px_18px_rgba(0,0,0,0.45)]'} hover:bg-[#242424] transition-colors animate-fade-in ${focusRing}`}
                         >
                             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                  strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -712,10 +722,10 @@ function ReadingView({popoutAudio}: {popoutAudio?: ReadingAudio}) {
                             onClick={() => setFollowing(true)}
                             aria-label={t('readAlong.backToNow')}
                             title={t('readAlong.backToNow')}
-                            className={`w-9 h-9 flex items-center justify-center rounded-full bg-[#FF5100] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] hover:bg-[#FF6A26] transition-colors ${focusRing}`}
+                            className={`${isPopout ? 'w-7 h-7 shadow-[0_2px_8px_rgba(0,0,0,0.2)]' : 'w-9 h-9 shadow-[0_6px_18px_rgba(0,0,0,0.45)]'} flex items-center justify-center rounded-full bg-[#FF5100] text-white hover:bg-[#FF6A26] transition-colors ${focusRing}`}
                         >
-                            {/* Points to where the spoken text is. */}
-                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            {/* Points to where the spoken text is. Smaller in the pop-out, to match its controls. */}
+                            <svg aria-hidden="true" width={isPopout ? 13 : 18} height={isPopout ? 13 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                  strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"
                                  className={`transition-transform duration-150 ${nowAbove ? 'rotate-180' : ''}`}>
                                 <path d="M12 5v14M6 13l6 6 6-6"/>
