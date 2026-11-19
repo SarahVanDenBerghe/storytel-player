@@ -9,6 +9,7 @@ import {UpdaterManager} from './modules/updater';
 import {SsoManager} from './modules/sso';
 import {i18n} from './i18n';
 import {storeManager} from './modules/store';
+import {startRemote} from './modules/remote';
 
 const isDev = process.env.NODE_ENV === 'development';
 const isDebug = process.env.IS_DEBUG === 'true';
@@ -64,6 +65,11 @@ async function initialize(): Promise<void> {
 
     ipcManager = new IpcManager(serverManager, trayManager, windowManager, ssoManager);
     ipcManager.setupHandlers();
+
+    startRemote(() => {
+        const window = windowManager.getWindow();
+        return window && !window.isDestroyed() ? window.webContents : null;
+    });
 
     // Initialize auto-updater
     updaterManager = new UpdaterManager(mainWindow, isDev);

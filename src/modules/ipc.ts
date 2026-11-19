@@ -5,6 +5,7 @@ import path from 'path';
 import { readZipTextEntries } from './epubZip';
 import { coverColor, coverOverrides } from './coverColor';
 import { createReadAlongSync, isValidBookId } from './readAlongSync';
+import { isValidRate } from './remote';
 import { storeManager } from './store';
 import { ServerManager } from './server';
 import { TrayManager } from './tray';
@@ -468,7 +469,7 @@ export class IpcManager {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;
       const valid =
         control?.type === 'toggle' ||
-        (control?.type === 'setSpeed' && isNumber(control.rate) && control.rate > 0 && control.rate <= 4) ||
+        (control?.type === 'setSpeed' && isValidRate(control.rate)) ||
         (control?.type === 'seek' && isNumber(control.timeSec) && control.timeSec >= 0) ||
         (control?.type === 'skip' && isNumber(control.seconds));
       if (valid) mainContents()?.send('readAlong:popout-control', control);

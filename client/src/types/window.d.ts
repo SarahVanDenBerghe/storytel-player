@@ -55,10 +55,13 @@ declare global {
     playbackRate: number;
   }
 
-  /** What the read-along pop-out asks the main window's player to do. */
+  /** What the read-along pop-out, or the network remote, asks the main window's player to do. */
   type ReadAlongPopoutControl =
     | { type: 'seek'; timeSec: number }
     | { type: 'toggle' }
+    /** Network remote (src/modules/remote.ts): skip by the player's own amount. */
+    | { type: 'back' }
+    | { type: 'forward' }
     | { type: 'setSpeed'; rate: number }
     /** Negative seconds skip backward. */
     | { type: 'skip'; seconds: number };

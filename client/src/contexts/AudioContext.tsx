@@ -831,11 +831,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Read along pop-out: its player controls act on this player.
+  // Read along pop-out and the network remote: their controls act on this player.
   useEffect(() => window.electronEpub?.onPopoutControl((control) => {
     if (control.type === 'seek') seek(control.timeSec);
     else if (control.type === 'toggle') togglePlayPause();
     else if (control.type === 'setSpeed') setRate(control.rate);
+    else if (control.type === 'back') skipBackward(SKIP_BACKWARD_SECONDS);
+    else if (control.type === 'forward') skipForward(SKIP_FORWARD_SECONDS);
     else if (control.seconds >= 0) skipForward(control.seconds);
     else skipBackward(-control.seconds);
   }), [seek, togglePlayPause, setRate, skipForward, skipBackward]);
