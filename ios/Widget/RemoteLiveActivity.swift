@@ -13,18 +13,18 @@ struct RemoteLiveActivity: Widget {
         ActivityConfiguration(for: RemoteAttributes.self) { context in
             VStack(alignment: .leading, spacing: 10) {
                 Text(context.state.title ?? "Storytel Companion")
-                    .font(.headline)
+                    .font(titleFont)
                     .lineLimit(1)
                 Controls(state: context.state)
             }
             .padding()
-            .activityBackgroundTint(.black.opacity(0.6))
+            .activityBackgroundTint(.black)
             .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(context.state.title ?? "Storytel Companion").font(.headline).lineLimit(1)
+                        Text(context.state.title ?? "Storytel Companion").font(titleFont).lineLimit(1)
                         Controls(state: context.state)
                     }
                 }
@@ -58,6 +58,9 @@ private struct Controls: View {
         .buttonStyle(.plain)
     }
 }
+
+/// The companion app's title serif (Tailwind `font-serif`: Charter), which iOS ships.
+private let titleFont = Font.custom("Charter", size: 17, relativeTo: .headline).weight(.semibold)
 
 private func speedLabel(_ rate: Double) -> String {
     rate.formatted(.number.precision(.fractionLength(0...2))) + "×"
