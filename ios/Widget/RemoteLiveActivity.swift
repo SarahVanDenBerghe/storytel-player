@@ -45,17 +45,21 @@ private struct Controls: View {
     let state: RemoteAttributes.ContentState
 
     var body: some View {
-        HStack {
-            Button(intent: BackIntent()) { Image(systemName: "gobackward.15") }
-            Spacer()
-            Button(intent: PlayPauseIntent()) { Image(systemName: "playpause.fill") }
-            Spacer()
-            Button(intent: ForwardIntent()) { Image(systemName: "goforward.15") }
-            Spacer()
-            Button(intent: NextSpeedIntent()) { Text(speedLabel(state.rate)).monospacedDigit() }
+        // Each button fills a quarter of the row, so a tap near an icon still
+        // hits the button instead of the card (which opens the app, and so asks
+        // for an unlock).
+        HStack(spacing: 0) {
+            Button(intent: BackIntent()) { target(Image(systemName: "gobackward.15")) }
+            Button(intent: PlayPauseIntent()) { target(Image(systemName: "playpause.fill")) }
+            Button(intent: ForwardIntent()) { target(Image(systemName: "goforward.15")) }
+            Button(intent: NextSpeedIntent()) { target(Text(speedLabel(state.rate)).monospacedDigit()) }
         }
         .font(.title2)
         .buttonStyle(.plain)
+    }
+
+    private func target(_ label: some View) -> some View {
+        label.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
     }
 }
 
