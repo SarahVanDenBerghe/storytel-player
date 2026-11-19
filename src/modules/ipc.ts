@@ -24,6 +24,9 @@ export class IpcManager {
   private trayManager: TrayManager;
   private windowManager: WindowManager;
   private ssoManager: SsoManager;
+  // The last playback state the main window reported: a new read-along pop-out
+  // starts in place, and the network remote reports it (src/modules/remote.ts).
+  private lastPlayback: unknown = null;
 
   constructor(
     serverManager: ServerManager,
@@ -393,6 +396,10 @@ export class IpcManager {
     );
   }
 
+  getPlayback(): unknown {
+    return this.lastPlayback;
+  }
+
   // Read along pop-out: the main window plays the audio and reports its
   // playback state; the pop-out shows the text and sends player controls back.
   private setupReadAlongPopoutHandlers(): void {
@@ -402,8 +409,6 @@ export class IpcManager {
     };
     const notifyOpen = (open: boolean) => mainContents()?.send('readAlong:popout-open-change', open);
     const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-    // The last state the main window reported, so a new pop-out starts in place.
-    let lastPlayback: unknown = null;
 
     // Read-along text size (px), shared by the reading view and the pop-out:
     // stored, then sent to every window so both follow a change made in either.
@@ -448,7 +453,7 @@ export class IpcManager {
         this.windowManager.toggleReadAlongPopout();
         return;
       }
-      const bookId = (lastPlayback as { bookId?: unknown } | null)?.bookId;
+      const bookId = (this.lastPlayback as { bookId?: unknown } | null)?.bookId;
       if (!isValidBookId(bookId)) return;
       const epubPath = (storeManager.get<Record<string, string>>(EPUB_PATHS_KEY) || {})[bookId];
       if (epubPath && fs.existsSync(epubPath)) this.windowManager.openReadAlongPopout(bookId, notifyOpen);
@@ -460,10 +465,10 @@ export class IpcManager {
 
     ipcMain.on('readAlong:playback', (event, playback: unknown) => {
       if (event.sender !== mainContents()) return;
-      lastPlayback = playback;
+      this.lastPlayback = playback;
       this.windowManager.getReadAlongPopout()?.webContents.send('readAlong:playback', playback);
     });
-    ipcMain.handle('readAlong:playback-get', () => lastPlayback);
+    ipcMain.handle('readAlong:playback-get', () => this.lastPlayback);
 
     ipcMain.on('readAlong:popout-control', (event, control: { type?: unknown; timeSec?: unknown; seconds?: unknown; rate?: unknown }) => {
       if (event.sender !== this.windowManager.getReadAlongPopout()?.webContents) return;

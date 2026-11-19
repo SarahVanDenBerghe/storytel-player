@@ -69,7 +69,7 @@ async function initialize(): Promise<void> {
     startRemote(() => {
         const window = windowManager.getWindow();
         return window && !window.isDestroyed() ? window.webContents : null;
-    });
+    }, () => ipcManager.getPlayback());
 
     // Initialize auto-updater
     updaterManager = new UpdaterManager(mainWindow, isDev);

@@ -8,7 +8,8 @@ import type { WebContents } from 'electron';
 //
 //   /play-pause      /back      /forward      /speed/<rate>      (GET or POST)
 //
-// Replies 204 when the command reached the player window.
+// Replies 204 when the command reached the player window. GET /status replies
+// { title, playing, rate } for the iPhone app's Lock Screen card (ios/).
 const REMOTE_PORT = 47820;
 
 /** Playback speeds the player accepts, shared with the read-along pop-out controls. */
@@ -26,8 +27,17 @@ function controlFor(path: string): ReadAlongControl | null {
 
 type ReadAlongControl = { type: 'toggle' | 'back' | 'forward' } | { type: 'setSpeed'; rate: number };
 
-export function startRemote(player: () => WebContents | null): void {
+export function startRemote(player: () => WebContents | null, playback: () => unknown): void {
   const server = http.createServer((req, res) => {
+    if (req.url === '/status') {
+      const state = (playback() ?? {}) as { bookName?: unknown; isPlaying?: unknown; playbackRate?: unknown };
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        title: typeof state.bookName === 'string' ? state.bookName : null,
+        playing: state.isPlaying === true,
+        rate: isValidRate(state.playbackRate) ? state.playbackRate : 1,
+      }));
+      return;
+    }
     const control = controlFor(req.url ?? '');
     let status = 204;
     if (!control) status = 404;
