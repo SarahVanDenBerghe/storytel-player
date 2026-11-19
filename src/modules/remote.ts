@@ -1,37 +1,19 @@
-import { randomBytes, timingSafeEqual } from 'crypto';
 import http from 'http';
 import type { WebContents } from 'electron';
-import { storeManager } from './store';
 
 // Remote control from other devices on the home network (an Apple Watch or iPhone
 // shortcut, later a native app). A separate tiny listener, so none of the embedded
-// Storytel API is reachable from the network. Every request needs the key, sent as
-// "Authorization: Bearer <key>"; the key is created once and kept in the store.
+// Storytel API is reachable from the network. No key, on purpose (the developer's
+// choice): anyone on the same Wi-Fi can at most pause, skip or change the speed.
 //
-//   POST /play-pause      POST /back      POST /forward      POST /speed/<rate>
+//   /play-pause      /back      /forward      /speed/<rate>      (GET or POST)
 //
 // Replies 204 when the command reached the player window.
 const REMOTE_PORT = 47820;
-const REMOTE_KEY = 'remote.key';
 
 /** Playback speeds the player accepts, shared with the read-along pop-out controls. */
 export const isValidRate = (rate: unknown): rate is number =>
   typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && rate <= 4;
-
-function remoteKey(): string {
-  let key = storeManager.get<string>(REMOTE_KEY);
-  if (!key) {
-    key = randomBytes(24).toString('hex');
-    storeManager.set(REMOTE_KEY, key);
-  }
-  return key;
-}
-
-function hasKey(header: string | undefined, key: string): boolean {
-  const given = Buffer.from(header?.replace(/^Bearer /, '') ?? '');
-  const expected = Buffer.from(key);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
 
 function controlFor(path: string): ReadAlongControl | null {
   if (path === '/play-pause') return { type: 'toggle' };
@@ -45,12 +27,10 @@ function controlFor(path: string): ReadAlongControl | null {
 type ReadAlongControl = { type: 'toggle' | 'back' | 'forward' } | { type: 'setSpeed'; rate: number };
 
 export function startRemote(player: () => WebContents | null): void {
-  const key = remoteKey();
   const server = http.createServer((req, res) => {
-    const control = req.method === 'POST' ? controlFor(req.url ?? '') : null;
+    const control = controlFor(req.url ?? '');
     let status = 204;
-    if (!hasKey(req.headers.authorization, key)) status = 401;
-    else if (!control) status = 404;
+    if (!control) status = 404;
     else {
       const contents = player();
       if (contents) contents.send('readAlong:popout-control', control);
