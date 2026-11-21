@@ -8,13 +8,17 @@ const titleCase = (text: string) => (text !== text.toUpperCase() ? text : text.t
 ));
 const PART_HEADING = /^part\b/i;
 const NUMBER_HEADING = /^(chapter\s+)?(\d+|[ivxlcdm]+)\.?$/i;
+// "Chapter 1: Only the Dark", "1: Warlords", "12. The Julii": a number and a title in one entry.
+const NUMBERED_TITLE = /^(?:chapter\s+)?(\d+|[ivxlcdm]+)\s*[:.]\s+(.+)$/i;
 
 /**
  * The book's chapters from its headings. EPUBs often split one chapter heading in
  * several: "PART I" + "BOW" before a part, "1" + "WARLORDS" for a chapter. Headings
  * with no text between them form one group: a part (and its subtitle) is left out, a
  * number joins the title after it ("Warlords", shown with the book's number), and other
- * groups ("Prologue") stand as they are, without a number. timeOf gives a paragraph's audio time, or null outside the synced audio.
+ * groups ("Prologue") stand as they are, without a number. When the EPUB has a table of
+ * contents, its entries are used instead: they hold every chapter even when a book sets its
+ * chapter titles as images. timeOf gives a paragraph's audio time, or null outside the synced audio.
  */
 export function bookChapterList(paragraphs: EpubParagraph[], timeOf: (index: number) => number | null, duration: number): Chapter[] | null {
     const groups: {title: string; label: string; start: number | null; first: number}[] = [];
@@ -34,8 +38,17 @@ export function bookChapterList(paragraphs: EpubParagraph[], timeOf: (index: num
         }
         group = [];
     };
+    const hasToc = paragraphs.some((p) => p.toc);
     paragraphs.forEach((p, i) => {
-        if (!p.heading) close();
+        if (hasToc) {
+            for (const entry of p.toc ?? []) {
+                const numbered = entry.match(NUMBERED_TITLE);
+                if (PART_HEADING.test(entry) && !numbered) continue;
+                const title = numbered ? numbered[2] : NUMBER_HEADING.test(entry) ? entry.replace(/^(?!chapter)/i, 'Chapter ') : entry;
+                const label = numbered ? numbered[1] : NUMBER_HEADING.test(entry) ? entry.replace(/^chapter\s+/i, '').replace(/\.$/, '') : '';
+                groups.push({title: titleCase(title), label, start: timeOf(i), first: i});
+            }
+        } else if (!p.heading) close();
         else if (p.text.trim()) group.push(i);
     });
     close();

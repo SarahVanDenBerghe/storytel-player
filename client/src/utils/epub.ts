@@ -1,6 +1,8 @@
 export interface EpubParagraph {
   text: string;
   heading: boolean;
+  /** Titles of the EPUB's table-of-contents entries that start at this paragraph. */
+  toc?: string[];
 }
 
 const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre']);
@@ -78,19 +80,63 @@ export function parseEpub(entries: Record<string, string>): { paragraphs: EpubPa
   const opf = parseXml(opfText);
   const opfDir = dirname(opfPath);
   const manifest = new Map<string, string>();
+  let navPath: string | undefined;
+  let ncxPath: string | undefined;
   for (const item of elementsByName(opf, 'item')) {
     const id = item.getAttribute('id');
     const href = item.getAttribute('href');
-    if (id && href) manifest.set(id, resolveHref(opfDir, href));
+    if (!id || !href) continue;
+    const path = resolveHref(opfDir, href);
+    manifest.set(id, path);
+    if ((item.getAttribute('properties') ?? '').split(/\s+/).includes('nav')) navPath = path;
+    if (item.getAttribute('media-type') === 'application/x-dtbncx+xml') ncxPath = path;
   }
 
   const paragraphs: EpubParagraph[] = [];
+  // Where each spine file's text starts: a file without text (an image-only
+  // part page) starts at the next file's first paragraph.
+  const fileStart = new Map<string, number>();
   for (const itemref of elementsByName(opf, 'itemref')) {
     const path = manifest.get(itemref.getAttribute('idref') ?? '');
     const text = path ? lookup(path) : undefined;
-    if (text) collectBlocks(parseDocument(text), paragraphs);
+    if (!path || !text) continue;
+    if (!fileStart.has(path.toLowerCase())) fileStart.set(path.toLowerCase(), paragraphs.length);
+    collectBlocks(parseDocument(text), paragraphs);
+  }
+
+  for (const entry of readToc(lookup, navPath, ncxPath)) {
+    const index = fileStart.get(entry.path.toLowerCase());
+    const paragraph = index === undefined ? undefined : paragraphs[index];
+    if (paragraph) paragraph.toc = [...(paragraph.toc ?? []), entry.title];
   }
   return { paragraphs };
+}
+
+/**
+ * The table of contents in reading order, as titles and the archive path they link to:
+ * the EPUB 3 nav document (its toc nav only, not the landmarks), else the EPUB 2 NCX.
+ */
+function readToc(lookup: (path: string) => string | undefined, navPath?: string, ncxPath?: string): { title: string; path: string }[] {
+  const clean = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
+  const navText = navPath ? lookup(navPath) : undefined;
+  if (navPath && navText) {
+    const navs = elementsByName(parseDocument(navText), 'nav');
+    const toc = navs.find((nav) => /\btoc\b/.test(nav.getAttribute('epub:type') ?? '')) ?? navs[0];
+    const entries = toc ? elementsByName(toc, 'a').map((a) => ({
+      title: clean(a.textContent),
+      path: resolveHref(dirname(navPath), a.getAttribute('href') ?? ''),
+    })) : [];
+    if (entries.length > 0) return entries;
+  }
+  const ncxText = ncxPath ? lookup(ncxPath) : undefined;
+  if (!ncxPath || !ncxText) return [];
+  return elementsByName(parseXml(ncxText), 'navPoint').map((point) => {
+    const own = (name: string) => Array.from(point.children).find((child) => child.localName === name);
+    return {
+      title: clean(own('navLabel')?.textContent),
+      path: resolveHref(dirname(ncxPath), own('content')?.getAttribute('src') ?? ''),
+    };
+  });
 }
 
 /**
