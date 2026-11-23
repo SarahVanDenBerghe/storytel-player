@@ -104,12 +104,39 @@ export function parseEpub(entries: Record<string, string>): { paragraphs: EpubPa
     collectBlocks(parseDocument(text), paragraphs);
   }
 
+  const tocAt = new Map<number, string[]>();
   for (const entry of readToc(lookup, navPath, ncxPath)) {
     const index = fileStart.get(entry.path.toLowerCase());
-    const paragraph = index === undefined ? undefined : paragraphs[index];
-    if (paragraph) paragraph.toc = [...(paragraph.toc ?? []), entry.title];
+    if (index !== undefined && index < paragraphs.length) tocAt.set(index, [...(tocAt.get(index) ?? []), entry.title]);
   }
-  return { paragraphs };
+  return { paragraphs: withTocTitles(paragraphs, tocAt) };
+}
+
+const titleWords = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/**
+ * Marks where each contents entry starts and, when its title is not in the text (some
+ * books set chapter titles as images), shows it there as a heading.
+ */
+function withTocTitles(paragraphs: EpubParagraph[], tocAt: Map<number, string[]>): EpubParagraph[] {
+  const out: EpubParagraph[] = [];
+  paragraphs.forEach((p, i) => {
+    const titles = tocAt.get(i);
+    if (!titles) {
+      out.push(p);
+      return;
+    }
+    const nearby = ` ${titleWords(paragraphs.slice(i, i + 3).map((q) => q.text).join(' '))} `;
+    const found: string[] = [];
+    for (const title of titles) {
+      // "Chapter 1: Only the Dark" is in the text when "Only the Dark" is.
+      const name = titleWords(title.replace(/^(?:(?:part|chapter)\s+)?(?:\d+|[ivxlcdm]+)\s*[:.]\s*/i, '')) || titleWords(title);
+      if (nearby.includes(` ${name} `)) found.push(title);
+      else out.push({ text: title, heading: true, toc: [title] });
+    }
+    out.push(found.length > 0 ? { ...p, toc: found } : p);
+  });
+  return out;
 }
 
 /**
