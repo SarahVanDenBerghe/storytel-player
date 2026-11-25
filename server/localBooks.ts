@@ -322,29 +322,22 @@ const NUMBERED_CHAPTER = /^(?:\p{L}+\s+)?(\d+)\s*(?:[:.\-\u2013\u2014]\s*(.*))?$
 const CREDITS = /\bcredits\b/i;
 
 /**
- * The chapters as the player shows them. Opening or closing credits are left out (their
- * time goes to the next or previous chapter; the audio is not cut). When the titles carry
- * their own numbers in order, that number becomes the label and leaves the title
- * ("Episode 1: The Strange Rumor" -> 1, "The Strange Rumor"); unnumbered ones get an empty
- * label (shown as a dash). Otherwise the titles stay as they are, with running numbers.
+ * The chapters as the player shows them. Opening or closing credits stay as their own
+ * chapter, shown with a dash instead of a number. When the other titles carry their own
+ * numbers in order, that number becomes the label and leaves the title
+ * ("Episode 1: The Strange Rumor" -> 1, "The Strange Rumor"), and unnumbered ones
+ * ("Epilogue") get a dash too. Otherwise the titles stay as they are, numbered 1, 2, 3...
+ * without counting the credits.
  */
-function playerChapters(raw: LocalChapter[]): { title: string; label?: string; startMs: number; endMs: number }[] {
-  const chapters = raw.map((chapter) => ({ ...chapter }));
-  if (chapters.length > 1 && CREDITS.test(chapters[0].title)) {
-    chapters[1].startMs = chapters[0].startMs;
-    chapters.shift();
-  }
-  const last = chapters.length - 1;
-  if (last > 0 && CREDITS.test(chapters[last].title)) {
-    chapters[last - 1].endMs = chapters[last].endMs;
-    chapters.pop();
-  }
-
-  const matches = chapters.map((chapter) => chapter.title.trim().match(NUMBERED_CHAPTER));
+function playerChapters(chapters: LocalChapter[]): (LocalChapter & { label: string })[] {
+  const isCredits = (i: number) => (i === 0 || i === chapters.length - 1) && CREDITS.test(chapters[i].title);
+  const matches = chapters.map((chapter, i) => (isCredits(i) ? null : chapter.title.trim().match(NUMBERED_CHAPTER)));
   const numbers = matches.flatMap((match) => (match ? [Number(match[1])] : []));
   const inOrder = numbers.length >= 2 && numbers.every((n, i) => i === 0 || n > numbers[i - 1]);
-  if (!inOrder) return chapters;
+  let count = 0;
   return chapters.map((chapter, i) => {
+    if (isCredits(i)) return { ...chapter, label: "" };
+    if (!inOrder) return { ...chapter, label: String(++count) };
     const match = matches[i];
     return match
       ? { ...chapter, label: match[1], title: match[2]?.trim() || chapter.title }
