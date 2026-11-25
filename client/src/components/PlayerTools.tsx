@@ -63,6 +63,9 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
     const toggle = (next: Menu) => setMenu(menu === next ? null : next);
     const isSilent = isMuted || volume === 0;
     const isReading = location.pathname.startsWith('/read/');
+    // Read along opens the book on screen (a book page or its reading view), not only the playing one.
+    const pageBookId = location.pathname.match(/^\/(?:player|read)\/([^/]+)/)?.[1];
+    const modeBookId = pageBookId || activeBookId;
     const onSpeaker = audioOutput?.kind === 'speaker';
     const onHeadphones = audioOutput?.kind === 'headphones';
     const snoozed = speakerSnoozedUntil > Date.now();
@@ -229,10 +232,10 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
             </div>
 
             {/* Read along on/off: the reading view or back to the full player. */}
-            {showModeToggle && activeBookId && (
+            {showModeToggle && modeBookId && (
                 <button
                     type="button"
-                    onClick={() => navigate(`/${isReading ? 'player' : 'read'}/${activeBookId}`)}
+                    onClick={() => navigate(`/${isReading ? 'player' : 'read'}/${modeBookId}`)}
                     aria-label={t('readAlong.open')}
                     aria-pressed={isReading}
                     title={t('readAlong.open')}
