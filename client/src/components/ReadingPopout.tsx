@@ -306,6 +306,16 @@ function ReadingPopout({initialBookId}: {initialBookId: string}) {
                     </button>
                 </div>
             )}
+
+            {/* How far into the book: a thick line along the window's bottom edge, with the controls (on hover). */}
+            {playback?.bookId && playback.duration > 0 && (
+                <div aria-hidden="true" className={`absolute inset-x-0 bottom-0 z-30 h-1 bg-[var(--ra-line)] ${onHover}`}>
+                    <div
+                        className="h-full bg-[#FF5100]"
+                        style={{width: `${Math.min(100, (playback.currentTime / playback.duration) * 100)}%`}}
+                    />
+                </div>
+            )}
         </div>
         </div>
     );
