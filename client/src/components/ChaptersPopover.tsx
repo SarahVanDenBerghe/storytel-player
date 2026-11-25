@@ -89,7 +89,7 @@ export function ChaptersPopover({
                     </svg>
                   ) : (
                     <span className="w-4 text-left font-mono text-[11px] text-gray-500 flex-shrink-0">
-                      {ch.label ?? chNum}
+                      {ch.label === '' ? '–' : ch.label ?? chNum}
                     </span>
                   )}
                   <span className="truncate text-left">

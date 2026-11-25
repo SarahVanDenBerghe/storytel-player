@@ -317,6 +317,41 @@ export function toBookshelfEntity(book: LocalBook) {
   };
 }
 
+// "Episode 1: The Strange Rumor", "Chapter 3", "12. The Julii": an optional word, the number, then the title.
+const NUMBERED_CHAPTER = /^(?:\p{L}+\s+)?(\d+)\s*(?:[:.\-\u2013\u2014]\s*(.*))?$/u;
+const CREDITS = /\bcredits\b/i;
+
+/**
+ * The chapters as the player shows them. Opening or closing credits are left out (their
+ * time goes to the next or previous chapter; the audio is not cut). When the titles carry
+ * their own numbers in order, that number becomes the label and leaves the title
+ * ("Episode 1: The Strange Rumor" -> 1, "The Strange Rumor"); unnumbered ones get an empty
+ * label (shown as a dash). Otherwise the titles stay as they are, with running numbers.
+ */
+function playerChapters(raw: LocalChapter[]): { title: string; label?: string; startMs: number; endMs: number }[] {
+  const chapters = raw.map((chapter) => ({ ...chapter }));
+  if (chapters.length > 1 && CREDITS.test(chapters[0].title)) {
+    chapters[1].startMs = chapters[0].startMs;
+    chapters.shift();
+  }
+  const last = chapters.length - 1;
+  if (last > 0 && CREDITS.test(chapters[last].title)) {
+    chapters[last - 1].endMs = chapters[last].endMs;
+    chapters.pop();
+  }
+
+  const matches = chapters.map((chapter) => chapter.title.trim().match(NUMBERED_CHAPTER));
+  const numbers = matches.flatMap((match) => (match ? [Number(match[1])] : []));
+  const inOrder = numbers.length >= 2 && numbers.every((n, i) => i === 0 || n > numbers[i - 1]);
+  if (!inOrder) return chapters;
+  return chapters.map((chapter, i) => {
+    const match = matches[i];
+    return match
+      ? { ...chapter, label: match[1], title: match[2]?.trim() || chapter.title }
+      : { ...chapter, label: "" };
+  });
+}
+
 /**
  * Shaped like Storytel's book details / playback metadata: PlayerView's fallback
  * and extractChaptersFromResponse (client/src/utils/chapters.ts) read it.
@@ -338,8 +373,9 @@ export function toBookDetails(book: LocalBook) {
         id: book.id,
         durationInMilliseconds: book.durationMs,
         cover,
-        chapters: book.chapters.map((chapter, index) => ({
+        chapters: playerChapters(book.chapters).map((chapter, index) => ({
           number: index + 1,
+          label: chapter.label,
           title: chapter.title,
           startPositionInMilliseconds: chapter.startMs,
           endPositionInMilliseconds: chapter.endMs,

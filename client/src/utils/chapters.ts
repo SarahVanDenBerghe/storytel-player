@@ -62,6 +62,8 @@ export function normalizeChapters(rawChapters: any[] = []): Chapter[] {
 
     return {
       number,
+      // The book's own chapter number (or "" for none), when the source gives one.
+      ...(typeof raw.label === 'string' ? { label: raw.label } : {}),
       title,
       durationInSeconds: Math.max(0, durationSec),
       start: Math.max(0, start),
