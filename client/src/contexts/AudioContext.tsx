@@ -107,7 +107,7 @@ export interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
-export const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+export const PLAYBACK_RATES = [1.0, 1.25, 1.5, 1.75, 2.0];
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
