@@ -12,6 +12,9 @@ export const buildCoverUrl = (cover?: string | null, level: 'clean' | 'tidy' = '
     const isbn = cover.split('/').pop()?.split('.')[0];
     const cleaned = isbn ? window.electronCovers?.overrides[level === 'tidy' ? `${isbn}.tidy` : isbn] : undefined;
     if (cleaned) return cleaned;
+    // A local book's cover, extracted from its file (.../local-covers/<id>.jpg): already a usable URL.
+    // Cleaned versions of it are found above, keyed by the book id.
+    if (cover.startsWith('file://')) return cover;
     return /^https?:\/\//.test(cover) ? cover : `https://www.storytel.com${cover}`;
 };
 
@@ -94,6 +97,13 @@ export const truncateTitle = (title: string, maxLength: number = 30): string => 
 // was no tag) cut the subtitle after the first ": ".
 /** The id a book is routed by (/player/:id), and its stored per-book data keyed by. */
 export const bookRouteId = (book: BookShelfEntity): string => String(book.abook?.id || book.id);
+
+/**
+ * The user's own audiobook file (added in the app), not a Storytel book. Local ids
+ * start at 9000000000000, so a bare route id is enough when the entry is missing.
+ */
+export const isLocalBook = (book?: BookShelfEntity | null, id?: string | number | null): boolean =>
+    !!book?.isLocal || Number(id ?? (book ? bookRouteId(book) : NaN)) >= 9e12;
 
 /** The book's best cover image URL (unbuilt), or '' when it has none. */
 export const bookCoverOf = (book: BookShelfEntity | null | undefined): string =>

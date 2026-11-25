@@ -11,7 +11,7 @@ import DownloadCancelModal from "./DownloadCancelModal";
 import {BookShelfEntity} from "../interfaces/books";
 import {readLocalPosition, useAudioContext} from "../contexts/AudioContext";
 import {useChapters} from "../hooks/useChapters";
-import {truncateTitle} from '../utils/helpers';
+import {bookRouteId, isLocalBook, truncateTitle} from '../utils/helpers';
 import {SKIP_BACKWARD_SECONDS, SKIP_FORWARD_SECONDS} from '../config/player';
 import {upNext, useUpNext} from '../hooks/useUpNext';
 import "../types/window.d.ts";
@@ -74,6 +74,21 @@ function PlayerView() {
     // Fetch fallback book details if not available
     useEffect(() => {
         const hasBookDetails = stateBookMatches || isCurrentActiveBook;
+        if (!hasBookDetails && bookId && isLocalBook(null, bookId)) {
+            // A local book is not on Storytel: its entry comes from the shelf.
+            let cancelled = false;
+            api.get('/bookshelf')
+                .then((res) => {
+                    const entry = (res.data?.books || []).find((b: BookShelfEntity) => bookRouteId(b) === bookId);
+                    if (!cancelled && entry) setFetchedBook(entry);
+                })
+                .catch((e) => {
+                    if (!cancelled) console.error("Failed to load the local book:", e);
+                });
+            return () => {
+                cancelled = true;
+            };
+        }
         if (!hasBookDetails && bookId) {
             let cancelled = false;
             api.get(`/book-details/${bookId}`)
@@ -322,6 +337,8 @@ function PlayerView() {
         return <ErrorState error={error || audio.error || ''} onRetry={() => navigate('/')}/>;
     }
 
+    // The user's own file: nothing to download from Storytel (and nothing to delete).
+    const isLocal = isLocalBook(book, bookId);
     const chapterList = chapters.chapters.length > 0 ? chapters.chapters : audio.chapters;
     const isStarred = !!bookId && starredIds.includes(bookId);
     const downloadLabel = isDownloading
@@ -352,23 +369,25 @@ function PlayerView() {
                 )}
                 {/* Download (offline listening): a quiet icon. An arrow, or arrow with a check
                     once downloaded; clicking a downloaded book offers to delete the file. */}
-                <button
-                    id="download-btn"
-                    type="button"
-                    onClick={handleDownloadClick}
-                    aria-label={downloadLabel}
-                    title={downloadLabel}
-                    className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
-                >
-                    {isDownloading ? (
-                        <span aria-hidden="true" className="w-4 h-4 rounded-full border-2 border-white/15 border-t-[#9CA3AF] animate-spin"/>
-                    ) : (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M5 20h14"/>
-                            <path d={isDownloaded ? 'M7 11l3.5 3.5L17 7' : 'M12 4v11M7 10l5 5 5-5'}/>
-                        </svg>
-                    )}
-                </button>
+                {!isLocal && (
+                    <button
+                        id="download-btn"
+                        type="button"
+                        onClick={handleDownloadClick}
+                        aria-label={downloadLabel}
+                        title={downloadLabel}
+                        className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]"
+                    >
+                        {isDownloading ? (
+                            <span aria-hidden="true" className="w-4 h-4 rounded-full border-2 border-white/15 border-t-[#9CA3AF] animate-spin"/>
+                        ) : (
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M5 20h14"/>
+                                <path d={isDownloaded ? 'M7 11l3.5 3.5L17 7' : 'M12 4v11M7 10l5 5 5-5'}/>
+                            </svg>
+                        )}
+                    </button>
+                )}
             </Navbar>
 
             {/* Keyboard Overlay */}

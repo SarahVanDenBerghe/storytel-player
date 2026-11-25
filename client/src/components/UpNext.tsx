@@ -99,7 +99,8 @@ function UpNext({books}: {books: BookShelfEntity[]}) {
     if (currentIndex < 0) return null;
     const current = items[currentIndex];
     const queue = items.slice(currentIndex + 1);
-    const artwork = current.cover.startsWith('file:') ? current.cover : null;
+    // Only cleaned covers (no text) make a backdrop; a local book's own cover still has its title.
+    const artwork = current.cover.startsWith('file:') && !current.cover.includes('/local-covers/') ? current.cover : null;
     const artMask = queue.length === 0 ? soloArtMask : queueArtMask;
     // With art behind a queue the tint carries on to the right edge, so the Next side is not a dark slab.
     const tintEnd = artwork && queue.length > 0 ? `${tint}80 75%, ${tint}5c 100%` : `${tint}33 75%, transparent 100%`;

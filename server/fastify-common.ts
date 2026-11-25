@@ -10,6 +10,20 @@ import { pathToFileURL } from "url";
 import axios from "axios";
 import { appLogger } from "./logger";
 import { encryptPassword } from "./passwordCrypt";
+import {
+  LocalBookError,
+  addLocalBook,
+  audioContentType,
+  getLocalBook,
+  isLocalBookId,
+  listLocalBooks,
+  localBookFile,
+  removeLocalBook,
+  setLocalBookPosition,
+  toBookDetails,
+  toBookshelfEntity,
+  toPositional,
+} from "./localBooks";
 
 // Extend JWT user type. Legacy (email/password) login populates storytelToken,
 // jwt, and encryptedPassword; SSO login populates the sso* fields instead and
@@ -142,8 +156,12 @@ function buildDownloadPath(bookId: string, title?: string): string {
   return path.join(downloadsDir(), fileName);
 }
 
+// Local books (server/localBooks.ts) resolve to the user's own file: it plays
+// and counts as downloaded, but must never be deleted - every route that
+// unlinks refuses local ids before calling this.
 function findDownloadedFile(bookId: string): string | null {
   if (!isValidBookId(bookId)) return null;
+  if (isLocalBookId(bookId)) return localBookFile(bookId);
 
   const suffix = ` [${bookId}].mp3`;
   for (const dir of downloadLookupDirs()) {
@@ -272,6 +290,32 @@ fastify.post("/api/logout", async (_request, reply) => {
   reply.send({ success: true, message: "Logged out successfully" });
 });
 
+// Add one of the user's own audiobook files to the library (server/localBooks.ts).
+// No auth: the Electron main process calls it right after a file dialog.
+fastify.post<{ Body: { filePath?: string } }>("/api/local-books", async (request, reply) => {
+  try {
+    reply.send(await addLocalBook(request.body?.filePath));
+  } catch (error: any) {
+    if (error instanceof LocalBookError) return reply.code(400).send({ error: error.message });
+    replyError(reply, error);
+  }
+});
+
+// Forget a local book: its entry and extracted cover. The audio file stays.
+fastify.delete<{ Params: { id: string } }>(
+  "/api/local-books/:id",
+  { preHandler: fastify.authenticate },
+  async (request, reply) => {
+    const { id } = request.params;
+    if (!isLocalBookId(id)) return reply.code(400).send({ error: "Invalid local book id" });
+    if (!removeLocalBook(id)) return reply.code(404).send({ error: "Local book not found" });
+    reply.send({ success: true });
+  },
+);
+
+const LOCAL_NOT_ON_STORYTEL = "Not available for local books";
+const LOCAL_NO_BOOKMARKS = "Bookmarks are not available for local books";
+
 // Route per ottenere bookshelf
 fastify.get(
   "/api/bookshelf",
@@ -283,7 +327,10 @@ fastify.get(
       const storytelClient = hydrateStorytelClient(request.user);
 
       const bookshelf = await storytelClient.getBookshelf();
-      reply.send(bookshelf);
+      reply.send({
+        ...bookshelf,
+        books: [...(bookshelf.books ?? []), ...listLocalBooks().map(toBookshelfEntity)],
+      });
     } catch (error: any) {
       replyError(reply, error);
     }
@@ -328,6 +375,9 @@ fastify.post<{
       if (!consumableId) {
         return reply.code(400).send({ error: "Missing consumableId" });
       }
+      if (isLocalBookId(String(consumableId))) {
+        return reply.code(400).send({ error: LOCAL_NOT_ON_STORYTEL });
+      }
 
       const storytelClient = hydrateStorytelClient(request.user);
       const result = await storytelClient.addToBookshelf(consumableId);
@@ -362,6 +412,9 @@ fastify.post<{
       if (!consumableId) {
         return reply.code(400).send({ error: "Missing consumableId" });
       }
+      if (isLocalBookId(String(consumableId))) {
+        return reply.code(400).send({ error: LOCAL_NOT_ON_STORYTEL });
+      }
 
       const storytelClient = hydrateStorytelClient(request.user);
       const result = await storytelClient.removeFromBookshelf(consumableId);
@@ -395,6 +448,10 @@ fastify.post<{
     try {
       const { bookId, consumableId } = request.body;
       const localFilePath = findDownloadedFile(bookId);
+      // A local book whose file was moved or evicted: never ask Storytel.
+      if (!localFilePath && isLocalBookId(bookId)) {
+        return reply.code(404).send({ error: "Audio file not found" });
+      }
 
       // Check if file exists locally
       if (localFilePath) {
@@ -451,6 +508,9 @@ fastify.post<{
     try {
       const { consumableId } = request.params;
       const { position, note } = request.body;
+      if (isLocalBookId(consumableId)) {
+        return reply.code(400).send({ error: LOCAL_NO_BOOKMARKS });
+      }
 
       const storytelClient = hydrateStorytelClient(request.user);
 
@@ -473,6 +533,9 @@ fastify.delete<{
   async (request, reply) => {
     try {
       const { consumableId, bookmarkId } = request.params;
+      if (isLocalBookId(consumableId)) {
+        return reply.code(400).send({ error: LOCAL_NO_BOOKMARKS });
+      }
       const storytelClient = hydrateStorytelClient(request.user);
 
       await storytelClient.deleteBookmark(consumableId, bookmarkId);
@@ -495,6 +558,9 @@ fastify.put<{
   async (request, reply) => {
     try {
       const { consumableId, bookmarkId } = request.params;
+      if (isLocalBookId(consumableId)) {
+        return reply.code(400).send({ error: LOCAL_NO_BOOKMARKS });
+      }
       const storytelClient = hydrateStorytelClient(request.user);
 
       await storytelClient.updateBookmark(
@@ -537,6 +603,10 @@ fastify.get<{
   async (request, reply) => {
     try {
       const { consumableId } = request.params;
+      if (isLocalBookId(consumableId)) {
+        const book = getLocalBook(consumableId);
+        return reply.send(book ? toPositional(book) : []);
+      }
 
       const storytelClient = hydrateStorytelClient(request.user);
 
@@ -561,6 +631,15 @@ fastify.put<{
     try {
       const { consumableId } = request.params;
       const { position } = request.body;
+      if (isLocalBookId(consumableId)) {
+        if (typeof position !== "number" || !Number.isFinite(position)) {
+          return reply.code(400).send({ error: "Invalid position" });
+        }
+        if (!setLocalBookPosition(consumableId, position)) {
+          return reply.code(404).send({ error: "Local book not found" });
+        }
+        return reply.send({ success: true });
+      }
 
       const storytelClient = hydrateStorytelClient(request.user);
 
@@ -588,6 +667,8 @@ fastify.get<{
   async (request, reply) => {
     try {
       const { consumableId } = request.params;
+      // Same shape as Storytel's answer (useBookmarks reads data.bookmarks).
+      if (isLocalBookId(consumableId)) return reply.send({ bookmarks: [] });
       const storytelClient = hydrateStorytelClient(request.user);
 
       const bookmarks = await storytelClient.getBookmark(consumableId);
@@ -608,6 +689,11 @@ fastify.get<{
   async (request, reply) => {
     try {
       const { consumableId } = request.params;
+      if (isLocalBookId(consumableId)) {
+        const book = getLocalBook(consumableId);
+        if (!book) return reply.code(404).send({ error: "Local book not found" });
+        return reply.send(toBookDetails(book));
+      }
       const storytelClient = hydrateStorytelClient(request.user);
       const bookInfoContent =
         await storytelClient.getPlayBookMetaData(consumableId);
@@ -630,6 +716,11 @@ fastify.get<{
   async (request, reply) => {
     try {
       const { consumableId } = request.params;
+      if (isLocalBookId(consumableId)) {
+        const book = getLocalBook(consumableId);
+        if (!book) return reply.code(404).send({ error: "Local book not found" });
+        return reply.send(toBookDetails(book));
+      }
       const storytelClient = hydrateStorytelClient(request.user);
       const details = await storytelClient.getBookDetails(consumableId);
       reply.send(details);
@@ -737,6 +828,9 @@ fastify.post<{
 
       if (!isValidBookId(bookId)) {
         return reply.code(400).send({ error: "Invalid bookId" });
+      }
+      if (isLocalBookId(bookId)) {
+        return reply.code(400).send({ error: LOCAL_NOT_ON_STORYTEL });
       }
 
       // Check if already exists
@@ -858,6 +952,9 @@ fastify.delete<{
   async (request, reply) => {
     try {
       const { bookId } = request.params;
+      if (isLocalBookId(bookId)) {
+        return reply.code(400).send({ error: LOCAL_NOT_ON_STORYTEL });
+      }
 
       const download = activeDownloads.get(bookId);
       if (!download) {
@@ -930,14 +1027,14 @@ fastify.get<{ Params: { bookId: string } }>(
           .header("Content-Range", `bytes ${start}-${end}/${stat.size}`)
           .header("Accept-Ranges", "bytes")
           .header("Content-Length", chunkSize)
-          .header("Content-Type", "audio/mpeg")
+          .header("Content-Type", audioContentType(filePath))
           .send(fileStream);
         return reply;
       } else {
         const fileStream = fs.createReadStream(filePath);
         reply
           .header("Content-Length", stat.size)
-          .header("Content-Type", "audio/mpeg")
+          .header("Content-Type", audioContentType(filePath))
           .header("Accept-Ranges", "bytes")
           .send(fileStream);
         return reply;
@@ -965,7 +1062,7 @@ fastify.get<{
       }
 
       const stream = fs.createReadStream(localFilePath);
-      reply.type("audio/mpeg").send(stream);
+      reply.type(audioContentType(localFilePath)).send(stream);
     } catch (error: any) {
       replyError(reply, error);
     }
@@ -1006,10 +1103,21 @@ fastify.delete<{
   async (request, reply) => {
     try {
       const { bookId } = request.params;
+      // Never delete the user's own audio file of a local book.
+      if (isLocalBookId(bookId)) {
+        return reply.code(400).send({ error: LOCAL_NOT_ON_STORYTEL });
+      }
       const localFilePath = findDownloadedFile(bookId);
 
       if (!localFilePath) {
         return reply.code(404).send({ error: "File not found" });
+      }
+      // Second guard: only files inside the download folders are ever deleted.
+      const inDownloads = downloadLookupDirs().some(
+        (dir) => path.resolve(path.dirname(localFilePath)) === path.resolve(dir),
+      );
+      if (!inDownloads) {
+        return reply.code(400).send({ error: "Not a downloaded file" });
       }
 
       // Delete the file

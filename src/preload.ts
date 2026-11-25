@@ -117,6 +117,13 @@ contextBridge.exposeInMainWorld('electronAudio', {
     ipcRenderer.invoke('audio:output'),
 });
 
+// Local books API: the user's own audiobook files (see setupLocalBooksHandlers in src/modules/ipc.ts).
+contextBridge.exposeInMainWorld('electronLocalBooks', {
+  add: (): Promise<{ id: string; added: boolean } | null> => ipcRenderer.invoke('localBooks:add'),
+  showMenu: (removeLabel: string): Promise<'remove' | null> =>
+    ipcRenderer.invoke('localBooks:show-menu', removeLabel),
+});
+
 // Read along API: the EPUB stored per audiobook, read in the main process.
 contextBridge.exposeInMainWorld('electronEpub', {
   choose: (bookId: string): Promise<{ name: string } | null> =>

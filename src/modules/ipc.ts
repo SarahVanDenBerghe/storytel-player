@@ -1,6 +1,7 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, powerSaveBlocker, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, IpcMainInvokeEvent, Menu, powerSaveBlocker, shell } from 'electron';
 import { execFile } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { readZipTextEntries } from './epubZip';
 import { coverColor, coverOverrides } from './coverColor';
@@ -18,6 +19,24 @@ import { i18n } from '../i18n';
 const POPOUT_SHORTCUT = 'CommandOrControl+Shift+;';
 // The EPUB file chosen per audiobook: { [bookId]: absolute path }.
 const EPUB_PATHS_KEY = 'readAlong.epubPaths';
+// Where the "add a local book" dialog opens, when the folder exists.
+const LOCAL_BOOKS_FOLDER = path.join(os.homedir(), 'Library/Mobile Documents/com~apple~CloudDocs/Audiobooks');
+
+const getEpubPaths = (): Record<string, string> =>
+  storeManager.get<Record<string, string>>(EPUB_PATHS_KEY) || {};
+
+const storeEpubPath = (bookId: unknown, filePath: unknown): { name: string } => {
+  if (typeof bookId !== 'string' || !bookId) throw new Error('Invalid book id');
+  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
+    throw new Error('Invalid EPUB path');
+  }
+  if (path.extname(filePath).toLowerCase() !== '.epub') {
+    throw new Error('Not an EPUB file');
+  }
+  // Write only the paths map, so other `readAlong.*` settings are kept.
+  storeManager.set(EPUB_PATHS_KEY, { ...getEpubPaths(), [bookId]: filePath });
+  return { name: path.basename(filePath) };
+};
 
 export class IpcManager {
   private serverManager: ServerManager;
@@ -53,6 +72,57 @@ export class IpcManager {
     this.setupReadAlongPopoutHandlers();
     this.setupDownloadFolderHandlers();
     this.setupAudioOutputHandlers();
+    this.setupLocalBooksHandlers();
+  }
+
+  // Local books: the user's own audiobook files in the library (server/localBooks.ts).
+  // Removal is a plain DELETE /api/local-books/:id from the renderer.
+  private setupLocalBooksHandlers(): void {
+    ipcMain.handle('localBooks:add', async (event: IpcMainInvokeEvent) => {
+      const options: Electron.OpenDialogOptions = {
+        properties: ['openFile'],
+        filters: [{ name: 'Audiobooks', extensions: ['m4b', 'm4a', 'mp3'] }],
+        ...(fs.existsSync(LOCAL_BOOKS_FOLDER) ? { defaultPath: LOCAL_BOOKS_FOLDER } : {}),
+      };
+      const parent = BrowserWindow.fromWebContents(event.sender);
+      const result = parent
+        ? await dialog.showOpenDialog(parent, options)
+        : await dialog.showOpenDialog(options);
+      if (result.canceled || result.filePaths.length === 0) return null;
+
+      const response = await this.serverManager.injectRequest('POST', '/api/local-books', {
+        filePath: result.filePaths[0],
+      });
+      if (response?.__isError) throw new Error(response.error);
+      const { id, added, epubPath } = response.data as { id: string; added: boolean; epubPath?: string };
+      // An EPUB found next to the audio becomes the book's read-along text,
+      // unless one was already chosen.
+      if (epubPath && !getEpubPaths()[id]) {
+        try {
+          storeEpubPath(id, epubPath);
+        } catch (err) {
+          console.warn('Local book: cannot store the EPUB', err);
+        }
+      }
+      return { id, added };
+    });
+
+    // A native context menu with one item; resolves 'remove' when it is chosen.
+    ipcMain.handle('localBooks:show-menu', (event: IpcMainInvokeEvent, removeLabel: unknown) => {
+      if (typeof removeLabel !== 'string' || !removeLabel) throw new Error('Invalid label');
+      return new Promise<'remove' | null>((resolve) => {
+        let chosen = false;
+        const menu = Menu.buildFromTemplate([
+          { label: removeLabel, click: () => { chosen = true; resolve('remove'); } },
+        ]);
+        const window = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+        menu.popup({
+          window,
+          // The item's click may arrive after the close callback: wait a moment.
+          callback: () => setTimeout(() => { if (!chosen) resolve(null); }, 100),
+        });
+      });
+    });
   }
 
   // The Mac's current sound output and whether it plays out loud, so the player
@@ -278,20 +348,6 @@ export class IpcManager {
   // Read along: the EPUB chosen for each audiobook, stored as an absolute path
   // under `readAlong.epubPaths[bookId]`. The file itself stays where it is.
   private setupEpubHandlers(): void {
-    const getPaths = (): Record<string, string> =>
-      storeManager.get<Record<string, string>>(EPUB_PATHS_KEY) || {};
-    const storePath = (bookId: unknown, filePath: unknown): { name: string } => {
-      if (typeof bookId !== 'string' || !bookId) throw new Error('Invalid book id');
-      if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
-        throw new Error('Invalid EPUB path');
-      }
-      if (path.extname(filePath).toLowerCase() !== '.epub') {
-        throw new Error('Not an EPUB file');
-      }
-      // Write only the paths map, so other `readAlong.*` settings are kept.
-      storeManager.set(EPUB_PATHS_KEY, { ...getPaths(), [bookId]: filePath });
-      return { name: path.basename(filePath) };
-    };
 
     ipcMain.handle('epub:choose', async (event: IpcMainInvokeEvent, bookId: string) => {
       const options: Electron.OpenDialogOptions = {
@@ -303,17 +359,17 @@ export class IpcManager {
         ? await dialog.showOpenDialog(parent, options)
         : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
-      return storePath(bookId, result.filePaths[0]);
+      return storeEpubPath(bookId, result.filePaths[0]);
     });
 
     ipcMain.handle(
       'epub:set-path',
-      (_event: IpcMainInvokeEvent, bookId: string, filePath: string) => storePath(bookId, filePath)
+      (_event: IpcMainInvokeEvent, bookId: string, filePath: string) => storeEpubPath(bookId, filePath)
     );
 
     // Give other books (the other parts of a multi-part book) the same EPUB.
     ipcMain.handle('epub:link', (_event: IpcMainInvokeEvent, fromBookId: unknown, toBookIds: unknown) => {
-      const paths = getPaths();
+      const paths = getEpubPaths();
       const filePath = typeof fromBookId === 'string' ? paths[fromBookId] : undefined;
       if (!filePath || !Array.isArray(toBookIds)) return;
       for (const id of toBookIds) {
@@ -324,12 +380,12 @@ export class IpcManager {
 
     // File name of the stored EPUB, or null when none is stored or the file is gone.
     ipcMain.handle('epub:name', (_event: IpcMainInvokeEvent, bookId: string) => {
-      const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;
+      const filePath = typeof bookId === 'string' ? getEpubPaths()[bookId] : undefined;
       return filePath && fs.existsSync(filePath) ? path.basename(filePath) : null;
     });
 
     ipcMain.handle('epub:load', async (_event: IpcMainInvokeEvent, bookId: string) => {
-      const filePath = typeof bookId === 'string' ? getPaths()[bookId] : undefined;
+      const filePath = typeof bookId === 'string' ? getEpubPaths()[bookId] : undefined;
       if (!filePath || !fs.existsSync(filePath)) return null;
       let buf: Buffer;
       try {

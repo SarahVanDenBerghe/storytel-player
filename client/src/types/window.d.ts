@@ -113,6 +113,13 @@ declare global {
       /** The fixed download folder, created if needed (never asks). */
       ensureFolder: () => Promise<string | null>;
     };
+    /** The user's own audiobook files in the library (Electron only). */
+    electronLocalBooks?: {
+      /** Opens a file dialog and adds the chosen file; null when cancelled, rejects on a bad file. `added` is false when it was already in the library. */
+      add: () => Promise<{ id: string; added: boolean } | null>;
+      /** Native context menu with one item; resolves 'remove' when it is chosen, null when closed. */
+      showMenu: (removeLabel: string) => Promise<'remove' | null>;
+    };
     /** Read along: the EPUB stored per audiobook (Electron only). */
     electronCovers?: {
       /** ISBN -> file URL of a cleaned cover, ISBN.tidy -> the tidied original (see src/modules/coverColor.ts). */

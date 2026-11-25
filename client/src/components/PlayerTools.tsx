@@ -5,6 +5,7 @@ import {PLAYBACK_RATES, useAudioContext} from '../contexts/AudioContext';
 import ChaptersPopover from './ChaptersPopover';
 import BookmarkModals from './BookmarkModals';
 import {useBookmarks} from '../hooks/useBookmarks';
+import {isLocalBook} from '../utils/helpers';
 
 const focusRing = 'focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 const pillIdle = 'bg-white/[0.06] hover:bg-white/[0.10] text-[#D1D5DB] hover:text-white';
@@ -34,7 +35,7 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
     const navigate = useNavigate();
     const location = useLocation();
     const {
-        activeBookId, activeConsumableId, playbackRate, setRate, volume, isMuted, setVolume, toggleMute,
+        activeBook, activeBookId, activeConsumableId, playbackRate, setRate, volume, isMuted, setVolume, toggleMute,
         chapters, currentChapter, jumpToChapter, audioRef, currentTime,
         audioOutput, speakerSnoozedUntil, clearSpeakerSnooze,
     } = useAudioContext();
@@ -133,7 +134,8 @@ function PlayerTools({popoverOffset = 'bottom-[88px]', showModeToggle = false}: 
                 )}
             </div>
 
-            {activeBookId && (
+            {/* Bookmarks are kept by Storytel: none for the user's own files. */}
+            {activeBookId && !isLocalBook(activeBook, activeBookId) && (
                 <button
                     type="button"
                     onClick={() => {

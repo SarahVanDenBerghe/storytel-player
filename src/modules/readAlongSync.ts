@@ -5,6 +5,7 @@ import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { isLocalBookId, localBookFilePath } from './localBooks';
 
 export const CHUNK_SEC = 600;
 // A manual anchor replaces any other one closer than this.
@@ -273,7 +274,12 @@ export function createReadAlongSync(options: ReadAlongSyncOptions) {
       if (!ffmpeg || !ffprobe) reason = 'FFmpeg is not installed: brew install ffmpeg';
       else if (!whisper) reason = 'Whisper is not installed: brew install whisper-cpp';
       else if (!fs.existsSync(modelPath)) reason = `Whisper model not found: ${modelPath}`;
-      const audioPath = reason ? null : findDownloadedAudio(downloadsDirs(), bookId);
+      // A local book plays from the user's own file (m4b/m4a/mp3: ffmpeg reads them all).
+      const audioPath = reason
+        ? null
+        : isLocalBookId(bookId)
+          ? localBookFilePath(userDataDir, bookId)
+          : findDownloadedAudio(downloadsDirs(), bookId);
       if (!reason && !audioPath) reason = 'Download this audiobook to sync the text';
       if (reason || !audioPath || !ffmpeg || !ffprobe || !whisper) {
         job.progress = { ...job.progress, state: 'unavailable', message: reason ?? undefined };

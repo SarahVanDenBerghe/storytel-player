@@ -391,5 +391,9 @@
     "play": "Play",
     "snoozedUntil": "Not asking until {{time}}",
     "askAgain": "Ask again"
+  },
+  "localBooks": {
+    "add": "Add an audiobook",
+    "remove": "Remove from library"
   }
 }

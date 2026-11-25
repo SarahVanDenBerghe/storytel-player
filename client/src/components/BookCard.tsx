@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { bookCoverOf, bookProgress, bookRouteId, buildCoverUrl, cleanBookTitle } from '../utils/helpers';
+import { bookCoverOf, bookProgress, bookRouteId, buildCoverUrl, cleanBookTitle, isLocalBook } from '../utils/helpers';
+import api from '../utils/api';
 import { upNext, useUpNext } from '../hooks/useUpNext';
 import { BookShelfEntity } from '../interfaces/books';
 
@@ -8,11 +9,13 @@ interface BookCardProps {
   book: BookShelfEntity;
   onBookSelect: (book: BookShelfEntity) => void;
   onQuickPlay?: (e: React.MouseEvent, book: BookShelfEntity) => void;
+  /** Called after a local book was removed from the library (the shelf reloads). */
+  onRemoved?: () => void;
 }
 
 const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
 
-export function BookCard({ book, onBookSelect, onQuickPlay }: BookCardProps) {
+export function BookCard({ book, onBookSelect, onQuickPlay, onRemoved }: BookCardProps) {
   const { t } = useTranslation();
 
   const { percent: progressPercent, isFinished, isStarted } = bookProgress(book);
@@ -35,8 +38,24 @@ export function BookCard({ book, onBookSelect, onQuickPlay }: BookCardProps) {
     ? t('bookCard.coverLabelStarted', { title, percent, defaultValue: 'Cover of {{title}}, {{percent}}% listened' })
     : t('bookCard.coverLabel', { title, defaultValue: 'Cover of {{title}}' });
 
+  // Local books only: a native right-click menu to remove the book from the app (never the file).
+  // Storytel books keep the default behaviour.
+  const handleContextMenu = async (e: React.MouseEvent) => {
+    if (!isLocalBook(book)) return;
+    e.preventDefault();
+    try {
+      const choice = await window.electronLocalBooks?.showMenu(t('localBooks.remove'));
+      if (choice !== 'remove') return;
+      await api.delete(`/local-books/${routeId}`);
+      upNext.remove(routeId);
+      onRemoved?.();
+    } catch (err) {
+      console.error('Cannot remove the audiobook', err);
+    }
+  };
+
   return (
-    <div className="group relative min-w-0 select-none">
+    <div className="group relative min-w-0 select-none" onContextMenu={handleContextMenu}>
       <button
         type="button"
         onClick={() => onBookSelect(book)}

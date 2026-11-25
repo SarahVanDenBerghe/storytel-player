@@ -22,6 +22,8 @@ export interface BookShelfEntity {
     subscribesToSerie: number
     stateUpdateTime?: string
     positionUpdatedTime?: string
+    /** The user's own audiobook file, added in the app (not a Storytel book). */
+    isLocal?: boolean
 }
 
 export interface Abook {

@@ -150,6 +150,32 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5100]';
   const secondaryButton = `h-9 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/10 text-[#D1D5DB] text-[13px] font-medium transition-colors ${focusRing}`;
 
+  // Adding the user's own audiobook file (.m4b): the Mac file picker, then the library reloads.
+  const handleAddLocalBook = async () => {
+    try {
+      const result = await window.electronLocalBooks?.add();
+      if (result) await loadBookshelf();
+    } catch (err) {
+      console.error('Cannot add the audiobook', err);
+    }
+  };
+
+  // The library grid's last tile: a dashed square the size of a cover.
+  const addTile = (
+    <button
+      type="button"
+      onClick={handleAddLocalBook}
+      aria-label={t('localBooks.add')}
+      title={t('localBooks.add')}
+      className={`aspect-square w-full rounded-[6px] border border-dashed border-white/10 bg-transparent text-white/25 flex items-center justify-center transition-colors duration-200 hover:border-white/25 hover:text-white/60 hover:bg-white/[0.02] ${focusRing}`}
+    >
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </svg>
+    </button>
+  );
+
   let body: React.ReactNode;
   if (isLoading) {
     body = (
@@ -175,11 +201,14 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
     );
   } else if (books.length === 0) {
     body = (
-      <div className="max-w-sm mx-auto py-20 text-center">
-        <h2 className="text-[15px] font-semibold text-white mb-1">{t('dashboard.noBooks', 'No books found')}</h2>
-        <p className="text-[13px] text-[#9CA3AF]">
-          {t('dashboard.emptyLibrary', 'Your library appears to be empty.')}
-        </p>
+      <div className="max-w-[1000px] mx-auto">
+        <div className="max-w-sm mx-auto py-20 text-center">
+          <h2 className="text-[15px] font-semibold text-white mb-1">{t('dashboard.noBooks', 'No books found')}</h2>
+          <p className="text-[13px] text-[#9CA3AF]">
+            {t('dashboard.emptyLibrary', 'Your library appears to be empty.')}
+          </p>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-7">{addTile}</div>
       </div>
     );
   } else if (filteredBooks.length === 0) {
@@ -211,8 +240,10 @@ export function Dashboard({ onLogout, onOpenSettings }: DashboardProps) {
               book={book}
               onBookSelect={handleBookSelect}
               onQuickPlay={handleQuickPlay}
+              onRemoved={loadBookshelf}
             />
           ))}
+        {addTile}
       </div>
     );
     // With starred books still to finish: "Up next" above, then a "Library" title.
