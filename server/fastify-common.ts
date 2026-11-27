@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import fastifyJWT from "@fastify/jwt";
 import fastifyCors from "@fastify/cors";
 import fs from "fs";
+import { pipeline } from "stream/promises";
 import path from "path";
 import { pathToFileURL } from "url";
 import axios from "axios";
@@ -178,6 +179,10 @@ function findDownloadedFile(bookId: string): string | null {
   }
   return null;
 }
+
+/** A download that receives no data for this long is aborted as stalled. */
+const DOWNLOAD_STALL_MS = 60_000;
+const DOWNLOAD_STALLED = "download-stalled";
 
 const activeDownloads = new Map<
   string,
@@ -871,6 +876,13 @@ fastify.post<{
         percentage: 0,
       });
 
+      // A dropped connection (e.g. a VPN switched off) can leave the stream
+      // silent forever, with no end and no error: abort once no data arrives.
+      const stallTimer = setTimeout(
+        () => controller.abort(DOWNLOAD_STALLED),
+        DOWNLOAD_STALL_MS,
+      );
+
       try {
         // Download the file
         const response = await axios({
@@ -887,6 +899,7 @@ fastify.post<{
         let downloadedLength = 0;
 
         response.data.on("data", (chunk: Buffer) => {
+          stallTimer.refresh();
           downloadedLength += chunk.length;
           const percentage =
             totalLength > 0
@@ -900,15 +913,9 @@ fastify.post<{
           }
         });
 
-        response.data.pipe(writer);
-
-        await new Promise<void>((resolve, reject) => {
-          writer.on("finish", () => resolve());
-          writer.on("error", reject);
-          controller.signal.addEventListener("abort", () => {
-            reject(new Error("Download cancelled"));
-          });
-        });
+        // pipeline (unlike pipe) also rejects when the network side errors.
+        await pipeline(response.data, writer, { signal: controller.signal });
+        clearTimeout(stallTimer);
 
         fs.renameSync(partFilePath, localFilePath);
 
@@ -922,14 +929,19 @@ fastify.post<{
         });
       } catch (error: any) {
         // Clean up on error
+        clearTimeout(stallTimer);
         activeDownloads.delete(bookId);
+        writer.destroy();
 
         // Remove partial file
         if (fs.existsSync(partFilePath)) {
           fs.unlinkSync(partFilePath);
         }
 
-        if (error.message === "Download cancelled") {
+        if (controller.signal.reason === DOWNLOAD_STALLED) {
+          throw new Error("Download stalled: the connection stopped sending data");
+        }
+        if (controller.signal.aborted) {
           reply.code(499).send({ error: "Download cancelled" });
         } else {
           throw error;
